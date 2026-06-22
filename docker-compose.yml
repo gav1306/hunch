@@ -1,0 +1,26 @@
+# Local Postgres for Hunch.
+# Uses the TimescaleDB-HA image, which bundles TimescaleDB + pgvector —
+# needed later for check-in time-series (Phase 4) and past-experiment recall (Phase 6).
+# Start:  docker compose up -d
+# Stop:   docker compose down   (add -v to wipe data)
+services:
+  db:
+    image: timescale/timescaledb-ha:pg17.6-ts2.22.1
+    container_name: hunch-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: hunch
+    ports:
+      - "5432:5432"
+    volumes:
+      - hunch-db-data:/home/postgres/pgdata/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hunch"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  hunch-db-data:

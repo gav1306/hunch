@@ -9,6 +9,9 @@ out/
 # vendored agent skills (regenerable from skills-lock.json)
 .agents/
 
+# generated prisma client (regenerated via `prisma generate`)
+/src/generated/
+
 # secrets / env
 .env
 .env.*

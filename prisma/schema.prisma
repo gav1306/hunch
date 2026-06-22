@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Hunch {
+  id        String   @id @default(cuid())
+  userId    String
+  rawText   String
+  status    String   @default("draft") // draft | sharpened | running | concluded
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  hypothesis Hypothesis?
+  protocol   Protocol?
+  checkIns   CheckIn[]
+
+  @@index([userId])
+}
+
+model Hypothesis {
+  id            String   @id @default(cuid())
+  hunchId       String   @unique
+  statement     String // falsifiable hypothesis
+  outcomeMetric String // measurable outcome
+  outcomeType   String // "binary" | "continuous"
+  confounders   String[] // named confounders
+  createdAt     DateTime @default(now())
+
+  hunch Hunch @relation(fields: [hunchId], references: [id], onDelete: Cascade)
+}
+
+model Protocol {
+  id          String   @id @default(cuid())
+  hunchId     String   @unique
+  design      Json // ABA / randomized n-of-1 structure: phases, washout, lengths
+  powerInfo   Json? // sample-size / power analysis output
+  safetyState String   @default("pending") // pending | approved | refused
+  createdAt   DateTime @default(now())
+
+  hunch Hunch @relation(fields: [hunchId], references: [id], onDelete: Cascade)
+}
+
+model CheckIn {
+  id       String   @id @default(cuid())
+  hunchId  String
+  phase    String // which protocol phase (A / B / ...)
+  value    Float // numeric reading (1/0 for binary, measure for continuous)
+  loggedAt DateTime @default(now())
+
+  hunch Hunch @relation(fields: [hunchId], references: [id], onDelete: Cascade)
+
+  @@index([hunchId, loggedAt])
+}
+
+model CausalEdge {
+  id            String   @id @default(cuid())
+  userId        String
+  cause         String
+  effect        String
+  direction     String // "increases" | "decreases" | "none"
+  effectSize    Float?
+  confidence    Float? // calibrated posterior confidence
+  sourceHunchId String?
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+}
