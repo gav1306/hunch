@@ -32,3 +32,13 @@ coverage/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+.superpowers/
+
+# next.js scaffold additions
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/releases
+*.pem
+.vercel
+next-env.d.ts
