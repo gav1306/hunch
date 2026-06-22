@@ -10,7 +10,7 @@ These rules are binding for the whole MVP build. They override convenience. When
 ## 1. Dependency safety
 
 1. **Pin exact versions.** No `^` or `~` ranges in `package.json`. Lockfile is committed and authoritative.
-2. **No fresh releases.** Do not install any npm package whose latest version was published within the last ~30 days. Recency = untested in the wild + supply-chain risk. Pick the most recent *mature* stable version instead.
+2. **No fresh releases (direct deps).** For every package **we add to `package.json`**, do not install a version published within the last ~30 days. Recency = untested in the wild + supply-chain risk. Pick the most recent *mature* stable version instead. Scope is **direct dependencies**; transitive deps resolve normally via the lockfile (still committed + `npm audit`-clean).
 3. **No untested / low-trust packages.** Prefer packages that are widely used (high weekly downloads), actively maintained, and already part of our skill ecosystem (Next.js, Prisma, Mastra, shadcn, Better Auth, TanStack Query, visx, Framer Motion).
 4. **Justify every new dependency.** Before adding one: state why, confirm it is not already covered by an existing dep, and run `npm audit` — must be clean (no high/critical).
 5. **No transitive surprises.** Review the lockfile diff when a dependency changes. Unexpected new transitive packages get scrutinized, not waved through.
