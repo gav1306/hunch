@@ -21,7 +21,11 @@ jobs:
         run: npm ci
 
       - name: Generate Prisma client
+        # prisma.config.ts resolves DATABASE_URL eagerly; generate never
+        # connects, so a placeholder satisfies the config loader.
         run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://placeholder
 
       - name: Typecheck
         run: npm run typecheck
