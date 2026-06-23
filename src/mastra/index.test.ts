@@ -1,8 +1,7 @@
 import { expect, test } from "vitest";
 import { mastra } from "@/mastra";
 
-test("mastra instance constructs", () => {
+test("mastra instance constructs with the hypothesis coach registered", () => {
   expect(mastra).toBeDefined();
-  expect(typeof mastra.listAgents).toBe("function");
-  expect(mastra.listAgents()).toEqual({});
+  expect(mastra.getAgentById("hypothesis-coach")).toBeDefined();
 });

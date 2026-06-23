@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
@@ -10,5 +10,8 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
+    // Evals hit the live model — run them via `npm run test:eval`, not the
+    // deterministic CI gate.
+    exclude: [...configDefaults.exclude, "src/**/*.eval.test.ts"],
   },
 });
