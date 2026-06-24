@@ -9,6 +9,9 @@ out/
 # vendored agent skills (regenerable from skills-lock.json)
 .agents/
 
+# generated prisma client (regenerated via `prisma generate`)
+/src/generated/
+
 # secrets / env
 .env
 .env.*
@@ -32,3 +35,13 @@ coverage/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+.superpowers/
+
+# next.js scaffold additions
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/releases
+*.pem
+.vercel
+next-env.d.ts
