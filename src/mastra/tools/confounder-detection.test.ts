@@ -27,4 +27,9 @@ describe("detectConfounders", () => {
   it("preserves order and count", () => {
     expect(detectConfounders(["stress", "travel"]).map((c) => c.name)).toEqual(["stress", "travel"]);
   });
+
+  it("sets expectedDirection to unknown for every confounder", () => {
+    const out = detectConfounders(["stress", "afternoon coffee"]);
+    expect(out.every((c) => c.expectedDirection === "unknown")).toBe(true);
+  });
 });
