@@ -40,6 +40,7 @@ model Protocol {
   hunchId     String   @unique
   design      Json // ABA / randomized n-of-1 structure: phases, washout, lengths
   powerInfo   Json? // sample-size / power analysis output
+  confounders Json? // structured Confounder[] (surface-and-warn; adjust-ready for Phase 4)
   safetyState String   @default("pending") // pending | approved | refused
   createdAt   DateTime @default(now())
 
