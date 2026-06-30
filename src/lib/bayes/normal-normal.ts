@@ -1,4 +1,3 @@
-import type { Belief } from "@/lib/schemas/belief";
 import type { BayesianModel } from "@/lib/bayes/beta-binomial";
 import { normalCdf } from "@/lib/bayes/math";
 
