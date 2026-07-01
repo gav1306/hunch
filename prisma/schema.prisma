@@ -19,6 +19,7 @@ model Hunch {
   hypothesis Hypothesis?
   protocol   Protocol?
   checkIns   CheckIn[]
+  verdict    Verdict?
 
   @@index([userId])
 }
@@ -60,6 +61,23 @@ model CheckIn {
 
   @@unique([hunchId, loggedOn])
   @@index([hunchId, loggedAt])
+}
+
+model Verdict {
+  id        String   @id @default(cuid())
+  hunchId   String   @unique
+  category  String // helped | hurt | inconclusive_no_effect | inconclusive_insufficient
+  narrative String // the Analyst's plain-English verdict
+  pEffect   Float
+  effect    Float
+  ciLow     Float
+  ciHigh    Float
+  nA        Int
+  nB        Int
+  model     String // beta-binomial | normal-normal
+  createdAt DateTime @default(now())
+
+  hunch Hunch @relation(fields: [hunchId], references: [id], onDelete: Cascade)
 }
 
 model CausalEdge {
