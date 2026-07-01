@@ -41,8 +41,9 @@ model Protocol {
   design      Json // ABA / randomized n-of-1 structure: phases, washout, lengths
   powerInfo   Json? // sample-size / power analysis output
   confounders Json? // structured Confounder[] (surface-and-warn; adjust-ready for Phase 4)
-  safetyState String   @default("pending") // pending | approved | refused
-  createdAt   DateTime @default(now())
+  safetyState String    @default("pending") // pending | approved | refused
+  startedAt   DateTime? // set when approved + hunch flips to running; anchors the check-in schedule
+  createdAt   DateTime  @default(now())
 
   hunch Hunch @relation(fields: [hunchId], references: [id], onDelete: Cascade)
 }
@@ -50,12 +51,14 @@ model Protocol {
 model CheckIn {
   id       String   @id @default(cuid())
   hunchId  String
-  phase    String // which protocol phase (A / B / ...)
+  phase    String // which protocol phase label (A / B) at time of logging
   value    Float // numeric reading (1/0 for binary, measure for continuous)
+  loggedOn DateTime @db.Date // UTC calendar date; one check-in per day
   loggedAt DateTime @default(now())
 
   hunch Hunch @relation(fields: [hunchId], references: [id], onDelete: Cascade)
 
+  @@unique([hunchId, loggedOn])
   @@index([hunchId, loggedAt])
 }
 

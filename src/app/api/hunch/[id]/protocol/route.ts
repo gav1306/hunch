@@ -51,12 +51,14 @@ export async function POST(
       powerInfo: result.powerInfo,
       confounders: result.confounders,
       safetyState,
+      startedAt: safetyState === "approved" ? new Date() : null,
     },
     update: {
       design: result.design,
       powerInfo: result.powerInfo,
       confounders: result.confounders,
       safetyState,
+      startedAt: safetyState === "approved" ? new Date() : null,
     },
   });
 
