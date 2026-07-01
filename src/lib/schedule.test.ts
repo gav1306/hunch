@@ -60,3 +60,41 @@ describe("currentPhase", () => {
     expect(s.phase).toBe(null);
   });
 });
+
+// washoutDays: 0 — phases abut with no rest day between them.
+// Layout: 0,1,2 = A | 3,4,5 = B | 6,7,8 = A | 9+ = done
+const noWashoutDesign: ProtocolDesign = {
+  phases: [
+    { label: "A", kind: "baseline", days: 3 },
+    { label: "B", kind: "intervention", days: 3 },
+    { label: "A", kind: "baseline", days: 3 },
+  ],
+  washoutDays: 0,
+  controls: [],
+  instructions: "x",
+};
+
+describe("currentPhase with no washout", () => {
+  it("is the last day of A on day 2", () => {
+    const s = currentPhase(start, noWashoutDesign, day(2));
+    expect(s.phase).toBe("A");
+    expect(s.dayInPhase).toBe(2);
+    expect(s.washout).toBe(false);
+  });
+  it("moves straight into B on day 3 with no rest day", () => {
+    const s = currentPhase(start, noWashoutDesign, day(3));
+    expect(s.phase).toBe("B");
+    expect(s.dayInPhase).toBe(0);
+    expect(s.washout).toBe(false);
+  });
+  it("returns to A on day 6", () => {
+    const s = currentPhase(start, noWashoutDesign, day(6));
+    expect(s.phase).toBe("A");
+    expect(s.dayInPhase).toBe(0);
+  });
+  it("is done on day 9", () => {
+    const s = currentPhase(start, noWashoutDesign, day(9));
+    expect(s.done).toBe(true);
+    expect(s.phase).toBe(null);
+  });
+});

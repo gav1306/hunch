@@ -9,24 +9,32 @@ function mean(values: number[]): number {
   return values.reduce((s, v) => s + v, 0) / values.length;
 }
 
+/** Sum of squared deviations of `values` from their own mean. */
+function sumSquaredDev(values: number[], m: number): number {
+  return values.reduce((s, v) => s + (v - m) ** 2, 0);
+}
+
 /**
  * Normal-Normal model for continuous outcomes. With a vague prior the posterior
- * arm mean is the sample mean; σ is estimated empirically from the pooled sample
- * (MVP simplification — see the design spec). The effect is the difference of arm
- * means; its standard error gives a closed-form P(effect > 0) and 95% interval.
+ * arm mean is the sample mean; σ is the within-group pooled standard deviation
+ * (deviations measured from each arm's own mean, not the grand mean — otherwise a
+ * real between-arm effect is counted as noise and the interval balloons). The
+ * effect is the difference of arm means; its standard error gives a closed-form
+ * P(effect > 0) and 95% interval.
  */
 export const normalNormal: BayesianModel = {
   update(a, b) {
     const warming = a.length < 3 || b.length < 3;
-    const pooled = [...a, ...b];
-    const pooledMean = mean(pooled);
+    const meanA = mean(a);
+    const meanB = mean(b);
+    // Within-group pooled variance: total squared deviation from each arm's own
+    // mean, over the residual degrees of freedom (nA + nB - 2).
+    const dof = a.length + b.length - 2;
     const variance =
-      pooled.length > 1
-        ? pooled.reduce((s, v) => s + (v - pooledMean) ** 2, 0) / (pooled.length - 1)
-        : 0;
+      dof > 0 ? (sumSquaredDev(a, meanA) + sumSquaredDev(b, meanB)) / dof : 0;
     const sd = Math.max(Math.sqrt(variance), MIN_SD);
 
-    const effect = mean(b) - mean(a);
+    const effect = meanB - meanA;
     const nA = a.length || 1;
     const nB = b.length || 1;
     const se = sd * Math.sqrt(1 / nA + 1 / nB);
