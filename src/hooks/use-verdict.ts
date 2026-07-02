@@ -7,7 +7,9 @@ export type VerdictResponse = { verdict: Verdict };
 
 async function fetchVerdict(hunchId: string): Promise<VerdictResponse> {
   const res = await fetch(`/api/hunch/${hunchId}/verdict`);
-  const body = await res.json();
+  // An uncaught server throw can return a non-JSON body; don't let that parse
+  // error mask the real HTTP status.
+  const body = await res.json().catch(() => null);
   if (!res.ok) {
     throw new Error(body?.error ?? "Could not load your verdict.");
   }

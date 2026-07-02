@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/** The five outcomes of a concluded trial; `null` (still running) is not a stored category. */
+/** The four outcomes of a concluded trial; `null` (still running) is not a stored category. */
 export const verdictCategorySchema = z.enum([
   "helped",
   "hurt",

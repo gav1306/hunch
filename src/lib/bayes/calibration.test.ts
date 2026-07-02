@@ -35,6 +35,20 @@ function continuousTrial(rng: () => number, shift: number) {
   );
 }
 
+/**
+ * Engine calibration gate (deterministic, normal suite, no LLM / no API key).
+ *
+ * This is NOT a full reliability-diagram test — it does not prove that a stated
+ * 70% is right exactly 70% of the time. It is a regression gate on the three
+ * properties a calibrated `pEffect` must have, each of which a realistic engine
+ * bug (sign flip, variance/SE scale error, systematic bias, or a degenerate
+ * overconfident predictor) would break:
+ *   1. discrimination — near-certain and directionally right on strong effects;
+ *   2. unbiasedness   — mean ≈ 0.5 on true-null trials;
+ *   3. graded confidence — genuinely intermediate probabilities on moderate
+ *      effects whose mean tracks the empirical hit-rate (a 0/1 predictor fails).
+ * All randomness is a local seeded PRNG; the production engine stays RNG-free.
+ */
 describe("engine calibration", () => {
   it("is confident and correct on trials with a real effect (low Brier)", () => {
     const rng = mulberry32(42);
@@ -43,7 +57,7 @@ describe("engine calibration", () => {
     let brier = 0;
     let correct = 0;
     for (let i = 0; i < shifts.length; i++) {
-      const shift = shifts[i % shifts.length] + gauss(rng) * 0.1;
+      const shift = shifts[i] + gauss(rng) * 0.1;
       const { pEffect } = continuousTrial(rng, shift);
       const outcome = shift > 0 ? 1 : 0;
       brier += (pEffect - outcome) ** 2;
@@ -62,5 +76,26 @@ describe("engine calibration", () => {
     // No true effect -> the engine should not be confident either way.
     expect(mean).toBeGreaterThan(0.35);
     expect(mean).toBeLessThan(0.65);
+  });
+
+  it("emits graded, non-degenerate confidence on moderate effects", () => {
+    const rng = mulberry32(99);
+    const ps: number[] = [];
+    let correct = 0;
+    for (let i = 0; i < 40; i++) {
+      // Moderate positive effect (jittered) — neither null nor overwhelming.
+      const shift = 0.8 + gauss(rng) * 0.1;
+      const { pEffect } = continuousTrial(rng, shift);
+      ps.push(pEffect);
+      if (pEffect > 0.5) correct++;
+    }
+    const meanP = ps.reduce((s, p) => s + p, 0) / ps.length;
+    const hitRate = correct / ps.length;
+    // A degenerate overconfident engine (pEffect = effect > 0 ? 1 : 0) would emit
+    // only 0/1 and fail this: a calibrated posterior spreads across the middle.
+    const intermediate = ps.filter((p) => p > 0.55 && p < 0.98).length;
+    expect(intermediate).toBeGreaterThan(10);
+    // Mean predicted confidence should track how often it was actually right.
+    expect(Math.abs(meanP - hitRate)).toBeLessThan(0.15);
   });
 });

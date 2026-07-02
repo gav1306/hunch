@@ -76,30 +76,54 @@ export async function GET(
     return NextResponse.json({ error: "This trial is still running." }, { status: 409 });
   }
 
-  const verdict = await runAnalysis({
-    category,
-    belief,
-    statement: hunch.hypothesis.statement,
-    outcomeMetric: hunch.hypothesis.outcomeMetric,
-  });
+  let verdict;
+  try {
+    verdict = await runAnalysis({
+      category,
+      belief,
+      statement: hunch.hypothesis.statement,
+      outcomeMetric: hunch.hypothesis.outcomeMetric,
+    });
+  } catch {
+    // The Analyst call (or its structured-output parse) failed. Nothing is
+    // persisted, so the next read retries cleanly.
+    return NextResponse.json(
+      { error: "Could not generate your verdict. Please try again." },
+      { status: 502 },
+    );
+  }
 
-  await db.$transaction([
-    db.verdict.create({
-      data: {
-        hunchId: hunch.id,
-        category: verdict.category,
-        narrative: verdict.narrative,
-        pEffect: verdict.pEffect,
-        effect: verdict.effect,
-        ciLow: verdict.ci[0],
-        ciHigh: verdict.ci[1],
-        nA: verdict.nA,
-        nB: verdict.nB,
-        model: verdict.model,
-      },
-    }),
-    db.hunch.update({ where: { id: hunch.id }, data: { status: "concluded" } }),
-  ]);
+  try {
+    await db.$transaction([
+      db.verdict.create({
+        data: {
+          hunchId: hunch.id,
+          category: verdict.category,
+          narrative: verdict.narrative,
+          pEffect: verdict.pEffect,
+          effect: verdict.effect,
+          ciLow: verdict.ci[0],
+          ciHigh: verdict.ci[1],
+          nA: verdict.nA,
+          nB: verdict.nB,
+          model: verdict.model,
+        },
+      }),
+      db.hunch.update({ where: { id: hunch.id }, data: { status: "concluded" } }),
+    ]);
+  } catch {
+    // A concurrent first-read won the race and already wrote the verdict (the
+    // @@unique on hunchId rejects the second insert). Serve the stored one so
+    // both requests see the same frozen verdict instead of a 500.
+    const existing = await db.verdict.findUnique({ where: { hunchId: hunch.id } });
+    if (existing) {
+      return NextResponse.json({ verdict: toDto(existing) });
+    }
+    return NextResponse.json(
+      { error: "Could not save your verdict. Please try again." },
+      { status: 500 },
+    );
+  }
 
   return NextResponse.json({ verdict });
 }
