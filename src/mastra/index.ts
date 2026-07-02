@@ -2,6 +2,7 @@ import { Mastra } from "@mastra/core";
 import { hypothesisCoach } from "@/mastra/agents/hypothesis-coach";
 import { protocolDesigner } from "@/mastra/agents/protocol-designer";
 import { safetyReviewer } from "@/mastra/agents/safety-reviewer";
+import { analyst } from "@/mastra/agents/analyst";
 
 /**
  * Root Mastra instance for Hunch.
@@ -11,5 +12,5 @@ import { safetyReviewer } from "@/mastra/agents/safety-reviewer";
  * vertical slices land.
  */
 export const mastra = new Mastra({
-  agents: { hypothesisCoach, protocolDesigner, safetyReviewer },
+  agents: { hypothesisCoach, protocolDesigner, safetyReviewer, analyst },
 });
