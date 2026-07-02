@@ -3,6 +3,7 @@
 import { use } from "react";
 import { BeliefMeter } from "@/components/belief-meter";
 import { CheckInTap } from "@/components/checkin-tap";
+import { VerdictView } from "@/components/verdict";
 import { useBelief } from "@/hooks/use-belief";
 
 /**
@@ -22,12 +23,19 @@ export default function HunchDashboard({ params }: { params: Promise<{ id: strin
 
   const { belief, schedule } = query.data;
   const outcomeType = belief.model === "beta-binomial" ? "binary" : "continuous";
+  const concluded = schedule?.done ?? false;
 
   return (
     <main className="mx-auto w-full max-w-2xl space-y-6 p-6">
       <h1 className="text-2xl font-bold">Your experiment</h1>
-      <BeliefMeter belief={belief} />
-      <CheckInTap hunchId={id} schedule={schedule} outcomeType={outcomeType} />
+      {concluded ? (
+        <VerdictView hunchId={id} />
+      ) : (
+        <>
+          <BeliefMeter belief={belief} />
+          <CheckInTap hunchId={id} schedule={schedule} outcomeType={outcomeType} />
+        </>
+      )}
     </main>
   );
 }
