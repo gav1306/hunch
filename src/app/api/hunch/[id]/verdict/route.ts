@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { computeBelief } from "@/lib/bayes";
 import { currentPhase } from "@/lib/schedule";
 import { classifyVerdict } from "@/lib/verdict";
+import { writeEdgeData } from "@/lib/memory/causal-graph";
 import { runAnalysis } from "@/mastra/workflows/analysis";
 import { verdictSchema, type Verdict } from "@/lib/schemas/verdict";
 import { protocolDesignSchema } from "@/lib/schemas/protocol";
@@ -93,6 +94,16 @@ export async function GET(
     );
   }
 
+  const edgeInput = writeEdgeData({
+    category: verdict.category,
+    effect: verdict.effect,
+    pEffect: verdict.pEffect,
+    statement: hunch.hypothesis.statement,
+    outcomeMetric: hunch.hypothesis.outcomeMetric,
+    hunchId: hunch.id,
+    userId: session.user.id,
+  });
+
   try {
     await db.$transaction([
       db.verdict.create({
@@ -110,6 +121,7 @@ export async function GET(
         },
       }),
       db.hunch.update({ where: { id: hunch.id }, data: { status: "concluded" } }),
+      ...(edgeInput ? [db.causalEdge.create({ data: edgeInput })] : []),
     ]);
   } catch {
     // A concurrent first-read won the race and already wrote the verdict (the
