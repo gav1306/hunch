@@ -2,13 +2,15 @@
 
 import { useMutation } from "@tanstack/react-query";
 import type { SharpenedHypothesis } from "@/lib/schemas/hypothesis";
+import type { Prior } from "@/lib/schemas/prior";
 
-/** A persisted hunch with its sharpened hypothesis, as returned by the API. */
+/** A persisted hunch with its sharpened hypothesis + any recalled priors. */
 export type HunchWithHypothesis = {
   id: string;
   rawText: string;
   status: string;
   hypothesis: SharpenedHypothesis & { id: string };
+  priors: Prior[];
 };
 
 async function postHunch(rawText: string): Promise<HunchWithHypothesis> {
@@ -22,7 +24,7 @@ async function postHunch(rawText: string): Promise<HunchWithHypothesis> {
   if (!res.ok) {
     throw new Error(body?.error ?? "Something went wrong sharpening your hunch.");
   }
-  return body.hunch as HunchWithHypothesis;
+  return { ...body.hunch, priors: body.priors ?? [] } as HunchWithHypothesis;
 }
 
 /** Drop a free-text hunch and get back its sharpened hypothesis. */

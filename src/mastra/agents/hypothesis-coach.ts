@@ -3,6 +3,7 @@ import {
   sharpenedHypothesisSchema,
   type SharpenedHypothesis,
 } from "@/lib/schemas/hypothesis";
+import type { Prior } from "@/lib/schemas/prior";
 
 /**
  * Hypothesis Coach (RESEARCH §3). Turns a vague, free-text hunch into a single
@@ -38,14 +39,24 @@ Keep it grounded in what one person can run at home. Do not give medical advice.
 });
 
 /**
- * Run the coach on a raw hunch and return a validated SharpenedHypothesis.
- * Throws if the model output does not satisfy the schema.
+ * Run the coach on a raw hunch and return a validated SharpenedHypothesis. When
+ * the user has related past findings (Phase 6 recall), they are passed as
+ * context so the coach can account for what is already known — it still outputs
+ * only the sharpened hypothesis.
  */
 export async function sharpenHunch(
   rawText: string,
+  priors: Prior[] = [],
 ): Promise<SharpenedHypothesis> {
+  const priorsBlock =
+    priors.length > 0
+      ? `\n\nThe user has already learned these related findings; take them into account, do not contradict them:\n${priors
+          .map((p) => `- ${p.cause} (${p.direction}, ${Math.round(p.confidence * 100)}% confident)`)
+          .join("\n")}`
+      : "";
+
   const response = await hypothesisCoach.generate(
-    `Sharpen this hunch into a testable hypothesis:\n\n"${rawText}"`,
+    `Sharpen this hunch into a testable hypothesis:\n\n"${rawText}"${priorsBlock}`,
     {
       structuredOutput: { schema: sharpenedHypothesisSchema },
       // The output is a small object; cap tokens to stay within budget and

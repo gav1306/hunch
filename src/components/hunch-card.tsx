@@ -48,6 +48,24 @@ export function HunchCard({ hunch }: { hunch: HunchWithHypothesis }) {
           </div>
         )}
       </dl>
+
+      {hunch.priors.length > 0 && (
+        <div className="mt-5 border-t pt-4">
+          <p className="text-sm font-medium text-muted-foreground">
+            You already learned
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            {hunch.priors.map((p) => (
+              <li key={p.sourceHunchId} className="text-sm">
+                <span className="italic">{p.cause}</span>{" "}
+                <span className="text-muted-foreground">
+                  ({Math.round(p.confidence * 100)}% confident)
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </article>
   );
 }

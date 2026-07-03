@@ -7,4 +7,5 @@ test("mastra instance constructs with the registered agents", () => {
   expect(mastra.getAgentById("protocol-designer")).toBeDefined();
   expect(mastra.getAgentById("safety-reviewer")).toBeDefined();
   expect(mastra.getAgentById("analyst")).toBeDefined();
+  expect(mastra.getAgentById("memory")).toBeDefined();
 });
