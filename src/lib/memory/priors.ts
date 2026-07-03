@@ -1,10 +1,10 @@
 import type { CausalEdge } from "@/generated/prisma/client";
-import type { Prior } from "@/lib/schemas/prior";
+import { priorSchema, type Prior } from "@/lib/schemas/prior";
 
 /** Words too common to signal topical overlap. */
 const STOP_WORDS = new Set([
   "the", "a", "an", "and", "or", "of", "to", "in", "on", "for", "my", "me",
-  "i", "is", "it", "does", "do", "did", "my", "your", "with", "at", "by",
+  "i", "is", "it", "does", "do", "did", "your", "with", "at", "by",
   "this", "that", "these", "those", "was", "were", "are", "am", "be", "been",
   "have", "has", "had", "if", "as", "so", "than", "then", "but", "not", "no",
 ]);
@@ -47,7 +47,10 @@ export function selectCandidatePriors(
 /**
  * Map the agent-selected candidates to Prior DTOs. Only candidates whose
  * sourceHunchId the agent actually returned survive, so a hallucinated id (one
- * never offered as a candidate) is dropped rather than trusted.
+ * never offered as a candidate) is dropped rather than trusted. Each mapped row
+ * is validated against `priorSchema` at this boundary: a legacy/corrupt edge
+ * (e.g. a non-canonical `direction`) is dropped rather than flowing untyped to
+ * the client.
  */
 export function toPriors(
   candidates: CausalEdge[],
@@ -59,9 +62,12 @@ export function toPriors(
     .map((e) => ({
       cause: e.cause,
       effect: e.effect,
-      direction: e.direction as Prior["direction"],
+      direction: e.direction,
       effectSize: e.effectSize ?? 0,
       confidence: e.confidence ?? 0,
-      sourceHunchId: e.sourceHunchId as string,
-    }));
+      sourceHunchId: e.sourceHunchId,
+    }))
+    .map((p) => priorSchema.safeParse(p))
+    .filter((r) => r.success)
+    .map((r) => r.data);
 }
