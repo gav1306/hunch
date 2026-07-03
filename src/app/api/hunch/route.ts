@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { recallPriors } from "@/lib/memory/recall";
 import { hunchInputSchema } from "@/lib/schemas/hypothesis";
 import { sharpenHunch } from "@/mastra/agents/hypothesis-coach";
 
@@ -22,7 +23,8 @@ export async function POST(request: Request) {
     });
   }
 
-  const sharpened = await sharpenHunch(parsed.data.rawText);
+  const priors = await recallPriors(session.user.id, parsed.data.rawText);
+  const sharpened = await sharpenHunch(parsed.data.rawText, priors);
 
   const hunch = await db.hunch.create({
     data: {
@@ -41,5 +43,5 @@ export async function POST(request: Request) {
     include: { hypothesis: true },
   });
 
-  return NextResponse.json({ hunch }, { status: 201 });
+  return NextResponse.json({ hunch, priors }, { status: 201 });
 }
