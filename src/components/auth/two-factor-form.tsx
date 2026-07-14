@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { twoFactor } from "@/lib/auth-client";
 
 const labelStyle: React.CSSProperties = {
@@ -32,6 +32,26 @@ export function TwoFactorForm() {
   const [trust, setTrust] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+  const sentOnce = useRef(false);
+
+  // Email the code as soon as the user lands here.
+  useEffect(() => {
+    if (sentOnce.current) return;
+    sentOnce.current = true;
+    twoFactor.sendOtp().then((res) => {
+      if (res.error) setError(res.error.message ?? "Couldn't send your code.");
+      else setSent(true);
+    });
+  }, []);
+
+  async function resend() {
+    setError(null);
+    setSent(false);
+    const res = await twoFactor.sendOtp();
+    if (res.error) setError(res.error.message ?? "Couldn't resend your code.");
+    else setSent(true);
+  }
 
   const valid = backup ? code.trim().length > 0 : code.trim().length === 6;
 
@@ -43,7 +63,7 @@ export function TwoFactorForm() {
 
     const res = backup
       ? await twoFactor.verifyBackupCode({ code: code.trim() })
-      : await twoFactor.verifyTotp({ code: code.trim(), trustDevice: trust });
+      : await twoFactor.verifyOtp({ code: code.trim(), trustDevice: trust });
 
     if (res.error) {
       setLoading(false);
@@ -83,12 +103,14 @@ export function TwoFactorForm() {
       <p style={{ margin: "0 0 28px", fontSize: 13, lineHeight: 1.6, color: "var(--muted)" }}>
         {backup
           ? "Enter one of your saved backup codes."
-          : "Enter the 6-digit code from your authenticator app."}
+          : sent
+            ? "We emailed you a 6-digit code. Enter it below."
+            : "Sending a 6-digit code to your email…"}
       </p>
 
       <form onSubmit={onSubmit} noValidate>
         <label htmlFor="code" style={labelStyle}>
-          {backup ? "Backup code" : "Authentication code"}
+          {backup ? "Backup code" : "Email code"}
         </label>
         <input
           id="code"
@@ -116,11 +138,7 @@ export function TwoFactorForm() {
               cursor: "pointer",
             }}
           >
-            <input
-              type="checkbox"
-              checked={trust}
-              onChange={(e) => setTrust(e.target.checked)}
-            />
+            <input type="checkbox" checked={trust} onChange={(e) => setTrust(e.target.checked)} />
             Trust this device for 30 days
           </label>
         )}
@@ -156,27 +174,35 @@ export function TwoFactorForm() {
         </button>
       </form>
 
-      <button
-        type="button"
-        onClick={() => {
-          setBackup((v) => !v);
-          setCode("");
-          setError(null);
-        }}
-        className="auth-link"
-        style={{
-          marginTop: 24,
-          background: "transparent",
-          border: "none",
-          padding: 0,
-          cursor: "pointer",
-          fontFamily: "'Space Mono',monospace",
-          fontSize: 12.5,
-          color: "var(--muted)",
-        }}
-      >
-        {backup ? "← Use authenticator code" : "Use a backup code instead"}
-      </button>
+      <div style={{ marginTop: 24, display: "flex", gap: 18, flexWrap: "wrap" }}>
+        {!backup && (
+          <button type="button" onClick={resend} className="auth-link" style={linkBtn}>
+            Resend code
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            setBackup((v) => !v);
+            setCode("");
+            setError(null);
+          }}
+          className="auth-link"
+          style={linkBtn}
+        >
+          {backup ? "← Use email code" : "Use a backup code instead"}
+        </button>
+      </div>
     </div>
   );
 }
+
+const linkBtn: React.CSSProperties = {
+  background: "transparent",
+  border: "none",
+  padding: 0,
+  cursor: "pointer",
+  fontFamily: "'Space Mono',monospace",
+  fontSize: 12.5,
+  color: "var(--muted)",
+};

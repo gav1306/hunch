@@ -78,6 +78,23 @@ function AccountMenu({ user }: { user: SessionUser }) {
               {user.email}
             </div>
           </div>
+          <Link
+            href="/security"
+            className="app-menu-item"
+            onClick={() => setOpen(false)}
+            style={{
+              display: "block",
+              padding: "12px 16px",
+              borderBottom: "1px solid var(--rule)",
+              color: "var(--ink)",
+              textDecoration: "none",
+              fontFamily: "'Space Mono',monospace",
+              fontSize: 12,
+              letterSpacing: "0.06em",
+            }}
+          >
+            Security
+          </Link>
           <button
             type="button"
             onClick={handleSignOut}
