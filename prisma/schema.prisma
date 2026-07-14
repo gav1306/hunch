@@ -37,8 +37,8 @@ model Hypothesis {
 }
 
 model Protocol {
-  id          String   @id @default(cuid())
-  hunchId     String   @unique
+  id          String    @id @default(cuid())
+  hunchId     String    @unique
   design      Json // ABA / randomized n-of-1 structure: phases, washout, lengths
   powerInfo   Json? // sample-size / power analysis output
   confounders Json? // structured Confounder[] (surface-and-warn; adjust-ready for Phase 4)
@@ -105,6 +105,9 @@ model User {
   sessions      Session[]
   accounts      Account[]
 
+  twoFactorEnabled Boolean?    @default(false)
+  twofactors       TwoFactor[]
+
   @@unique([email])
   @@map("user")
 }
@@ -155,4 +158,17 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+model TwoFactor {
+  id          String   @id
+  secret      String
+  backupCodes String
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verified    Boolean? @default(true)
+
+  @@index([secret])
+  @@index([userId])
+  @@map("twoFactor")
 }
