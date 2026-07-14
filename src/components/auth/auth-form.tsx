@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { signIn, signUp } from "@/lib/auth-client";
 
-const REDIRECT = "/hunch/new";
+const REDIRECT = "/home";
 
 type Mode = "signin" | "signup";
 
