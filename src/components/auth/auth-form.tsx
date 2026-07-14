@@ -59,6 +59,14 @@ export function AuthForm({ mode }: { mode: Mode }) {
       setError(res.error.message ?? "Something went wrong. Try again.");
       return;
     }
+    // If the account has 2FA on, sign-in returns a redirect instead of a session.
+    if (
+      !isSignup &&
+      (res.data as { twoFactorRedirect?: boolean } | null)?.twoFactorRedirect
+    ) {
+      router.push("/2fa");
+      return;
+    }
     router.push(REDIRECT);
     router.refresh();
   }
