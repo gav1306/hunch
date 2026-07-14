@@ -1,7 +1,8 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
-import { useReveal } from "./use-reveal";
+import { motion, useReducedMotion } from "motion/react";
+import type { ReactNode } from "react";
+import { Reveal } from "./motion-primitives";
 
 type Step = {
   tag: string;
@@ -121,7 +122,7 @@ const STEPS: Step[] = [
 ];
 
 export function HowItWorks() {
-  const { ref, shown } = useReveal<HTMLDivElement>();
+  const reduce = useReducedMotion();
 
   return (
     <section
@@ -133,9 +134,11 @@ export function HowItWorks() {
         margin: "0 auto",
       }}
     >
-      <div ref={ref}>
+      <div>
         {/* eyebrow */}
-        <div
+        <Reveal
+          y={24}
+          duration={0.7}
           style={{
             display: "flex",
             alignItems: "center",
@@ -145,44 +148,54 @@ export function HowItWorks() {
             textTransform: "uppercase",
             color: "var(--muted)",
             marginBottom: "clamp(28px,4vh,48px)",
-            opacity: shown ? 1 : 0,
-            transform: shown ? "translateY(0)" : "translateY(24px)",
-            transition:
-              "transform 760ms cubic-bezier(.16,.9,.24,1), opacity 640ms ease",
           }}
         >
           <span style={{ color: "var(--s1)" }}>✦</span> How it works
-        </div>
+        </Reveal>
 
         {/* cards */}
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-            gap: "clamp(1px,0.12vw,1px)",
-            background: "var(--rule)",
-            border: "1px solid var(--rule)",
+            gap: "clamp(14px,1.6vw,24px)",
           }}
         >
           {STEPS.map((s, i) => (
-            <div
+            <motion.div
               key={s.no}
-              style={
-                {
-                  position: "relative",
-                  background: "var(--paper)",
-                  padding: "clamp(26px,2.4vw,38px)",
-                  minHeight: "clamp(240px,26vh,300px)",
-                  display: "flex",
-                  flexDirection: "column",
-                  opacity: shown ? 1 : 0,
-                  transform: shown ? "translateY(0)" : "translateY(32px)",
-                  transition:
-                    "transform 820ms cubic-bezier(.16,.9,.24,1), opacity 700ms ease",
-                  transitionDelay: `${140 + i * 130}ms`,
-                } as CSSProperties
-              }
+              className="hl-step"
+              initial={reduce ? false : { opacity: 0, y: 40 }}
+              whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
+              viewport={{ once: false, margin: "0px 0px -12% 0px" }}
+              transition={{
+                duration: 0.8,
+                ease: [0.16, 0.9, 0.24, 1],
+                delay: 0.12 + i * 0.13,
+              }}
+              style={{
+                position: "relative",
+                background:
+                  "color-mix(in srgb, var(--paper) 90%, var(--ink))",
+                border: "1px solid var(--rule)",
+                padding: "clamp(26px,2.4vw,38px)",
+                minHeight: "clamp(240px,26vh,300px)",
+                display: "flex",
+                flexDirection: "column",
+                backdropFilter: "blur(2px)",
+              }}
             >
+              <span
+                className="hl-step-bar"
+                style={{
+                  position: "absolute",
+                  top: -1,
+                  left: -1,
+                  right: -1,
+                  height: 2,
+                  background: "linear-gradient(90deg,var(--s1),var(--s2))",
+                }}
+              />
               <div
                 style={{
                   display: "flex",
@@ -214,7 +227,10 @@ export function HowItWorks() {
                 </span>
               </div>
 
-              <div style={{ marginBottom: "clamp(16px,2vh,22px)" }}>
+              <div
+                className="hl-step-glyph"
+                style={{ marginBottom: "clamp(16px,2vh,22px)" }}
+              >
                 {s.glyph}
               </div>
 
@@ -240,7 +256,7 @@ export function HowItWorks() {
               >
                 {s.body}
               </p>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>

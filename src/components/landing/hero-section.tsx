@@ -1,38 +1,64 @@
 "use client";
 
+import { useReducedMotion } from "motion/react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { WORDS, type Palette } from "./palette";
+import { WORDS } from "./palette";
+
+/** Glossy star used as the reduced-motion / no-WebGL fallback centerpiece. */
+function StarFallback() {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/starburst.png"
+      alt=""
+      style={{
+        width: "78%",
+        height: "auto",
+        display: "block",
+        animation: "hl-float 6s ease-in-out infinite",
+        filter:
+          "brightness(1.16) contrast(1.06) drop-shadow(0 0 44px color-mix(in srgb, var(--s1) 42%, transparent)) drop-shadow(0 34px 60px color-mix(in srgb, var(--s2) 30%, transparent))",
+      }}
+    />
+  );
+}
+
+// The WebGL mascot is client-only and lazy — never blocks SSR, and the PNG
+// shows while its chunk loads.
+const HeroRobot = dynamic(
+  () => import("./hero-robot").then((m) => m.HeroRobot),
+  { ssr: false, loading: () => <StarFallback /> },
+);
+
+// Dark, glossy hero scheme (overrides the page palette locally). Accents
+// (--s1/--s2) still inherit from the page palette so the brand colors carry.
+const DARK = {
+  paper: "#0E0D12",
+  ink: "#F2ECDD",
+  muted: "#8C8676",
+  rule: "rgba(242,236,221,0.16)",
+};
 
 type Phase = "enter" | "focus" | "leave";
 
 export type HeroSectionProps = {
-  palette: Palette;
-  showMeter?: boolean;
-  beliefTarget?: number;
   wordHold?: number;
   autoplay?: boolean;
-  startHref?: string;
 };
 
 export function HeroSection({
-  palette: P,
-  showMeter = true,
-  beliefTarget = 82,
   wordHold = 900,
   autoplay = true,
-  startHref = "/hunch/new",
 }: HeroSectionProps) {
   const [wi, setWi] = useState(0);
   const [phase, setPhase] = useState<Phase>("enter");
   const [wordShow, setWordShow] = useState(false);
   const [heroIn, setHeroIn] = useState(false);
   const [uiIn, setUiIn] = useState(false);
-  const [meterIn, setMeterIn] = useState(false);
-  const [belief, setBelief] = useState(0);
 
   const runRef = useRef(0);
-  const rafRef = useRef<number | null>(null);
 
   const wait = useCallback(
     (ms: number, run: number) =>
@@ -46,25 +72,7 @@ export function HeroSection({
     setWordShow(false);
     setHeroIn(true);
     setUiIn(true);
-    setMeterIn(true);
-    setBelief(beliefTarget);
-  }, [beliefTarget]);
-
-  const countBelief = useCallback(
-    (run: number) => {
-      const dur = 1500;
-      const t0 = performance.now();
-      const tick = (now: number) => {
-        if (run !== runRef.current) return;
-        const p = Math.min(1, (now - t0) / dur);
-        const e = 1 - Math.pow(1 - p, 3);
-        setBelief(Math.round(e * beliefTarget));
-        if (p < 1) rafRef.current = requestAnimationFrame(tick);
-      };
-      rafRef.current = requestAnimationFrame(tick);
-    },
-    [beliefTarget],
-  );
+  }, []);
 
   const runIntro = useCallback(
     async (run: number) => {
@@ -83,27 +91,9 @@ export function HeroSection({
       }
       setUiIn(true);
       setHeroIn(true);
-      if (!(await wait(360, run))) return;
-      setMeterIn(true);
-      if (!(await wait(260, run))) return;
-      countBelief(run);
     },
-    [wait, wordHold, countBelief],
+    [wait, wordHold],
   );
-
-  const replay = useCallback(() => {
-    runRef.current += 1;
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    setWi(0);
-    setPhase("enter");
-    setWordShow(false);
-    setHeroIn(false);
-    setUiIn(false);
-    setMeterIn(false);
-    setBelief(0);
-    runIntro(runRef.current);
-  }, [runIntro]);
 
   useEffect(() => {
     const reduced =
@@ -118,7 +108,6 @@ export function HeroSection({
     runIntro(runRef.current);
     return () => {
       runRef.current += 1;
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -144,86 +133,174 @@ export function HeroSection({
     wordLine = "clamp(120px,20vw,300px)";
   }
 
-  const barW = `${belief}%`;
-  const ornBlend = P.dark ? "screen" : "luminosity";
+  const reduce = useReducedMotion();
+
+  // ---- Hero copy pieces (shared across layouts) ----
+  const reveal = (delay: number): React.CSSProperties => ({
+    opacity: heroIn ? 1 : 0,
+    transform: heroIn ? "translateY(0)" : "translateY(34px)",
+    transition:
+      "transform 900ms cubic-bezier(.16,.9,.24,1), opacity 700ms ease",
+    transitionDelay: `${delay}ms`,
+  });
+
+  const mascot = (width: string, extra?: React.CSSProperties) => (
+    <div
+      style={{
+        width,
+        aspectRatio: "1 / 1",
+        flex: "0 0 auto",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        opacity: heroIn ? 1 : 0,
+        transform: reduce ? (heroIn ? "scale(1)" : "scale(0.6)") : "none",
+        transition:
+          "opacity 500ms ease, transform 1200ms cubic-bezier(.18,.9,.24,1)",
+        ...extra,
+      }}
+    >
+      {reduce ? (
+        <StarFallback />
+      ) : (
+        <HeroRobot play={heroIn} />
+      )}
+    </div>
+  );
+
+  const eyebrow = (
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 12,
+        marginBottom: "clamp(14px,2vh,22px)",
+        fontSize: 11.5,
+        letterSpacing: "0.24em",
+        textTransform: "uppercase",
+        color: "var(--muted)",
+        ...reveal(0),
+      }}
+    >
+      <span style={{ color: "var(--s1)" }}>✦</span> Field Log · A test of one
+    </div>
+  );
+
+  const hStyle: React.CSSProperties = {
+    margin: 0,
+    fontFamily: "'Clash Display',sans-serif",
+    fontWeight: 700,
+    fontSize: "clamp(48px,9vw,138px)",
+    lineHeight: 0.88,
+    letterSpacing: "-0.03em",
+    textTransform: "uppercase",
+  };
+  const line1Style: React.CSSProperties = {
+    display: "block",
+    opacity: heroIn ? 1 : 0,
+    filter: heroIn ? "blur(0px)" : "blur(16px)",
+    transform: heroIn ? "translateY(0)" : "translateY(34px)",
+    transition:
+      "transform 900ms cubic-bezier(.16,.9,.24,1), opacity 700ms ease, filter 900ms ease",
+    transitionDelay: "70ms",
+  };
+  const line2Style: React.CSSProperties = {
+    ...line1Style,
+    transitionDelay: "150ms",
+    backgroundImage: "linear-gradient(92deg, var(--s1), var(--s2))",
+    WebkitBackgroundClip: "text",
+    backgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    color: "transparent",
+  };
+  const line1 = <span style={line1Style}>Got a hunch?</span>;
+  const line2 = <span style={line2Style}>Prove it.</span>;
+  const headline = (
+    <h1 style={hStyle}>
+      {line1}
+      {line2}
+    </h1>
+  );
+
+  const paragraph = (centered: boolean) => (
+    <p
+      style={{
+        margin: centered
+          ? "clamp(18px,2.6vh,30px) auto 0"
+          : "clamp(18px,2.6vh,30px) 0 0",
+        maxWidth: "min(52ch,100%)",
+        fontSize: "clamp(12.5px,1.05vw,15px)",
+        lineHeight: 1.7,
+        color: "var(--muted)",
+        ...reveal(250),
+      }}
+    >
+      A verdict backed by real data.
+    </p>
+  );
+
+  const frame: React.CSSProperties = {
+    position: "absolute",
+    zIndex: 7,
+    left: "clamp(30px,3.6vw,52px)",
+    right: "clamp(30px,3.6vw,52px)",
+    top: "clamp(92px,11vh,132px)",
+    bottom: "clamp(96px,13vh,132px)",
+  };
+
+  const heroCopy = (
+    <div
+      style={{
+        ...frame,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        textAlign: "center",
+      }}
+    >
+      {mascot("clamp(220px,30vw,400px)", {
+        marginBottom: "clamp(10px,2vh,28px)",
+      })}
+      {eyebrow}
+      {headline}
+      {paragraph(true)}
+    </div>
+  );
 
   return (
     <section
-      style={{
-        position: "relative",
-        minHeight: "100vh",
-        overflow: "hidden",
-      }}
+      style={
+        {
+          position: "relative",
+          minHeight: "100vh",
+          overflow: "hidden",
+          background: DARK.paper,
+          color: DARK.ink,
+          "--paper": DARK.paper,
+          "--ink": DARK.ink,
+          "--muted": DARK.muted,
+          "--rule": DARK.rule,
+        } as React.CSSProperties
+      }
     >
-      {/* LARGE ORNAMENT STARBURST */}
+      {/* RADIAL GLOW behind the star */}
       <div
         style={{
           position: "absolute",
-          zIndex: 1,
-          top: "-6%",
-          right: "-4%",
-          width: "clamp(220px,26vw,340px)",
+          zIndex: 0,
+          top: "38%",
+          left: "50%",
+          width: "min(1100px, 120vw)",
+          height: "min(1100px, 120vw)",
+          transform: "translate(-50%,-50%)",
           pointerEvents: "none",
+          background:
+            "radial-gradient(circle, color-mix(in srgb, var(--s1) 26%, transparent) 0%, color-mix(in srgb, var(--s2) 16%, transparent) 34%, transparent 62%)",
           opacity: heroIn ? 1 : 0,
-          transform: heroIn
-            ? "translate(0,0) rotate(0deg)"
-            : "translate(30px,-20px) rotate(-20deg)",
-          transition:
-            "opacity 1100ms ease, transform 1300ms cubic-bezier(.18,.9,.24,1)",
-        }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/starburst.png"
-          alt=""
-          style={{
-            width: "100%",
-            height: "auto",
-            display: "block",
-            opacity: 0.5,
-            mixBlendMode: ornBlend as React.CSSProperties["mixBlendMode"],
-            animation: "hl-wobble 15s ease-in-out infinite",
-          }}
-        />
-      </div>
-
-      {/* PAGE FRAME */}
-      <div
-        style={{
-          position: "absolute",
-          inset: "clamp(14px,1.6vw,26px)",
-          zIndex: 5,
-          border: "1px solid var(--rule)",
-          pointerEvents: "none",
-          opacity: uiIn ? 1 : 0,
-          transition: "opacity 720ms ease",
+          transition: "opacity 1400ms ease",
         }}
       />
-      {(
-        [
-          { top: "clamp(9px,1.6vw,21px)", left: "clamp(9px,1.6vw,21px)" },
-          { top: "clamp(9px,1.6vw,21px)", right: "clamp(9px,1.6vw,21px)" },
-          { bottom: "clamp(9px,1.6vw,21px)", left: "clamp(9px,1.6vw,21px)" },
-          { bottom: "clamp(9px,1.6vw,21px)", right: "clamp(9px,1.6vw,21px)" },
-        ] as React.CSSProperties[]
-      ).map((pos, i) => (
-        <div
-          key={i}
-          style={{
-            position: "absolute",
-            zIndex: 6,
-            pointerEvents: "none",
-            color: "var(--muted)",
-            fontSize: 14,
-            lineHeight: 1,
-            opacity: uiIn ? 1 : 0,
-            transition: "opacity 720ms ease",
-            ...pos,
-          }}
-        >
-          +
-        </div>
-      ))}
 
       {/* HEADER */}
       <div
@@ -278,7 +355,7 @@ export function HeroSection({
             Method
           </a>
           <Link
-            href="/hunch/new"
+            href="/signin"
             className="hl-signin"
             style={{
               padding: "8px 15px",
@@ -291,370 +368,22 @@ export function HeroSection({
         </div>
       </div>
 
-      {/* HERO COPY */}
+      {/* HERO COPY — layout-switched (see heroCopy above) */}
+      {heroCopy}
+
+      {/* BOTTOM FADE into the light page below */}
       <div
         style={{
           position: "absolute",
-          zIndex: 7,
-          left: "clamp(30px,3.6vw,52px)",
-          right: "clamp(30px,3.6vw,52px)",
-          top: "clamp(92px,11vh,144px)",
-          bottom: "clamp(132px,19vh,172px)",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "flex-start",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: "clamp(120px,20vh,240px)",
+          zIndex: 6,
+          pointerEvents: "none",
+          background: `linear-gradient(to bottom, transparent, ${DARK.paper})`,
         }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            marginBottom: "clamp(16px,2.4vh,28px)",
-            fontSize: 11.5,
-            letterSpacing: "0.24em",
-            textTransform: "uppercase",
-            color: "var(--muted)",
-            opacity: heroIn ? 1 : 0,
-            transform: heroIn ? "translateY(0)" : "translateY(34px)",
-            transition:
-              "transform 820ms cubic-bezier(.16,.9,.24,1), opacity 640ms ease",
-          }}
-        >
-          <span style={{ color: "var(--s1)" }}>✦</span> Field Log · A test of
-          one
-        </div>
-
-        <h1
-          style={{
-            margin: 0,
-            fontFamily: "'Clash Display',sans-serif",
-            fontWeight: 600,
-            fontSize: "clamp(46px,8.4vw,124px)",
-            lineHeight: 0.9,
-            letterSpacing: "-0.04em",
-          }}
-        >
-          <span
-            style={{
-              display: "block",
-              opacity: heroIn ? 1 : 0,
-              filter: heroIn ? "blur(0px)" : "blur(16px)",
-              transform: heroIn ? "translateY(0)" : "translateY(34px)",
-              transition:
-                "transform 900ms cubic-bezier(.16,.9,.24,1), opacity 700ms ease, filter 900ms ease",
-              transitionDelay: "70ms",
-            }}
-          >
-            Got a hunch?
-          </span>
-          <span
-            style={{
-              display: "block",
-              color: "var(--s1)",
-              opacity: heroIn ? 1 : 0,
-              filter: heroIn ? "blur(0px)" : "blur(16px)",
-              transform: heroIn ? "translateY(0)" : "translateY(34px)",
-              transition:
-                "transform 900ms cubic-bezier(.16,.9,.24,1), opacity 700ms ease, filter 900ms ease",
-              transitionDelay: "150ms",
-            }}
-          >
-            Prove it<span style={{ color: "var(--s2)" }}>.</span>
-          </span>
-        </h1>
-
-        <p
-          style={{
-            margin: "clamp(18px,2.6vh,30px) 0 0",
-            maxWidth: "min(52ch,90%)",
-            fontSize: "clamp(12.5px,1.05vw,15px)",
-            lineHeight: 1.7,
-            color: "var(--muted)",
-            opacity: heroIn ? 1 : 0,
-            transform: heroIn ? "translateY(0)" : "translateY(34px)",
-            transition:
-              "transform 900ms cubic-bezier(.16,.9,.24,1), opacity 700ms ease",
-            transitionDelay: "250ms",
-          }}
-        >
-          Turn a random hunch — about your habits, your focus, your body,
-          anything — into a real experiment. A verdict backed by real data.
-        </p>
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "clamp(16px,2vw,26px)",
-            flexWrap: "wrap",
-            marginTop: "clamp(22px,3.2vh,38px)",
-            opacity: heroIn ? 1 : 0,
-            transform: heroIn ? "translateY(0)" : "translateY(34px)",
-            transition:
-              "transform 900ms cubic-bezier(.16,.9,.24,1), opacity 700ms ease",
-            transitionDelay: "340ms",
-          }}
-        >
-          <Link
-            href={startHref}
-            className="hl-cta"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "15px 24px",
-              border: "none",
-              cursor: "pointer",
-              fontFamily: "'Space Mono',monospace",
-              fontWeight: 700,
-              fontSize: 13,
-              letterSpacing: "0.14em",
-              textTransform: "uppercase",
-              color: "var(--paper)",
-              background: "var(--ink)",
-            }}
-          >
-            Start free{" "}
-            <span
-              style={{
-                display: "inline-block",
-                animation: "hl-arrow 1.8s ease-in-out infinite",
-              }}
-            >
-              →
-            </span>
-          </Link>
-        </div>
-
-        <div
-          style={{
-            marginTop: "clamp(18px,2.6vh,26px)",
-            fontSize: 11,
-            letterSpacing: "0.06em",
-            color: "var(--muted)",
-            opacity: heroIn ? 1 : 0,
-            transition: "opacity 700ms ease",
-            transitionDelay: "460ms",
-          }}
-        >
-          A simple plan you actually stick to —{" "}
-          <span style={{ color: "var(--ink)" }}>then a verdict you can trust.</span>
-        </div>
-      </div>
-
-      {/* BELIEF INSTRUMENT (bottom gauge) */}
-      {showMeter && (
-        <div
-          style={{
-            position: "absolute",
-            zIndex: 7,
-            left: "clamp(30px,3.6vw,52px)",
-            right: "clamp(30px,3.6vw,52px)",
-            bottom: "clamp(46px,6vh,64px)",
-            opacity: meterIn ? 1 : 0,
-            transform: meterIn ? "translateY(0)" : "translateY(26px)",
-            transition:
-              "transform 900ms cubic-bezier(.18,.9,.24,1), opacity 780ms ease",
-          }}
-        >
-          <div
-            style={{
-              borderTop: "1px solid var(--rule)",
-              paddingTop: 14,
-              display: "flex",
-              alignItems: "center",
-              gap: "clamp(18px,3vw,40px)",
-            }}
-          >
-            <div style={{ flex: "0 0 auto" }}>
-              <div
-                style={{
-                  fontSize: 10.5,
-                  letterSpacing: "0.16em",
-                  textTransform: "uppercase",
-                  color: "var(--ink)",
-                  marginBottom: 6,
-                }}
-              >
-                Likelihood it&apos;s real
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 9,
-                  fontSize: 10,
-                  letterSpacing: "0.12em",
-                  textTransform: "uppercase",
-                  color: "var(--muted)",
-                }}
-              >
-                screens off → sleep{" "}
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 5,
-                    color: "var(--s1)",
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 5,
-                      height: 5,
-                      borderRadius: "50%",
-                      background: "var(--s1)",
-                      animation: "hl-live 1.6s steps(1,end) infinite",
-                    }}
-                  />
-                  Live
-                </span>
-              </div>
-            </div>
-
-            <div
-              style={{
-                flex: "0 0 auto",
-                display: "flex",
-                alignItems: "baseline",
-                gap: 2,
-                lineHeight: 0.8,
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: "'Clash Display',sans-serif",
-                  fontWeight: 600,
-                  fontSize: "clamp(42px,5.4vw,74px)",
-                  letterSpacing: "-0.03em",
-                  color: "var(--s1)",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                {belief}
-              </span>
-              <span
-                style={{
-                  fontFamily: "'Clash Display',sans-serif",
-                  fontWeight: 600,
-                  fontSize: "clamp(18px,2.4vw,30px)",
-                  color: "var(--muted)",
-                }}
-              >
-                %
-              </span>
-            </div>
-
-            <div style={{ flex: "1 1 auto", minWidth: 120 }}>
-              <div style={{ position: "relative", height: 24 }}>
-                <div
-                  style={{
-                    position: "absolute",
-                    left: 0,
-                    right: 0,
-                    top: 0,
-                    height: 2,
-                    background: "var(--rule)",
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    left: 0,
-                    top: 0,
-                    height: 2,
-                    width: barW,
-                    background: "var(--s1)",
-                  }}
-                />
-                {["0%", "25%", "50%", "75%", "100%"].map((l, i) => (
-                  <div
-                    key={l}
-                    style={{
-                      position: "absolute",
-                      left: l,
-                      top: 0,
-                      width: 1,
-                      height: 8,
-                      background: "var(--rule)",
-                      transform: i === 4 ? "translateX(-1px)" : undefined,
-                    }}
-                  />
-                ))}
-                <div
-                  style={{
-                    position: "absolute",
-                    left: barW,
-                    top: -5,
-                    width: 2,
-                    height: 18,
-                    background: "var(--s1)",
-                    transform: "translateX(-50%)",
-                    animation: "hl-needle 2.6s ease-in-out infinite",
-                    boxShadow:
-                      "0 0 0 3px color-mix(in srgb, var(--s1) 18%, transparent)",
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    left: "0%",
-                    top: 12,
-                    fontSize: 9.5,
-                    color: "var(--muted)",
-                  }}
-                >
-                  0
-                </div>
-                <div
-                  style={{
-                    position: "absolute",
-                    left: "50%",
-                    top: 12,
-                    fontSize: 9.5,
-                    color: "var(--muted)",
-                    transform: "translateX(-50%)",
-                  }}
-                >
-                  50
-                </div>
-                <div
-                  style={{
-                    position: "absolute",
-                    left: "100%",
-                    top: 12,
-                    fontSize: 9.5,
-                    color: "var(--muted)",
-                    transform: "translateX(-100%)",
-                  }}
-                >
-                  100
-                </div>
-              </div>
-            </div>
-
-            <div
-              style={{
-                flex: "0 0 auto",
-                textAlign: "right",
-                fontSize: 10,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "var(--muted)",
-                lineHeight: 1.7,
-              }}
-            >
-              <div>
-                So far <span style={{ color: "var(--s2)" }}>+38 min</span> ·{" "}
-                <span style={{ color: "var(--s2)" }}>likely real</span>
-              </div>
-              <div>14 check-ins · Day 14 / 21</div>
-            </div>
-          </div>
-        </div>
-      )}
+      />
 
       {/* INTRO WORD CYCLE (blur → focus) — fixed overlay above everything */}
       {wordShow && (
@@ -737,58 +466,6 @@ export function HeroSection({
         </div>
       )}
 
-      {/* scroll cue */}
-      <a
-        href="#how"
-        className="hl-replay"
-        style={{
-          position: "absolute",
-          zIndex: 7,
-          bottom: "clamp(16px,2vw,22px)",
-          left: "50%",
-          transform: "translateX(-50%)",
-          fontSize: 10,
-          letterSpacing: "0.16em",
-          textTransform: "uppercase",
-          color: "var(--muted)",
-          cursor: "pointer",
-          opacity: uiIn ? 1 : 0,
-          transition: "color 200ms ease, opacity 720ms ease",
-          transitionDelay: "300ms",
-        }}
-      >
-        Scroll{" "}
-        <span
-          style={{
-            display: "inline-block",
-            animation: "hl-bob 1.8s ease-in-out infinite",
-          }}
-        >
-          ↓
-        </span>
-      </a>
-
-      {/* replay */}
-      <div
-        className="hl-replay"
-        onClick={replay}
-        style={{
-          position: "absolute",
-          zIndex: 7,
-          bottom: "clamp(16px,2vw,22px)",
-          right: "clamp(30px,3.6vw,52px)",
-          fontSize: 10,
-          letterSpacing: "0.16em",
-          textTransform: "uppercase",
-          color: "var(--muted)",
-          cursor: "pointer",
-          opacity: uiIn ? 1 : 0,
-          transition: "color 200ms ease, opacity 720ms ease",
-          transitionDelay: "300ms",
-        }}
-      >
-        ↺ Replay
-      </div>
     </section>
   );
 }

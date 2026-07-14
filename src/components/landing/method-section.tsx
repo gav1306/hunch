@@ -1,6 +1,6 @@
 "use client";
 
-import { useReveal } from "./use-reveal";
+import { Reveal } from "./motion-primitives";
 
 const LADDER = [
   { word: "guess", sym: "≈", val: "08", live: false },
@@ -15,8 +15,6 @@ const TRUST = [
 ];
 
 export function MethodSection() {
-  const { ref, shown } = useReveal<HTMLDivElement>();
-
   return (
     <section
       id="method"
@@ -27,197 +25,174 @@ export function MethodSection() {
         margin: "0 auto",
       }}
     >
-      <div ref={ref}>
-        <div
-          style={{
-            fontSize: 11.5,
-            letterSpacing: "0.24em",
-            textTransform: "uppercase",
-            color: "var(--muted)",
-            marginBottom: "clamp(22px,3vh,34px)",
-            opacity: shown ? 1 : 0,
-            transform: shown ? "translateY(0)" : "translateY(20px)",
-            transition:
-              "transform 720ms cubic-bezier(.16,.9,.24,1), opacity 600ms ease",
-          }}
-        >
-          <span style={{ color: "var(--s1)" }}>✦</span> The method
-        </div>
+      <Reveal
+        y={20}
+        duration={0.7}
+        style={{
+          fontSize: 11.5,
+          letterSpacing: "0.24em",
+          textTransform: "uppercase",
+          color: "var(--muted)",
+          marginBottom: "clamp(22px,3vh,34px)",
+        }}
+      >
+        <span style={{ color: "var(--s1)" }}>✦</span> The method
+      </Reveal>
 
-        {/* statement */}
-        <h2
-          style={{
-            margin: 0,
-            fontFamily: "'Clash Display',sans-serif",
-            fontWeight: 600,
-            fontSize: "clamp(34px,5.4vw,76px)",
-            lineHeight: 1.02,
-            letterSpacing: "-0.03em",
-            color: "var(--ink)",
-            maxWidth: "16ch",
-          }}
+      {/* statement */}
+      <h2
+        style={{
+          margin: 0,
+          fontFamily: "'Clash Display',sans-serif",
+          fontWeight: 600,
+          fontSize: "clamp(34px,5.4vw,76px)",
+          lineHeight: 1.02,
+          letterSpacing: "-0.03em",
+          color: "var(--ink)",
+          maxWidth: "16ch",
+        }}
+      >
+        <Reveal as="span" y={26} delay={0.05} style={{ display: "block" }}>
+          AI does the talking.
+        </Reveal>
+        <Reveal
+          as="span"
+          y={26}
+          delay={0.15}
+          style={{ display: "block", color: "var(--s1)" }}
         >
-          <span
+          The math does the judging<span style={{ color: "var(--s2)" }}>.</span>
+        </Reveal>
+      </h2>
+
+      {/* confidence ladder */}
+      <Reveal
+        y={30}
+        delay={0.1}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "clamp(10px,2vw,22px)",
+          marginTop: "clamp(36px,5vh,60px)",
+          paddingTop: "clamp(26px,3.4vh,40px)",
+          borderTop: "1px solid transparent",
+          borderImage: "linear-gradient(90deg,var(--s1),var(--s2)) 1",
+        }}
+      >
+        {LADDER.map((step, i) => (
+          <div
+            key={step.word}
             style={{
-              display: "block",
-              opacity: shown ? 1 : 0,
-              filter: shown ? "blur(0px)" : "blur(14px)",
-              transform: shown ? "translateY(0)" : "translateY(26px)",
-              transition:
-                "transform 900ms cubic-bezier(.16,.9,.24,1), opacity 700ms ease, filter 900ms ease",
-              transitionDelay: "80ms",
+              display: "flex",
+              alignItems: "center",
+              gap: "clamp(10px,2vw,22px)",
             }}
           >
-            AI does the talking.
-          </span>
-          <span
-            style={{
-              display: "block",
-              color: "var(--s1)",
-              opacity: shown ? 1 : 0,
-              filter: shown ? "blur(0px)" : "blur(14px)",
-              transform: shown ? "translateY(0)" : "translateY(26px)",
-              transition:
-                "transform 900ms cubic-bezier(.16,.9,.24,1), opacity 700ms ease, filter 900ms ease",
-              transitionDelay: "200ms",
-            }}
-          >
-            The math does the judging<span style={{ color: "var(--s2)" }}>.</span>
-          </span>
-        </h2>
-
-        {/* confidence ladder */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: "clamp(10px,2vw,22px)",
-            marginTop: "clamp(36px,5vh,60px)",
-            paddingTop: "clamp(26px,3.4vh,40px)",
-            borderTop: "1px solid var(--rule)",
-          }}
-        >
-          {LADDER.map((step, i) => (
             <div
-              key={step.word}
               style={{
                 display: "flex",
-                alignItems: "center",
-                gap: "clamp(10px,2vw,22px)",
+                alignItems: "baseline",
+                gap: 8,
               }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "baseline",
-                  gap: 8,
-                  opacity: shown ? 1 : 0,
-                  transform: shown ? "translateY(0)" : "translateY(16px)",
-                  transition:
-                    "transform 640ms cubic-bezier(.16,.9,.24,1), opacity 520ms ease",
-                  transitionDelay: `${360 + i * 160}ms`,
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: "'Clash Display',sans-serif",
-                    fontWeight: 600,
-                    fontSize: "clamp(20px,2.6vw,34px)",
-                    letterSpacing: "-0.02em",
-                    color: step.live ? "var(--ink)" : "var(--muted)",
-                  }}
-                >
-                  {step.word}
-                </span>
-                <span
-                  style={{
-                    fontSize: "clamp(14px,1.6vw,20px)",
-                    color: step.live ? "var(--s1)" : "var(--muted)",
-                  }}
-                >
-                  {step.sym}
-                </span>
-                <span
-                  style={{
-                    fontFamily: "'Clash Display',sans-serif",
-                    fontWeight: 600,
-                    fontSize: "clamp(20px,2.6vw,34px)",
-                    letterSpacing: "-0.02em",
-                    color: step.live ? "var(--s1)" : "var(--muted)",
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  {step.val}
-                  <span style={{ fontSize: "0.6em", color: "var(--muted)" }}>
-                    %
-                  </span>
-                </span>
-              </div>
-              {i < LADDER.length - 1 && (
-                <span
-                  style={{
-                    color: "var(--muted)",
-                    fontSize: "clamp(14px,1.6vw,20px)",
-                    opacity: shown ? 0.6 : 0,
-                    transition: "opacity 520ms ease",
-                    transitionDelay: `${440 + i * 160}ms`,
-                  }}
-                >
-                  →
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* trust columns */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-            gap: "clamp(24px,3vw,48px)",
-            marginTop: "clamp(44px,6vh,72px)",
-          }}
-        >
-          {TRUST.map((t, i) => (
-            <div
-              key={t.k}
-              style={{
-                borderTop: "1px solid var(--rule)",
-                paddingTop: 16,
-                opacity: shown ? 1 : 0,
-                transform: shown ? "translateY(0)" : "translateY(22px)",
-                transition:
-                  "transform 760ms cubic-bezier(.16,.9,.24,1), opacity 640ms ease",
-                transitionDelay: `${520 + i * 120}ms`,
-              }}
-            >
-              <div
+              <span
                 style={{
                   fontFamily: "'Clash Display',sans-serif",
                   fontWeight: 600,
-                  fontSize: "clamp(17px,1.8vw,22px)",
-                  letterSpacing: "-0.01em",
-                  color: "var(--ink)",
-                  marginBottom: 8,
+                  fontSize: "clamp(20px,2.6vw,34px)",
+                  letterSpacing: "-0.02em",
+                  color: step.live ? "var(--ink)" : "var(--muted)",
                 }}
               >
-                {t.k}
-              </div>
-              <p
+                {step.word}
+              </span>
+              <span
                 style={{
-                  margin: 0,
-                  fontSize: "clamp(12px,1vw,13.5px)",
-                  lineHeight: 1.7,
-                  color: "var(--muted)",
+                  fontSize: "clamp(14px,1.6vw,20px)",
+                  color: step.live ? "var(--s1)" : "var(--muted)",
                 }}
               >
-                {t.v}
-              </p>
+                {step.sym}
+              </span>
+              <span
+                style={{
+                  fontFamily: "'Clash Display',sans-serif",
+                  fontWeight: 600,
+                  fontSize: "clamp(20px,2.6vw,34px)",
+                  letterSpacing: "-0.02em",
+                  color: step.live ? "var(--s1)" : "var(--muted)",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {step.val}
+                <span style={{ fontSize: "0.6em", color: "var(--muted)" }}>
+                  %
+                </span>
+              </span>
             </div>
-          ))}
-        </div>
+            {i < LADDER.length - 1 && (
+              <span
+                style={{
+                  color: "var(--muted)",
+                  fontSize: "clamp(14px,1.6vw,20px)",
+                  opacity: 0.6,
+                }}
+              >
+                →
+              </span>
+            )}
+          </div>
+        ))}
+      </Reveal>
+
+      {/* trust columns */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gap: "clamp(24px,3vw,48px)",
+          marginTop: "clamp(44px,6vh,72px)",
+        }}
+      >
+        {TRUST.map((t, i) => (
+          <Reveal
+            key={t.k}
+            y={22}
+            delay={0.1 + i * 0.12}
+            style={{
+              backgroundColor: "color-mix(in srgb, var(--paper) 90%, var(--ink))",
+              backgroundImage:
+                "radial-gradient(80% 70% at 50% 0%, color-mix(in srgb, var(--s1) 12%, transparent) 0%, color-mix(in srgb, var(--s2) 7%, transparent) 45%, transparent 78%)",
+              borderTop: "2px solid transparent",
+              borderImage: "linear-gradient(90deg,var(--s1),var(--s2)) 1",
+              padding: "clamp(20px,2.2vw,30px)",
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "'Clash Display',sans-serif",
+                fontWeight: 600,
+                fontSize: "clamp(17px,1.8vw,22px)",
+                letterSpacing: "-0.01em",
+                color: "var(--ink)",
+                marginBottom: 8,
+              }}
+            >
+              {t.k}
+            </div>
+            <p
+              style={{
+                margin: 0,
+                fontSize: "clamp(12px,1vw,13.5px)",
+                lineHeight: 1.7,
+                color: "var(--muted)",
+              }}
+            >
+              {t.v}
+            </p>
+          </Reveal>
+        ))}
       </div>
     </section>
   );

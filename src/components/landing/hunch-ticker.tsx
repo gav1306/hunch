@@ -1,23 +1,23 @@
 "use client";
 
-import { useReveal } from "./use-reveal";
+import { Reveal } from "./motion-primitives";
 
 const ROW_A = [
-  { q: "Does music kill my deep work?", tag: "Focus" },
-  { q: "Do walking meetings spark better ideas?", tag: "Work" },
-  { q: "Cold showers actually lift my mood?", tag: "Mood" },
-  { q: "Does batching email save me an hour?", tag: "Work" },
-  { q: "Screens off = deeper sleep?", tag: "Sleep" },
-  { q: "Does journaling cut my stress?", tag: "Mind" },
+  { q: "Does a 10-min walk beat my afternoon coffee?", tag: "Energy" },
+  { q: "No Slack before noon = more shipped?", tag: "Work" },
+  { q: "Do I sleep better skipping the nightcap?", tag: "Sleep" },
+  { q: "Does daily stretching ease my back?", tag: "Body" },
+  { q: "Standing desk = fewer 3pm slumps?", tag: "Energy" },
+  { q: "Does gratitude journaling lift my week?", tag: "Mind" },
 ];
 
 const ROW_B = [
-  { q: "More sunlight, more energy?", tag: "Energy" },
-  { q: "Does a tidy desk help me focus?", tag: "Focus" },
-  { q: "Walking after lunch = fewer crashes?", tag: "Energy" },
-  { q: "Do I actually save money meal-prepping?", tag: "Money" },
-  { q: "Does caffeine after 2pm wreck my night?", tag: "Sleep" },
-  { q: "Reading before bed = faster asleep?", tag: "Sleep" },
+  { q: "Do I read more with my phone in a drawer?", tag: "Focus" },
+  { q: "Does lo-fi actually help me code?", tag: "Focus" },
+  { q: "Earlier dinner = lighter mornings?", tag: "Body" },
+  { q: "Do cold plunges cut my soreness?", tag: "Body" },
+  { q: "Does saying no free up my week?", tag: "Life" },
+  { q: "One coffee vs two — same focus?", tag: "Focus" },
 ];
 
 function Chip({ q, tag }: { q: string; tag: string }) {
@@ -31,7 +31,7 @@ function Chip({ q, tag }: { q: string; tag: string }) {
         marginRight: 14,
         padding: "12px 18px",
         border: "1px solid var(--rule)",
-        background: "var(--paper)",
+        background: "color-mix(in srgb, var(--paper) 90%, var(--ink))",
         fontSize: "clamp(12px,1vw,14px)",
         color: "var(--ink)",
         whiteSpace: "nowrap",
@@ -81,8 +81,6 @@ function Row({
 }
 
 export function HunchTicker() {
-  const { ref, shown } = useReveal<HTMLDivElement>();
-
   return (
     <section
       style={{
@@ -91,15 +89,7 @@ export function HunchTicker() {
         overflow: "hidden",
       }}
     >
-      <div
-        ref={ref}
-        style={{
-          opacity: shown ? 1 : 0,
-          transform: shown ? "translateY(0)" : "translateY(24px)",
-          transition:
-            "transform 800ms cubic-bezier(.16,.9,.24,1), opacity 700ms ease",
-        }}
-      >
+      <Reveal y={24}>
         <div
           style={{
             padding: "0 clamp(30px,3.6vw,52px)",
@@ -146,7 +136,7 @@ export function HunchTicker() {
             zIndex: 2,
           }}
         />
-      </div>
+      </Reveal>
     </section>
   );
 }

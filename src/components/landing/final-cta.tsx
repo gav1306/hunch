@@ -1,21 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useReveal } from "./use-reveal";
+import { Parallax, Reveal } from "./motion-primitives";
 
-export function FinalCta({ startHref = "/hunch/new" }: { startHref?: string }) {
-  const { ref, shown } = useReveal<HTMLDivElement>({ threshold: 0.3 });
-
+export function FinalCta() {
   return (
     <section id="start" style={{ position: "relative" }}>
       <div
-        ref={ref}
         style={{
           position: "relative",
           margin: "clamp(30px,5vh,72px) clamp(16px,1.6vw,26px)",
           padding: "clamp(56px,12vh,140px) clamp(30px,5vw,80px)",
           background: "var(--ink)",
           color: "var(--paper)",
+          border: "3px solid transparent",
+          borderImage: "linear-gradient(120deg,var(--s1),var(--s2)) 1",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
@@ -23,8 +22,9 @@ export function FinalCta({ startHref = "/hunch/new" }: { startHref?: string }) {
           textAlign: "center",
         }}
       >
-        {/* faint ornament */}
-        <div
+        {/* faint ornament (parallax) */}
+        <Parallax
+          speed={70}
           style={{
             position: "absolute",
             top: "-20%",
@@ -44,25 +44,27 @@ export function FinalCta({ startHref = "/hunch/new" }: { startHref?: string }) {
               animation: "hl-wobble 18s ease-in-out infinite",
             }}
           />
-        </div>
+        </Parallax>
 
-        <div
+        <Reveal
+          y={18}
+          duration={0.6}
           style={{
             fontSize: 11.5,
             letterSpacing: "0.24em",
             textTransform: "uppercase",
             color: "var(--paper)",
-            opacity: shown ? 0.6 : 0,
-            transform: shown ? "translateY(0)" : "translateY(18px)",
-            transition:
-              "transform 720ms cubic-bezier(.16,.9,.24,1), opacity 600ms ease",
+            opacity: 0.6,
             marginBottom: "clamp(20px,3vh,30px)",
           }}
         >
           Guess. Test. Know.
-        </div>
+        </Reveal>
 
-        <h2
+        <Reveal
+          y={28}
+          delay={0.08}
+          as="h2"
           style={{
             margin: 0,
             fontFamily: "'Clash Display',sans-serif",
@@ -70,12 +72,6 @@ export function FinalCta({ startHref = "/hunch/new" }: { startHref?: string }) {
             fontSize: "clamp(44px,9vw,116px)",
             lineHeight: 0.94,
             letterSpacing: "-0.04em",
-            opacity: shown ? 1 : 0,
-            filter: shown ? "blur(0px)" : "blur(16px)",
-            transform: shown ? "translateY(0)" : "translateY(28px)",
-            transition:
-              "transform 900ms cubic-bezier(.16,.9,.24,1), opacity 700ms ease, filter 900ms ease",
-            transitionDelay: "80ms",
           }}
         >
           Stop guessing.
@@ -83,20 +79,11 @@ export function FinalCta({ startHref = "/hunch/new" }: { startHref?: string }) {
           <span style={{ color: "var(--s1)" }}>
             Start knowing<span style={{ color: "var(--s2)" }}>.</span>
           </span>
-        </h2>
+        </Reveal>
 
-        <div
-          style={{
-            marginTop: "clamp(30px,4vh,46px)",
-            opacity: shown ? 1 : 0,
-            transform: shown ? "translateY(0)" : "translateY(22px)",
-            transition:
-              "transform 860ms cubic-bezier(.16,.9,.24,1), opacity 700ms ease",
-            transitionDelay: "240ms",
-          }}
-        >
+        <Reveal y={22} delay={0.24} style={{ marginTop: "clamp(30px,4vh,46px)" }}>
           <Link
-            href={startHref}
+            href="/signup"
             className="hl-cta-inv"
             style={{
               display: "inline-flex",
@@ -133,7 +120,7 @@ export function FinalCta({ startHref = "/hunch/new" }: { startHref?: string }) {
           >
             No credit card · Cancel your hunch anytime
           </div>
-        </div>
+        </Reveal>
       </div>
 
       {/* footer */}

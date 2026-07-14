@@ -34,32 +34,3 @@ export function paletteVars(p: Palette): React.CSSProperties {
   } as React.CSSProperties;
 }
 
-export type BandTone = "paper" | "tintBlue" | "tintRed" | "ink";
-
-/**
- * Full-bleed section background. `ink` flips paper/ink so var-driven children
- * invert automatically; the tints just recolor the canvas and keep dark text.
- */
-export function bandStyle(tone: BandTone, p: Palette): React.CSSProperties {
-  switch (tone) {
-    case "tintBlue":
-      return {
-        background: `color-mix(in srgb, ${p.paper} 90%, ${p.s2})`,
-      };
-    case "tintRed":
-      return {
-        background: `color-mix(in srgb, ${p.paper} 92%, ${p.s1})`,
-      };
-    case "ink":
-      return {
-        background: p.ink,
-        "--paper": p.ink,
-        "--ink": p.paper,
-        "--muted": `color-mix(in srgb, ${p.paper} 58%, ${p.ink})`,
-        "--rule": `color-mix(in srgb, ${p.paper} 22%, transparent)`,
-      } as React.CSSProperties;
-    case "paper":
-    default:
-      return { background: p.paper };
-  }
-}
