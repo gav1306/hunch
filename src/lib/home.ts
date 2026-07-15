@@ -105,10 +105,14 @@ export async function getHomeData(userId: string): Promise<HomeData> {
     };
   });
 
+  const isToday = (h: HomeHunch) => h.loggableToday && !h.loggedToday;
+
   return {
     hasAny: mapped.length > 0,
-    today: mapped.filter((h) => h.loggableToday && !h.loggedToday),
-    running: mapped.filter((h) => h.status === "running"),
+    today: mapped.filter(isToday),
+    // In-flight roster excludes what's already actionable under Today, so a
+    // not-yet-logged experiment isn't shown twice on the same screen.
+    running: mapped.filter((h) => h.status === "running" && !isToday(h)),
     needsSetup: mapped.filter(
       (h) => !h.verdict && (h.status === "sharpened" || h.status === "draft"),
     ),
