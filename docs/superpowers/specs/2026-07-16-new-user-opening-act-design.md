@@ -43,21 +43,37 @@ landing page. Tokens already in use across `/home` and the app shell:
 
 All new UI uses these tokens. No new colors, no dark theme on authed pages.
 
+## Guiding Principle — the bot is the AI, not decoration
+
+The confirm-bot is the symbol of the computing/hunch-confirming AI. It appears
+**only where that AI is present or doing significant work** — never as generic
+ornament. Consequence:
+
+- **`/home` = no bot.** Arriving on home is not a moment of AI work, so the bot
+  would be decoration. Home is freshened by motion, spacing, card polish, and the
+  `✦` starburst (a brand *motif*, not the AI symbol).
+- **Add-hunch = bot present.** Sharpening a raw hunch is literally the AI
+  computing and then confirming. The bot's presence there *is* its meaning.
+- Future screens follow the same rule: show the bot at moments of AI
+  computation/confirmation (e.g. protocol design, verdict reveal), nowhere else.
+
 ## Component 1 — `/home` empty state freshening
 
 **File:** `src/components/app/home-view.tsx` (`EmptyState` + `HomeView` wrapper).
 
-### Mascot companion
-- Reuse the landing confirm-bot (`src/components/landing/hero-robot.tsx`).
-- Load it via `next/dynamic` with `ssr: false` so its WebGL canvas never blocks
-  server render or first paint. While it loads, reserve its box with a static
-  `✦` starburst fallback so layout does not shift.
-- Placed beside the "Got a hunch? **Prove it.**" headline as a small hero
-  companion (bounded box, ~clamp(160–220px)). Plays its spin-in intro on mount.
-- Responsive: on narrow screens the mascot sits above the headline, not beside.
+### No mascot here
+Per the guiding principle, `/home` shows no bot. The empty state is freshened by
+motion, rhythm, and the `✦` starburst motif only. This keeps the bot meaningful
+for the moments that follow.
+
+### Starburst accent
+- Use the `✦` starburst (existing brand motif, and/or `public/starburst.png`) as
+  a quiet decorative accent behind or beside the "Got a hunch? **Prove it.**"
+  headline — subtle, low-contrast, not a focal element. This adds warmth without
+  invoking the AI symbol.
 
 ### Entrance motion (`motion` / Framer v12)
-- On load, stagger the empty-state children in: headline → mascot → sub-copy →
+- On load, stagger the empty-state children in: headline → sub-copy →
   primary CTA → example rows, each a short fade + rise (~8–12px), ~60–80ms apart.
 - `HomeView`'s populated branch gets the same treatment at the section level
   (heading, then each section), lighter and faster. Respect
@@ -83,16 +99,25 @@ A self-contained centered column on the paper background:
 - Space Mono primary button: **"Sharpen it"** (disabled while empty / pending;
   label → "Sharpening…" when pending).
 
-### Success state — the confirm-bot moment
-On a successful sharpen (`useCreateHunch` returns the persisted hunch):
-- The compose form recedes (fades/shrinks up, stays available but de-emphasized).
-- The **confirm-bot spins in** (same `play`-prop intro) as the moment of
-  confirmation — this is exactly what the bot was built for.
-- The sharpened result animates in below: the falsifiable hypothesis statement,
-  outcome metric, outcome type, confounders, and any recalled priors —
-  restyled to the paper/ink language (this replaces the old flat card look).
+### The AI moment — computing → confirmed (the bot's screen)
+This is the one place in this chunk where the bot appears, because it is the one
+place the AI does its work. It spans both the pending and success states:
+
+- **While sharpening (pending):** the compose form recedes and the confirm-bot is
+  mounted, reading as the AI *computing* the hunch. A quiet "Sharpening…" label
+  accompanies it. (The bot's WebGL canvas is lazy-loaded via `next/dynamic`,
+  `ssr:false`; a `✦` starburst holds its box until it mounts, so no layout shift.)
+- **On success:** the bot completes its spin-in intro (`play` prop) as the moment
+  of *confirmation*. The sharpened result animates in below: the falsifiable
+  hypothesis statement, outcome metric, outcome type, confounders, and any
+  recalled priors — restyled to the paper/ink language (replacing the old flat
+  card look).
 - A prominent **"Design the protocol →"** button links to
   `/hunch/${id}/protocol`. **This closes the dead end.**
+
+If the bot's presence for the full pending duration feels heavy in practice,
+fall back to mounting it only on success; the principle (bot = AI at work) still
+holds. Implementer's call during build, validated in the manual pass.
 
 ### Error / edge states
 - Sharpen failure: inline message in `--s1`, form stays filled and editable, no
@@ -121,8 +146,8 @@ persisted hunch with its `id`, which is all the continuation link needs.
   test for the `?seed=` parse/prefill helper (decode + trim + empty handling) if
   extracted as a pure function.
 - **Manual / verify:** exercise the real flow in the running app —
-  1. Log in as a zero-experiment user → `/home` empty state shows mascot +
-     staggered entrance.
+  1. Log in as a zero-experiment user → `/home` empty state shows the staggered
+     entrance + starburst accent, and **no bot**.
   2. Click "Drop your first hunch →" → focused add-hunch page.
   3. Also click an example → add-hunch page arrives with textarea prefilled.
   4. Submit → confirm-bot spins in, sharpened card appears,
@@ -132,8 +157,12 @@ persisted hunch with its `id`, which is all the continuation link needs.
 
 ## Risks / Notes
 
-- **WebGL weight on `/home`:** mitigated by `ssr:false` dynamic import +
-  starburst fallback; the canvas is small and loads after paint.
+- **WebGL weight:** the bot loads only on the add-hunch page (not `/home`), and
+  only at the sharpen moment, lazy via `ssr:false` with a starburst placeholder —
+  so its cost lands exactly where its meaning does, and nowhere else.
+- **Bot as meaning, not decoration:** the guiding principle is load-bearing. Any
+  future urge to sprinkle the bot for charm should be checked against
+  "is the AI actually working here?"
 - **Option A is a visual outlier** (only authed page without the shell) — this is
   deliberate, to make the first action feel like a moment. "← home" keeps nav
   one click away.
