@@ -4,15 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { signOut } from "@/lib/auth-client";
-import { GRAIN_SVG, PALETTES } from "@/components/landing/palette";
-
-const DARK = {
-  paper: "#0E0D12",
-  ink: "#F2ECDD",
-  muted: "#8C8676",
-  rule: "rgba(242,236,221,0.16)",
-};
-const P = PALETTES.Riso;
+import { GRAIN_SVG } from "@/components/landing/palette";
+import { appThemeStyle } from "@/lib/app-theme";
 
 export type SessionUser = { name: string; email: string };
 
@@ -135,15 +128,7 @@ export function AppShell({
         {
           minHeight: "100vh",
           width: "100%",
-          background: DARK.paper,
-          color: DARK.ink,
-          fontFamily: "'Space Mono',ui-monospace,monospace",
-          "--paper": DARK.paper,
-          "--ink": DARK.ink,
-          "--muted": DARK.muted,
-          "--rule": DARK.rule,
-          "--s1": P.s1,
-          "--s2": P.s2,
+          ...appThemeStyle(),
         } as React.CSSProperties
       }
     >

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ConfirmBot } from "@/components/hunch/confirm-bot";
 import { useCreateHunch, type HunchWithHypothesis } from "@/hooks/use-create-hunch";
+import { appThemeStyle } from "@/lib/app-theme";
 
 const label: React.CSSProperties = {
   fontSize: 10.5,
@@ -118,7 +119,7 @@ export function NewHunchForm({ seed }: { seed: string }) {
   }
 
   return (
-    <main style={{ minHeight: "100dvh", background: "var(--paper)", color: "var(--ink)" }}>
+    <main style={{ minHeight: "100dvh", ...appThemeStyle() }}>
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "clamp(20px,6vh,56px) 20px 96px" }}>
         <Link href="/home" style={{ ...label, textDecoration: "none" }}>← home</Link>
 
