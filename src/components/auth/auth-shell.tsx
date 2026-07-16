@@ -3,7 +3,8 @@
 import { useReducedMotion } from "motion/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { AuthGazeProvider } from "@/components/auth/auth-gaze";
 import { GRAIN_SVG, PALETTES } from "@/components/landing/palette";
 
 const DARK = {
@@ -110,6 +111,11 @@ function RotatingHunch() {
 export function AuthShell({ children }: { children: React.ReactNode }) {
   const reduce = useReducedMotion();
 
+  // The bot looks away while the password field is focused. The field lives in
+  // the form (children); the setter reaches it through AuthGazeProvider.
+  const [passwordFocused, setPasswordFocused] = useState(false);
+  const gaze = useMemo(() => ({ setPasswordFocused }), [setPasswordFocused]);
+
   const mascot = (
     <div
       style={{
@@ -132,12 +138,13 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           }}
         />
       ) : (
-        <HeroRobot play />
+        <HeroRobot play gaze={passwordFocused ? "away" : "form"} />
       )}
     </div>
   );
 
   return (
+    <AuthGazeProvider value={gaze}>
     <div
       className="auth-shell"
       style={
@@ -239,5 +246,6 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     </div>
+    </AuthGazeProvider>
   );
 }

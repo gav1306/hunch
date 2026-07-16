@@ -19,14 +19,30 @@ const INTRO_DUR = 1.2; // entrance length (seconds)
 
 const easeOutCubic = (x: number) => 1 - Math.pow(1 - x, 3);
 
+/**
+ * Where the bot looks once the intro settles:
+ *   cursor — follows the pointer (landing hero).
+ *   form   — turns to face the sign-in form (auth left panel).
+ *   away   — turns away to the side, pointedly looking off the form, so she
+ *            isn't looking while you type your password.
+ */
+export type Gaze = "cursor" | "form" | "away";
+
 /** The little confirm-bot. `play` starts the spin-in intro. */
-function Robot({ play }: { play: boolean }) {
+function Robot({ play, gaze }: { play: boolean; gaze: Gaze }) {
   const group = useRef<THREE.Group>(null);
   const head = useRef<THREE.Group>(null);
   const leftEye = useRef<THREE.Mesh>(null);
   const rightEye = useRef<THREE.Mesh>(null);
 
   const startRef = useRef<number | null>(null);
+  // track gaze changes to seed the one-shot look-away bounce
+  const gazeRef = useRef<Gaze>(gaze);
+  const awayStartRef = useRef<number>(-1);
+  // damped base rotations, kept separate so the bounce can ride on top of them
+  // without the damp filter smoothing the bounce away
+  const baseYaw = useRef(0);
+  const baseRoll = useRef(0);
 
   const { pointer } = useThree();
 
@@ -73,14 +89,63 @@ function Robot({ play }: { play: boolean }) {
       }
     }
 
-    const look = p; // ease cursor-tracking in as it settles
-    h.rotation.y = damp(h.rotation.y, pointer.x * 0.5 * look, 5, delta);
-    h.rotation.x = damp(h.rotation.x, -pointer.y * 0.32 * look + nod, 6, delta);
-    h.rotation.z = damp(h.rotation.z, pointer.x * 0.08 * look, 5, delta);
+    const look = p; // ease head motion in as it settles
+
+    // seed the wiggle the instant she's asked to look away
+    if (gaze !== gazeRef.current) {
+      if (gaze === "away") awayStartRef.current = t;
+      gazeRef.current = gaze;
+    }
+
+    // yaw/pitch/roll are the *settle* targets (damped); bYaw/bRoll are one-shot
+    // bounce offsets applied on top, after the damp, so they aren't smoothed out.
+    let yaw: number;
+    let pitch: number;
+    let roll: number;
+    let eyeOpen: number;
+    let bYaw = 0;
+    let bRoll = 0;
+
+    if (gaze === "away") {
+      // snap away to the side — pointedly looking off, away from the form
+      // (the form sits at +yaw, so she springs to -yaw). Eyes stay on.
+      yaw = -1.15;
+      pitch = 0.04;
+      roll = -0.05;
+      eyeOpen = blink;
+      // bounce: overshoot the turn, then settle — slow and smooth
+      const since = t - awayStartRef.current;
+      if (awayStartRef.current >= 0 && since < 1.0) {
+        const decay = 1 - since / 1.0;
+        bYaw = -Math.sin(since * 12) * 0.16 * decay; // first swing overshoots outward
+        bRoll = -Math.sin(since * 12) * 0.06 * decay;
+      }
+    } else if (gaze === "form") {
+      // face the form (screen-right), gentle idle sway + the confirm nod
+      yaw = 0.32 + Math.sin(t * 0.9) * 0.05 * idleAmp;
+      pitch = 0.06 + nod;
+      roll = Math.sin(t * 0.7) * 0.02 * idleAmp;
+      eyeOpen = blink;
+    } else {
+      // cursor tracking (landing hero) — unchanged
+      yaw = pointer.x * 0.5;
+      pitch = -pointer.y * 0.32 + nod;
+      roll = pointer.x * 0.08;
+      eyeOpen = blink;
+    }
+
+    // ease into the turn (slow, smooth) with the un-damped bounce riding on top.
+    const yawLambda = gaze === "away" ? 6 : 5;
+    baseYaw.current = damp(baseYaw.current, yaw * look, yawLambda, delta);
+    baseRoll.current = damp(baseRoll.current, roll * look, 6, delta);
+    h.rotation.y = baseYaw.current + bYaw * look;
+    h.rotation.z = baseRoll.current + bRoll * look;
+    h.rotation.x = damp(h.rotation.x, pitch * look, 6, delta);
 
     for (const e of [leftEye.current, rightEye.current]) {
       if (!e) continue;
-      e.scale.y = blink;
+      // damp so the eyelids ease shut/open rather than snap
+      e.scale.y = damp(e.scale.y, eyeOpen, 12, delta);
     }
   });
 
@@ -141,7 +206,13 @@ function Robot({ play }: { play: boolean }) {
   );
 }
 
-export function HeroRobot({ play = true }: { play?: boolean }) {
+export function HeroRobot({
+  play = true,
+  gaze = "cursor",
+}: {
+  play?: boolean;
+  gaze?: Gaze;
+}) {
   return (
     <Canvas
       dpr={[1, 2]}
@@ -153,7 +224,7 @@ export function HeroRobot({ play = true }: { play?: boolean }) {
       <directionalLight position={[3, 4, 5]} intensity={1.5} />
       <directionalLight position={[-4, 1, 2]} intensity={0.5} color={S2} />
 
-      <Robot play={play} />
+      <Robot play={play} gaze={gaze} />
 
       {/* self-contained reflections — no remote HDR fetch */}
       <Environment resolution={128}>

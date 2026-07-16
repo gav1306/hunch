@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useAuthGaze } from "@/components/auth/auth-gaze";
 import { signIn, signUp } from "@/lib/auth-client";
 
 const REDIRECT = "/home";
@@ -31,6 +32,7 @@ const inputStyle: React.CSSProperties = {
 
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
+  const { setPasswordFocused } = useAuthGaze();
   const isSignup = mode === "signup";
 
   const [name, setName] = useState("");
@@ -154,6 +156,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
             autoComplete={isSignup ? "new-password" : "current-password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            onFocus={() => setPasswordFocused(true)}
+            onBlur={() => setPasswordFocused(false)}
             placeholder="At least 8 characters"
             style={inputStyle}
           />
