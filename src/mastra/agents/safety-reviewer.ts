@@ -14,7 +14,7 @@ import {
 export const safetyReviewer = new Agent({
   id: "safety-reviewer",
   name: "Safety Reviewer",
-  model: "openrouter/anthropic/claude-sonnet-4.6",
+  model: "openrouter/anthropic/claude-sonnet-5",
   instructions: `You are the Safety Reviewer for Hunch. Hunch is NOT medical advice.
 
 You receive a proposed self-experiment. Decide whether it is safe for an

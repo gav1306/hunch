@@ -16,7 +16,7 @@ import type { Prior } from "@/lib/schemas/prior";
 export const hypothesisCoach = new Agent({
   id: "hypothesis-coach",
   name: "Hypothesis Coach",
-  model: "openrouter/anthropic/claude-sonnet-4.6",
+  model: "openrouter/anthropic/claude-sonnet-5",
   instructions: `You are the Hypothesis Coach for Hunch, a personal-science copilot.
 
 A user gives you a vague hunch about their own life ("coffee wrecks my sleep",
