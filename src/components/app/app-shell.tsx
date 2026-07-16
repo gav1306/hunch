@@ -152,8 +152,9 @@ export function AppShell({
         .app-newhunch{transition:background 200ms ease,color 200ms ease;}
         .app-newhunch:hover{background:var(--s1);color:var(--paper);border-color:var(--s1);}
         .app-menu-item:hover{background:color-mix(in srgb,var(--paper) 80%,var(--s1));}
-        .app-card{transition:border-color 240ms ease,background 240ms ease;}
-        .app-card:hover{border-color:var(--ink);}
+        .app-card{transition:border-color 240ms ease,background 240ms ease,transform 240ms ease,box-shadow 240ms ease;}
+        .app-card:hover{border-color:var(--ink);transform:translateY(-2px);box-shadow:0 8px 28px -14px color-mix(in srgb,var(--ink) 45%,transparent);}
+        @media (prefers-reduced-motion: reduce){.app-card:hover{transform:none;}}
       `}</style>
 
       <div
