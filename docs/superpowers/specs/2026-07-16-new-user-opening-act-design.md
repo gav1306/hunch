@@ -9,10 +9,10 @@
 A brand-new user (zero experiments) logs in and lands on `/home`, which renders
 its empty state. Two problems make the first minute fall flat:
 
-1. **`/home` empty state is static and bland.** Sharp typography, but no motion,
-   no brand character, lots of dead space. The charming confirm-bot from the
-   landing page does not follow the user past login, so the app feels colder
-   than the marketing promised.
+1. **`/home` empty state is static and bland.** Sharp typography, but no motion
+   and lots of dead space, so it reads as unfinished — colder than the landing
+   promised. (The fix is motion and rhythm, not the bot — see the guiding
+   principle below.)
 2. **The add-hunch page is a dead end.** `/hunch/new` sharpens a raw hunch into a
    falsifiable hypothesis and renders it — then stops. There is no
    "Design the protocol →" continuation, so a new user completes their first
