@@ -1,11 +1,11 @@
 import { describe, expect, test } from "vitest";
 import { narrateVerdict } from "@/mastra/agents/analyst";
 
-const hasKey = Boolean(process.env.OPENROUTER_API_KEY);
+const hasKey = Boolean(process.env.ANTHROPIC_API_KEY);
 
 /**
  * Analyst faithfulness eval: the narrative must reflect the decided category and
- * never contradict the given number. Self-skips without OPENROUTER_API_KEY.
+ * never contradict the given number. Self-skips without ANTHROPIC_API_KEY.
  */
 describe.skipIf(!hasKey)("Analyst verdict quality", () => {
   test("narrates a clear positive result without contradicting it", async () => {

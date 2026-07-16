@@ -12,7 +12,7 @@ import { recallResultSchema, type RecallResult } from "@/lib/schemas/prior";
 export const memory = new Agent({
   id: "memory",
   name: "Memory",
-  model: "openrouter/anthropic/claude-sonnet-5",
+  model: "anthropic/claude-sonnet-5",
   instructions: `You are the Memory for Hunch, a personal-science copilot.
 
 The user just wrote a new hunch. You are given a short list of their PAST

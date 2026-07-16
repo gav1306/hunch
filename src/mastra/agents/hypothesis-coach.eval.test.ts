@@ -2,12 +2,12 @@ import { describe, expect, test } from "vitest";
 import { sharpenHunch } from "@/mastra/agents/hypothesis-coach";
 import { sharpenedHypothesisSchema } from "@/lib/schemas/hypothesis";
 
-const hasKey = Boolean(process.env.OPENROUTER_API_KEY);
+const hasKey = Boolean(process.env.ANTHROPIC_API_KEY);
 
 /**
  * Hypothesis-quality eval (RESEARCH §5): the coach must turn a vague hunch
  * into a hypothesis that is well-formed, falsifiable, and measurable.
- * Self-skips when OPENROUTER_API_KEY is absent (e.g. CI).
+ * Self-skips when ANTHROPIC_API_KEY is absent (e.g. CI).
  */
 describe.skipIf(!hasKey)("Hypothesis Coach quality", () => {
   const hunches = [

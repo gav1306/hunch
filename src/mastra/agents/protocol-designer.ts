@@ -16,7 +16,7 @@ import {
 export const protocolDesigner = new Agent({
   id: "protocol-designer",
   name: "Protocol Designer",
-  model: "openrouter/anthropic/claude-sonnet-5",
+  model: "anthropic/claude-sonnet-5",
   instructions: `You are the Protocol Designer for Hunch, a personal-science copilot.
 
 Given a sharpened hypothesis, design an ABA n-of-1 experiment the user can run on

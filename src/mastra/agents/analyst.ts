@@ -13,7 +13,7 @@ import {
 export const analyst = new Agent({
   id: "analyst",
   name: "Analyst",
-  model: "openrouter/anthropic/claude-sonnet-5",
+  model: "anthropic/claude-sonnet-5",
   instructions: `You are the Analyst for Hunch, a personal-science copilot.
 
 A user just finished an n-of-1 self-experiment. You are given the verdict category
