@@ -162,9 +162,21 @@ export function NewHunchForm({ seed }: { seed: string }) {
 
         {phase !== "idle" && (
           <div style={{ marginTop: phase === "done" ? 8 : 36 }}>
-            <ConfirmBot play={phase === "done"} size={200} />
+            {phase === "done" ? (
+              <ConfirmBot play size={200} />
+            ) : (
+              <div style={{ width: 200, height: 200, margin: "0 auto" }} aria-hidden>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/starburst.png"
+                  alt=""
+                  aria-hidden
+                  style={{ width: "60%", height: "60%", objectFit: "contain", opacity: 0.45, margin: "20% auto", display: "block" }}
+                />
+              </div>
+            )}
             {phase === "computing" && (
-              <p style={{ textAlign: "center", marginTop: 4, fontFamily: "'Space Mono',monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--muted)" }}>
+              <p aria-live="polite" style={{ textAlign: "center", marginTop: 4, fontFamily: "'Space Mono',monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--muted)" }}>
                 Sharpening…
               </p>
             )}

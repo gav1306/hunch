@@ -364,6 +364,8 @@ function EmptyState() {
         src="/starburst.png"
         alt=""
         aria-hidden
+        width={150}
+        height={150}
         style={{ position: "absolute", top: -40, right: -20, width: 150, opacity: 0.08, pointerEvents: "none", userSelect: "none" }}
       />
 
