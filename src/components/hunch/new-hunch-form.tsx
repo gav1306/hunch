@@ -154,9 +154,66 @@ export function NewHunchForm({ seed }: { seed: string }) {
             </form>
 
             {createHunch.isError && (
-              <p style={{ marginTop: 16, fontSize: 13, color: "var(--s1)" }}>
-                {(createHunch.error as Error).message}
-              </p>
+              <div
+                role="alert"
+                style={{
+                  marginTop: 20,
+                  border: "1px solid var(--rule)",
+                  background: "color-mix(in srgb,var(--paper) 86%,var(--ink))",
+                  padding: "16px 18px",
+                }}
+              >
+                <div style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
+                  <span aria-hidden style={{ color: "var(--s1)" }}>
+                    ✦
+                  </span>
+                  <div
+                    style={{
+                      fontFamily: "'Clash Display',sans-serif",
+                      fontWeight: 600,
+                      fontSize: 15.5,
+                      color: "var(--ink)",
+                    }}
+                  >
+                    The coach hit a snag
+                  </div>
+                </div>
+                <p
+                  style={{
+                    margin: "8px 0 0 20px",
+                    fontSize: 13,
+                    lineHeight: 1.6,
+                    color: "var(--muted)",
+                  }}
+                >
+                  Your hunch is safe — this one&apos;s on our end. Give it another go
+                  in a moment.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const t = rawText.trim();
+                    if (t) createHunch.mutate(t);
+                  }}
+                  disabled={createHunch.isPending || !rawText.trim()}
+                  style={{
+                    marginTop: 12,
+                    marginLeft: 20,
+                    padding: "9px 18px",
+                    border: "1px solid var(--ink)",
+                    background: "transparent",
+                    color: "var(--ink)",
+                    cursor: "pointer",
+                    fontFamily: "'Space Mono',monospace",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Try again
+                </button>
+              </div>
             )}
           </div>
         )}
