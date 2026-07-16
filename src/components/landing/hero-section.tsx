@@ -6,6 +6,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { WORDS } from "./palette";
 
+/** Per-session flag: the hero intro plays once, then skips on remounts
+ *  (sign-out, back from sign-in, hard refresh) for the rest of the session. */
+const INTRO_SEEN_KEY = "hunch:intro-seen";
+
 /** Glossy star used as the reduced-motion / no-WebGL fallback centerpiece. */
 function StarFallback() {
   return (
@@ -100,9 +104,23 @@ export function HeroSection({
       typeof window !== "undefined" &&
       window.matchMedia &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (autoplay === false || reduced) {
+    // Play the intro once per browser session. Signing out, backing off the
+    // sign-in page, and hard refreshes all remount this — without the flag the
+    // word-cycle replays every time, which reads as noise, not a first impression.
+    let seen = false;
+    try {
+      seen = window.sessionStorage.getItem(INTRO_SEEN_KEY) === "1";
+    } catch {
+      seen = false;
+    }
+    if (autoplay === false || reduced || seen) {
       const t = setTimeout(finalState, 0);
       return () => clearTimeout(t);
+    }
+    try {
+      window.sessionStorage.setItem(INTRO_SEEN_KEY, "1");
+    } catch {
+      // Private mode / storage disabled — fine, intro just plays this load.
     }
     runRef.current += 1;
     runIntro(runRef.current);
