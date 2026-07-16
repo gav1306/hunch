@@ -23,25 +23,35 @@ export async function POST(request: Request) {
     });
   }
 
-  const priors = await recallPriors(session.user.id, parsed.data.rawText);
-  const sharpened = await sharpenHunch(parsed.data.rawText, priors);
+  try {
+    const priors = await recallPriors(session.user.id, parsed.data.rawText);
+    const sharpened = await sharpenHunch(parsed.data.rawText, priors);
 
-  const hunch = await db.hunch.create({
-    data: {
-      userId: session.user.id,
-      rawText: parsed.data.rawText,
-      status: "sharpened",
-      hypothesis: {
-        create: {
-          statement: sharpened.statement,
-          outcomeMetric: sharpened.outcomeMetric,
-          outcomeType: sharpened.outcomeType,
-          confounders: sharpened.confounders,
+    const hunch = await db.hunch.create({
+      data: {
+        userId: session.user.id,
+        rawText: parsed.data.rawText,
+        status: "sharpened",
+        hypothesis: {
+          create: {
+            statement: sharpened.statement,
+            outcomeMetric: sharpened.outcomeMetric,
+            outcomeType: sharpened.outcomeType,
+            confounders: sharpened.confounders,
+          },
         },
       },
-    },
-    include: { hypothesis: true },
-  });
+      include: { hypothesis: true },
+    });
 
-  return NextResponse.json({ hunch, priors }, { status: 201 });
+    return NextResponse.json({ hunch, priors }, { status: 201 });
+  } catch (err) {
+    // The Coach (LLM) or the DB write failed. Always answer with JSON so the
+    // client shows a graceful message instead of choking on an empty body.
+    console.error("[hunch] sharpen failed:", err);
+    return NextResponse.json(
+      { error: "Couldn't sharpen your hunch right now. Please try again in a moment." },
+      { status: 502 },
+    );
+  }
 }

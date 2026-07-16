@@ -20,8 +20,10 @@ async function postHunch(rawText: string): Promise<HunchWithHypothesis> {
     body: JSON.stringify({ rawText }),
   });
 
-  const body = await res.json();
-  if (!res.ok) {
+  // Tolerate a non-JSON / empty body (e.g. an unhandled 5xx) instead of letting
+  // res.json() throw a raw "Unexpected end of JSON input" at the UI.
+  const body = await res.json().catch(() => null);
+  if (!res.ok || !body?.hunch) {
     throw new Error(body?.error ?? "Something went wrong sharpening your hunch.");
   }
   return { ...body.hunch, priors: body.priors ?? [] } as HunchWithHypothesis;
