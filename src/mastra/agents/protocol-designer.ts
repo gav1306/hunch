@@ -1,4 +1,5 @@
 import { Agent } from "@mastra/core/agent";
+import { claudeModel } from "@/mastra/model";
 import {
   protocolDesignSchema,
   type Confounder,
@@ -16,7 +17,7 @@ import {
 export const protocolDesigner = new Agent({
   id: "protocol-designer",
   name: "Protocol Designer",
-  model: "openrouter/anthropic/claude-sonnet-4.6",
+  model: claudeModel,
   instructions: `You are the Protocol Designer for Hunch, a personal-science copilot.
 
 Given a sharpened hypothesis, design an ABA n-of-1 experiment the user can run on

@@ -1,4 +1,5 @@
 import { Agent } from "@mastra/core/agent";
+import { claudeModel } from "@/mastra/model";
 import {
   safetyVerdictSchema,
   type ProtocolDesign,
@@ -14,7 +15,7 @@ import {
 export const safetyReviewer = new Agent({
   id: "safety-reviewer",
   name: "Safety Reviewer",
-  model: "openrouter/anthropic/claude-sonnet-4.6",
+  model: claudeModel,
   instructions: `You are the Safety Reviewer for Hunch. Hunch is NOT medical advice.
 
 You receive a proposed self-experiment. Decide whether it is safe for an

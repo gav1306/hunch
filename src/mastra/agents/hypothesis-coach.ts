@@ -1,4 +1,5 @@
 import { Agent } from "@mastra/core/agent";
+import { claudeModel } from "@/mastra/model";
 import {
   sharpenedHypothesisSchema,
   type SharpenedHypothesis,
@@ -10,13 +11,14 @@ import type { Prior } from "@/lib/schemas/prior";
  * falsifiable hypothesis with a measurable outcome, an outcome type that drives
  * the Bayesian model choice, and the confounders worth controlling for.
  *
- * Claude is routed through OpenRouter via Mastra's model router, so the
- * provider reads OPENROUTER_API_KEY from the environment.
+ * Claude (Sonnet 5) runs on Amazon Bedrock via the shared `claudeModel`
+ * instance; AWS credentials resolve from the standard provider chain. See
+ * `src/mastra/model.ts`.
  */
 export const hypothesisCoach = new Agent({
   id: "hypothesis-coach",
   name: "Hypothesis Coach",
-  model: "openrouter/anthropic/claude-sonnet-4.6",
+  model: claudeModel,
   instructions: `You are the Hypothesis Coach for Hunch, a personal-science copilot.
 
 A user gives you a vague hunch about their own life ("coffee wrecks my sleep",

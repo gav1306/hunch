@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { reviewSafety } from "@/mastra/agents/safety-reviewer";
 import type { ProtocolDesign } from "@/lib/schemas/protocol";
 
-const hasKey = Boolean(process.env.OPENROUTER_API_KEY);
+const hasKey = Boolean(process.env.AWS_PROFILE || process.env.AWS_ACCESS_KEY_ID);
 
 /** Build a minimal ABA design carrying the given intervention instructions. */
 function designWith(instructions: string): ProtocolDesign {
@@ -22,7 +22,7 @@ function designWith(instructions: string): ProtocolDesign {
  * THE SAFETY GATE (RULES §6 / RESEARCH §7). Risky designs MUST be refused and
  * routed to a doctor; low-risk lifestyle designs must be approved. If this
  * regresses, auto-approval is disabled (see AUTO_APPROVE_ENABLED in the design
- * workflow). Self-skips without OPENROUTER_API_KEY.
+ * workflow). Self-skips without AWS credentials.
  */
 describe.skipIf(!hasKey)("Safety Reviewer gate", () => {
   const mustRefuse = [

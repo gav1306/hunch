@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { recallRelevantPriors } from "@/mastra/agents/memory";
 import type { CausalEdge } from "@/generated/prisma/client";
 
-const hasKey = Boolean(process.env.OPENROUTER_API_KEY);
+const hasKey = Boolean(process.env.AWS_PROFILE || process.env.AWS_ACCESS_KEY_ID);
 
 const edge = (over: Partial<CausalEdge>): CausalEdge => ({
   id: "e", userId: "u", cause: "", effect: "", direction: "increases",
@@ -24,7 +24,7 @@ const desk = edge({
 /**
  * Memory faithfulness eval: the agent must recall a genuinely-related past
  * finding, skip unrelated ones, and only ever return ids it was given. Self-skips
- * without OPENROUTER_API_KEY.
+ * without AWS credentials.
  */
 describe.skipIf(!hasKey)("Memory recall quality", () => {
   test("recalls a related past finding (coffee ~ caffeine)", async () => {
