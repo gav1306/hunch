@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import { useCheckIn } from "@/hooks/use-checkin";
 import type { HomeData, HomeHunch } from "@/lib/home";
 
@@ -10,6 +11,15 @@ const EXAMPLES = [
   "Do I focus better with my phone in another room?",
   "Does a 10-min walk beat my afternoon slump?",
 ];
+
+const container = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.07, delayChildren: 0.04 } },
+};
+const item = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.42, ease: [0.22, 1, 0.36, 1] as const } },
+};
 
 const VERDICT_LABEL: Record<string, { text: string; color: string }> = {
   helped: { text: "Helped", color: "var(--s1)" },
@@ -216,12 +226,16 @@ function ProgressBar({ day, total }: { day: number; total: number }) {
 
 export function HomeView({ user, data }: { user: { name: string }; data: HomeData }) {
   const firstName = (user.name || "there").split(" ")[0];
+  const reduce = useReducedMotion();
 
   return (
     <div>
       <style>{`.app-tap:disabled{opacity:.5;cursor:not-allowed;} .app-tap:hover:not(:disabled){filter:brightness(0.94);}`}</style>
 
-      <h1
+      <motion.h1
+        initial={reduce ? false : { opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
         style={{
           margin: "0 0 clamp(28px,5vh,48px)",
           fontFamily: "'Clash Display',sans-serif",
@@ -232,7 +246,7 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
         }}
       >
         Hi, {firstName}.
-      </h1>
+      </motion.h1>
 
       {!data.hasAny ? (
         <EmptyState />
@@ -337,59 +351,50 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
 }
 
 function EmptyState() {
+  const reduce = useReducedMotion();
   return (
-    <div style={{ maxWidth: 620 }}>
-      <div
-        style={{
-          fontFamily: "'Clash Display',sans-serif",
-          fontWeight: 700,
-          fontSize: "clamp(28px,4vw,44px)",
-          lineHeight: 1.05,
-          letterSpacing: "-0.02em",
-          color: "var(--ink)",
-        }}
+    <motion.div
+      variants={container}
+      initial={reduce ? "show" : "hidden"}
+      animate="show"
+      style={{ position: "relative", maxWidth: 620 }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/starburst.png"
+        alt=""
+        aria-hidden
+        width={150}
+        height={150}
+        style={{ position: "absolute", top: -40, right: -20, width: 150, opacity: 0.08, pointerEvents: "none", userSelect: "none" }}
+      />
+
+      <motion.div
+        variants={item}
+        style={{ fontFamily: "'Clash Display',sans-serif", fontWeight: 700, fontSize: "clamp(28px,4vw,44px)", lineHeight: 1.05, letterSpacing: "-0.02em", color: "var(--ink)" }}
       >
         Got a hunch?{" "}
-        <span
-          style={{
-            backgroundImage: "linear-gradient(92deg,var(--s1),var(--s2))",
-            WebkitBackgroundClip: "text",
-            backgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            color: "transparent",
-          }}
-        >
+        <span style={{ backgroundImage: "linear-gradient(92deg,var(--s1),var(--s2))", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent" }}>
           Prove it.
         </span>
-      </div>
-      <p style={{ margin: "16px 0 28px", fontSize: 14, lineHeight: 1.7, color: "var(--muted)" }}>
+      </motion.div>
+
+      <motion.p variants={item} style={{ margin: "16px 0 28px", fontSize: 14, lineHeight: 1.7, color: "var(--muted)" }}>
         Drop a gut feeling about your life. The coach sharpens it into something
         you can actually test — then the math calls it.
-      </p>
+      </motion.p>
 
-      <Link
-        href="/hunch/new"
-        className="app-newhunch"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 10,
-          padding: "15px 26px",
-          border: "1px solid var(--ink)",
-          background: "var(--ink)",
-          color: "var(--paper)",
-          fontFamily: "'Space Mono',monospace",
-          fontWeight: 700,
-          fontSize: 13,
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
-          textDecoration: "none",
-        }}
-      >
-        Drop your first hunch →
-      </Link>
+      <motion.div variants={item}>
+        <Link
+          href="/hunch/new"
+          className="app-newhunch"
+          style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "15px 26px", border: "1px solid var(--ink)", background: "var(--ink)", color: "var(--paper)", fontFamily: "'Space Mono',monospace", fontWeight: 700, fontSize: 13, letterSpacing: "0.14em", textTransform: "uppercase", textDecoration: "none" }}
+        >
+          Drop your first hunch →
+        </Link>
+      </motion.div>
 
-      <div style={{ marginTop: 40 }}>
+      <motion.div variants={item} style={{ marginTop: 40 }}>
         <div style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 14 }}>
           For instance
         </div>
@@ -399,20 +404,14 @@ function EmptyState() {
               key={q}
               href={`/hunch/new?seed=${encodeURIComponent(q)}`}
               className="app-card"
-              style={{
-                ...cardBase,
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                fontSize: 13.5,
-              }}
+              style={{ ...cardBase, display: "flex", alignItems: "center", gap: 12, fontSize: 13.5 }}
             >
               <span style={{ color: "var(--s1)" }}>✦</span>
               {q}
             </Link>
           ))}
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
