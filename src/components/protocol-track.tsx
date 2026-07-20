@@ -1,8 +1,16 @@
 import type { Confounder, PowerInfo, ProtocolDesign } from "@/lib/schemas/protocol";
 
+const label: React.CSSProperties = {
+  fontSize: 10.5,
+  letterSpacing: "0.16em",
+  textTransform: "uppercase",
+  color: "var(--muted)",
+};
+
 /**
  * Renders an approved ABA design as a phase track: the A/B/A timeline with day
  * counts and washouts, the confounder controls, and the trial-length rationale.
+ * Brand system — Clash Display headings, Space Mono labels, --ink/--paper/--rule.
  */
 export function ProtocolTrack({
   design,
@@ -14,43 +22,74 @@ export function ProtocolTrack({
   confounders: Confounder[];
 }) {
   return (
-    <section className="rounded-xl border bg-card p-6 shadow-sm">
-      <h2 className="text-lg font-semibold">Your experiment plan</h2>
+    <section
+      style={{
+        background: "color-mix(in srgb,var(--paper) 90%,var(--ink))",
+        border: "1px solid var(--rule)",
+        padding: "clamp(20px,2.4vw,28px)",
+      }}
+    >
+      <h2 style={{ margin: 0, fontFamily: "'Clash Display',sans-serif", fontWeight: 600, fontSize: "clamp(18px,2.2vw,24px)", letterSpacing: "-0.01em", color: "var(--ink)" }}>
+        Your experiment plan
+      </h2>
 
-      <ol className="mt-4 flex flex-wrap items-stretch gap-2">
-        {design.phases.map((phase, i) => (
-          <li
-            key={i}
-            className="flex min-w-24 flex-1 flex-col rounded-lg border p-3 text-center"
-          >
-            <span className="text-xs font-medium text-muted-foreground">
-              {phase.kind === "intervention" ? "Intervention" : "Baseline"}
-            </span>
-            <span className="text-2xl font-bold">{phase.label}</span>
-            <span className="text-sm text-muted-foreground">{phase.days} days</span>
-          </li>
-        ))}
+      <ol style={{ margin: "18px 0 0", padding: 0, listStyle: "none", display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {design.phases.map((phase, i) => {
+          const intervention = phase.kind === "intervention";
+          return (
+            <li
+              key={i}
+              style={{
+                flex: "1 1 96px",
+                minWidth: 96,
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+                textAlign: "center",
+                padding: "14px 10px",
+                border: `1px solid ${intervention ? "var(--s1)" : "var(--rule)"}`,
+                background: intervention ? "color-mix(in srgb,var(--paper) 82%,var(--s1))" : "transparent",
+              }}
+            >
+              <span style={label}>{intervention ? "Intervention" : "Baseline"}</span>
+              <span style={{ fontFamily: "'Clash Display',sans-serif", fontWeight: 700, fontSize: 30, lineHeight: 1, color: "var(--ink)" }}>
+                {phase.label}
+              </span>
+              <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 12, color: "var(--muted)" }}>
+                {phase.days} days
+              </span>
+            </li>
+          );
+        })}
       </ol>
+
       {design.washoutDays > 0 && (
-        <p className="mt-2 text-xs text-muted-foreground">
-          {design.washoutDays}-day washout between phases.
+        <p style={{ margin: "10px 0 0", ...label }}>
+          {design.washoutDays}-day washout between phases
         </p>
       )}
 
-      <p className="mt-4 text-sm">{design.instructions}</p>
+      <p style={{ margin: "18px 0 0", fontSize: 14, lineHeight: 1.7, color: "var(--ink)", whiteSpace: "pre-line" }}>
+        {design.instructions}
+      </p>
 
       {confounders.length > 0 && (
-        <div className="mt-4">
-          <h3 className="text-sm font-medium text-muted-foreground">Keep these steady</h3>
-          <ul className="mt-1 list-disc pl-5 text-sm">
+        <div style={{ marginTop: 22, borderTop: "1px solid var(--rule)", paddingTop: 18 }}>
+          <div style={label}>Keep these steady</div>
+          <ul style={{ margin: "10px 0 0", padding: 0, listStyle: "none", display: "grid", gap: 8 }}>
             {confounders.map((c) => (
-              <li key={c.name}>{c.control}</li>
+              <li key={c.name} style={{ display: "flex", gap: 10, fontSize: 13.5, lineHeight: 1.5, color: "var(--ink)" }}>
+                <span aria-hidden style={{ color: "var(--s1)" }}>·</span>
+                <span>{c.control}</span>
+              </li>
             ))}
           </ul>
         </div>
       )}
 
-      <p className="mt-4 text-xs text-muted-foreground">{powerInfo.rationale}</p>
+      <p style={{ margin: "18px 0 0", fontSize: 12, lineHeight: 1.6, fontStyle: "italic", color: "var(--muted)" }}>
+        {powerInfo.rationale}
+      </p>
     </section>
   );
 }
