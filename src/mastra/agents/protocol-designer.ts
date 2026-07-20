@@ -38,6 +38,32 @@ Keep it realistic for one person at home. Never recommend prescription meds,
 fasting, or anything a doctor should oversee — that is handled separately.`,
 });
 
+/**
+ * Deterministic fallback instructions, built from the structured design when the
+ * model omits or empties the `instructions` field. Guarantees the schema's
+ * non-empty `instructions` invariant holds without a hard failure blanking the
+ * page — prose is nicer, but a valid protocol always wins over a 500.
+ */
+export function composeInstructions(
+  design: Pick<ProtocolDesign, "phases" | "washoutDays" | "controls">,
+  outcomeMetric: string,
+): string {
+  const lines = design.phases.map((p, i) => {
+    const role = p.kind === "baseline" ? "baseline (behave normally)" : "intervention";
+    return `Phase ${i + 1} — ${p.label} (${role}): ${p.days} days. Log your ${outcomeMetric} each day.`;
+  });
+  if (design.washoutDays > 0) {
+    lines.push(
+      `Leave a ${design.washoutDays}-day washout gap between phases so the previous phase stops affecting the next.`,
+    );
+  }
+  if (design.controls.length) {
+    lines.push("Keep these constant throughout:");
+    lines.push(...design.controls.map((c) => `- ${c}`));
+  }
+  return lines.join("\n");
+}
+
 export async function designProtocolShape(input: {
   statement: string;
   outcomeMetric: string;
@@ -52,12 +78,27 @@ Hypothesis: ${input.statement}
 Outcome metric: ${input.outcomeMetric}
 Outcome type: ${input.outcomeType}
 Minimum days per phase (use this exact number for each phase): ${input.power.minDaysPerPhase}
-Confounder controls to include verbatim: ${controls.length ? controls.join(" | ") : "none"}`;
+Confounder controls to include verbatim: ${controls.length ? controls.join(" | ") : "none"}
+
+Return ALL fields, especially "instructions" — it is required and must be non-empty.`;
 
   const response = await protocolDesigner.generate(prompt, {
     structuredOutput: { schema: protocolDesignSchema },
-    modelSettings: { maxOutputTokens: 1024 },
+    modelSettings: { maxOutputTokens: 2048 },
   });
 
-  return protocolDesignSchema.parse(response.object);
+  const raw = (response.object ?? {}) as Partial<ProtocolDesign>;
+  const instructions =
+    typeof raw.instructions === "string" && raw.instructions.trim().length > 0
+      ? raw.instructions
+      : composeInstructions(
+          {
+            phases: raw.phases ?? [],
+            washoutDays: raw.washoutDays ?? 0,
+            controls: raw.controls ?? controls,
+          },
+          input.outcomeMetric,
+        );
+
+  return protocolDesignSchema.parse({ ...raw, instructions });
 }
