@@ -3,7 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down",
+    "predev": "npm run db:up",
     "dev": "next dev",
+    "dev:web": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
