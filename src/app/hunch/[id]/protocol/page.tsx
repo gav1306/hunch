@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { use } from "react";
+import { use, useEffect, useRef } from "react";
 import { ProtocolTrack } from "@/components/protocol-track";
 import { useDesignProtocol } from "@/hooks/use-design-protocol";
 import { appThemeStyle } from "@/lib/app-theme";
@@ -28,7 +28,15 @@ export default function ProtocolPage({
   const design = useDesignProtocol(id);
   const data = design.data;
   const refused = data?.protocol.safetyState === "refused";
-  const idle = !design.isPending && !data;
+
+  // Auto-design once on mount — the page is the design, no button press needed.
+  const fired = useRef(false);
+  useEffect(() => {
+    if (fired.current) return;
+    fired.current = true;
+    design.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <main style={{ minHeight: "100dvh", ...appThemeStyle() }}>
@@ -43,26 +51,21 @@ export default function ProtocolPage({
             We&apos;ll turn your hypothesis into a safe, runnable n-of-1 experiment.
           </p>
 
-          <button
-            type="button"
-            onClick={() => design.mutate()}
-            disabled={design.isPending}
-            style={{
-              marginTop: 26,
-              padding: "14px 26px",
-              border: "1px solid var(--ink)",
-              background: design.isPending ? "transparent" : "var(--ink)",
-              color: design.isPending ? "var(--muted)" : "var(--paper)",
-              cursor: design.isPending ? "not-allowed" : "pointer",
-              fontFamily: "'Space Mono',monospace",
-              fontWeight: 700,
-              fontSize: 13,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-            }}
-          >
-            {design.isPending ? "Designing…" : idle ? "Design my protocol" : "Redesign protocol"}
-          </button>
+          {design.isPending && (
+            <p aria-live="polite" style={{ marginTop: 26, fontFamily: "'Space Mono',monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--muted)" }}>
+              Designing your experiment…
+            </p>
+          )}
+
+          {data && !design.isPending && (
+            <button
+              type="button"
+              onClick={() => design.mutate()}
+              style={{ marginTop: 22, background: "none", border: "none", cursor: "pointer", fontFamily: "'Space Mono',monospace", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted)" }}
+            >
+              ↻ redesign
+            </button>
+          )}
 
           {design.isError && (
             <div
