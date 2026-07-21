@@ -5,6 +5,7 @@ import {
   type SharpenedHypothesis,
 } from "@/lib/schemas/hypothesis";
 import type { Prior } from "@/lib/schemas/prior";
+import type { ClarifyingAnswer } from "@/lib/schemas/clarify";
 
 /**
  * Hypothesis Coach (RESEARCH §3). Turns a vague, free-text hunch into a single
@@ -46,10 +47,16 @@ Keep it grounded in what one person can run at home. Do not give medical advice.
  * context so the coach can account for what is already known — it still outputs
  * only the sharpened hypothesis.
  */
-export async function sharpenHunch(
+/**
+ * Build the coach prompt from the raw hunch, any recalled priors, and the
+ * user's clarifying answers. Extracted + exported so it is unit-testable
+ * without a live model call.
+ */
+export function buildSharpenPrompt(
   rawText: string,
-  priors: Prior[] = [],
-): Promise<SharpenedHypothesis> {
+  priors: Prior[],
+  answers: ClarifyingAnswer[],
+): string {
   const priorsBlock =
     priors.length > 0
       ? `\n\nThe user has already learned these related findings; take them into account, do not contradict them:\n${priors
@@ -57,8 +64,23 @@ export async function sharpenHunch(
           .join("\n")}`
       : "";
 
+  const answersBlock =
+    answers.length > 0
+      ? `\n\nThe user answered these clarifying questions — treat them as ground truth:\n${answers
+          .map((a) => `- ${a.prompt} -> ${a.answer}`)
+          .join("\n")}`
+      : "";
+
+  return `Sharpen this hunch into a testable hypothesis:\n\n"${rawText}"${answersBlock}${priorsBlock}`;
+}
+
+export async function sharpenHunch(
+  rawText: string,
+  priors: Prior[] = [],
+  answers: ClarifyingAnswer[] = [],
+): Promise<SharpenedHypothesis> {
   const response = await hypothesisCoach.generate(
-    `Sharpen this hunch into a testable hypothesis:\n\n"${rawText}"${priorsBlock}`,
+    buildSharpenPrompt(rawText, priors, answers),
     {
       structuredOutput: { schema: sharpenedHypothesisSchema },
       // The output is a small object; cap tokens to stay within budget and

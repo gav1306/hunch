@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { recallPriors } from "@/lib/memory/recall";
-import { hunchInputSchema } from "@/lib/schemas/hypothesis";
+import { sharpenRequestSchema } from "@/lib/schemas/clarify";
 import { sharpenHunch } from "@/mastra/agents/hypothesis-coach";
 
 /**
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const parsed = hunchInputSchema.safeParse(await request.json());
+  const parsed = sharpenRequestSchema.safeParse(await request.json());
   if (!parsed.success) {
     return NextResponse.json({ error: "A hunch can't be empty." }, {
       status: 400,
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 
   try {
     const priors = await recallPriors(session.user.id, parsed.data.rawText);
-    const sharpened = await sharpenHunch(parsed.data.rawText, priors);
+    const sharpened = await sharpenHunch(parsed.data.rawText, priors, parsed.data.answers);
 
     const hunch = await db.hunch.create({
       data: {

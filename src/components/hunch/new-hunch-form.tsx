@@ -110,7 +110,7 @@ export function NewHunchForm({ seed }: { seed: string }) {
     e.preventDefault();
     const text = rawText.trim();
     if (!text || createHunch.isPending) return;
-    createHunch.mutate(text);
+    createHunch.mutate({ rawText: text, answers: [] });
   }
 
   function reset() {
@@ -193,7 +193,7 @@ export function NewHunchForm({ seed }: { seed: string }) {
                   type="button"
                   onClick={() => {
                     const t = rawText.trim();
-                    if (t) createHunch.mutate(t);
+                    if (t) createHunch.mutate({ rawText: t, answers: [] });
                   }}
                   disabled={createHunch.isPending || !rawText.trim()}
                   style={{
