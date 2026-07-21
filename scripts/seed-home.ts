@@ -23,9 +23,9 @@ function daysAgo(n: number): Date {
 
 const design = (): ProtocolDesign => ({
   phases: [
-    { label: "A", kind: "baseline", days: 7 },
-    { label: "B", kind: "intervention", days: 7 },
-    { label: "A", kind: "baseline", days: 7 },
+    { label: "A", kind: "baseline", days: 7, name: "Normal coffee", action: "Keep your usual coffee; log sleep each morning." },
+    { label: "B", kind: "intervention", days: 7, name: "No coffee after 2pm", action: "Skip caffeine after 2pm; log sleep each morning." },
+    { label: "A", kind: "baseline", days: 7, name: "Normal coffee", action: "Back to usual coffee; log sleep each morning." },
   ],
   washoutDays: 2,
   controls: ["Keep bedtime within 30 min", "No caffeine after 2pm"],

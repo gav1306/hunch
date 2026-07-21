@@ -19,6 +19,10 @@ export const protocolPhaseSchema = z.object({
   label: z.enum(["A", "B"]),
   kind: z.enum(["baseline", "intervention"]),
   days: z.number().int().positive(),
+  /** Human name for the phase, e.g. "Normal coffee" / "No coffee after 2pm". */
+  name: z.string().trim().min(1),
+  /** What the user actually does this phase, in their own terms. */
+  action: z.string().trim().min(1),
 });
 export type ProtocolPhase = z.infer<typeof protocolPhaseSchema>;
 

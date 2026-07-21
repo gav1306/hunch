@@ -7,9 +7,9 @@ import type { ProtocolDesign } from "@/lib/schemas/protocol";
 //   0,1,2 = A | 3 = washout | 4,5,6 = B | 7 = washout | 8,9,10 = A | 11+ = done
 const design: ProtocolDesign = {
   phases: [
-    { label: "A", kind: "baseline", days: 3 },
-    { label: "B", kind: "intervention", days: 3 },
-    { label: "A", kind: "baseline", days: 3 },
+    { label: "A", kind: "baseline", days: 3, name: "Baseline", action: "Normal routine." },
+    { label: "B", kind: "intervention", days: 3, name: "Intervention", action: "Apply the change." },
+    { label: "A", kind: "baseline", days: 3, name: "Baseline", action: "Normal routine." },
   ],
   washoutDays: 1,
   controls: [],
@@ -65,9 +65,9 @@ describe("currentPhase", () => {
 // Layout: 0,1,2 = A | 3,4,5 = B | 6,7,8 = A | 9+ = done
 const noWashoutDesign: ProtocolDesign = {
   phases: [
-    { label: "A", kind: "baseline", days: 3 },
-    { label: "B", kind: "intervention", days: 3 },
-    { label: "A", kind: "baseline", days: 3 },
+    { label: "A", kind: "baseline", days: 3, name: "Baseline", action: "Normal routine." },
+    { label: "B", kind: "intervention", days: 3, name: "Intervention", action: "Apply the change." },
+    { label: "A", kind: "baseline", days: 3, name: "Baseline", action: "Normal routine." },
   ],
   washoutDays: 0,
   controls: [],

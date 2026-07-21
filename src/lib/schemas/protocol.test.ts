@@ -4,6 +4,7 @@ import {
   designResultSchema,
   powerInfoSchema,
   protocolDesignSchema,
+  protocolPhaseSchema,
   safetyVerdictSchema,
 } from "@/lib/schemas/protocol";
 
@@ -16,9 +17,9 @@ describe("protocol schemas", () => {
   };
   const design = {
     phases: [
-      { label: "A" as const, kind: "baseline" as const, days: 7 },
-      { label: "B" as const, kind: "intervention" as const, days: 7 },
-      { label: "A" as const, kind: "baseline" as const, days: 7 },
+      { label: "A" as const, kind: "baseline" as const, days: 7, name: "Normal coffee", action: "Keep your usual coffee; log sleep each morning." },
+      { label: "B" as const, kind: "intervention" as const, days: 7, name: "No coffee after 2pm", action: "Skip caffeine after 2pm; log sleep each morning." },
+      { label: "A" as const, kind: "baseline" as const, days: 7, name: "Normal coffee", action: "Back to usual coffee; log sleep each morning." },
     ],
     washoutDays: 2,
     controls: ["Hold caffeine intake constant throughout the experiment."],
@@ -53,5 +54,28 @@ describe("protocol schemas", () => {
     expect(
       designResultSchema.safeParse({ confounders: [confounder], design, powerInfo, safety }).success,
     ).toBe(true);
+  });
+});
+
+describe("protocolPhaseSchema name/action", () => {
+  it("requires a non-empty name and action", () => {
+    const ok = protocolPhaseSchema.safeParse({
+      label: "B",
+      kind: "intervention",
+      days: 7,
+      name: "No coffee after 2pm",
+      action: "Skip all caffeine after 2pm; log your sleep score each morning.",
+    });
+    expect(ok.success).toBe(true);
+  });
+
+  it("rejects a phase missing action", () => {
+    const bad = protocolPhaseSchema.safeParse({
+      label: "A",
+      kind: "baseline",
+      days: 7,
+      name: "Normal coffee",
+    });
+    expect(bad.success).toBe(false);
   });
 });

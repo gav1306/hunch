@@ -40,22 +40,29 @@ export function ProtocolTrack({
             <li
               key={i}
               style={{
-                flex: "1 1 96px",
-                minWidth: 96,
+                flex: "1 1 140px",
+                minWidth: 0,
                 display: "flex",
                 flexDirection: "column",
-                gap: 4,
-                textAlign: "center",
-                padding: "14px 10px",
+                gap: 6,
+                padding: "14px 12px",
                 border: `1px solid ${intervention ? "var(--s1)" : "var(--rule)"}`,
                 background: intervention ? "color-mix(in srgb,var(--paper) 82%,var(--s1))" : "transparent",
               }}
             >
-              <span style={label}>{intervention ? "Intervention" : "Baseline"}</span>
-              <span style={{ fontFamily: "'Clash Display',sans-serif", fontWeight: 700, fontSize: 30, lineHeight: 1, color: "var(--ink)" }}>
-                {phase.label}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, fontWeight: 700, color: "var(--muted)", border: "1px solid var(--rule)", padding: "1px 6px" }}>
+                  {phase.label}
+                </span>
+                <span style={label}>{intervention ? "Intervention" : "Baseline"}</span>
+              </div>
+              <span style={{ fontFamily: "'Clash Display',sans-serif", fontWeight: 600, fontSize: 16, lineHeight: 1.15, color: "var(--ink)", overflowWrap: "anywhere" }}>
+                {phase.name}
               </span>
-              <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 12, color: "var(--muted)" }}>
+              <span style={{ fontSize: 12.5, lineHeight: 1.5, color: "var(--muted)", overflowWrap: "anywhere" }}>
+                {phase.action}
+              </span>
+              <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 11.5, color: "var(--muted)" }}>
                 {phase.days} days
               </span>
             </li>
