@@ -55,6 +55,8 @@ export function VerdictView({ hunchId }: { hunchId: string }) {
         background: "color-mix(in srgb,var(--paper) 90%,var(--ink))",
         border: "1px solid var(--rule)",
         padding: "clamp(20px,2.4vw,28px)",
+        minWidth: 0,
+        maxWidth: "100%",
       }}
     >
       <div>
@@ -63,7 +65,7 @@ export function VerdictView({ hunchId }: { hunchId: string }) {
           {head.title}
         </h2>
       </div>
-      <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, color: "var(--ink)" }}>{v.narrative}</p>
+      <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, color: "var(--ink)", overflowWrap: "anywhere" }}>{v.narrative}</p>
       {hasStats && <BeliefMeter belief={beliefFrom(v)} />}
     </section>
   );

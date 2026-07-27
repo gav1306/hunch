@@ -31,6 +31,8 @@ export function BeliefMeter({ belief }: { belief: Belief }) {
         background: "color-mix(in srgb,var(--paper) 90%,var(--ink))",
         border: "1px solid var(--rule)",
         padding: "clamp(20px,2.4vw,28px)",
+        minWidth: 0,
+        maxWidth: "100%",
       }}
     >
       <p style={label}>Likelihood it&apos;s real</p>
@@ -55,7 +57,7 @@ export function BeliefMeter({ belief }: { belief: Belief }) {
               fill="var(--s1)"
             />
           </svg>
-          <p style={{ margin: "12px 0 0", fontFamily: "'Space Mono',monospace", fontSize: 11.5, letterSpacing: "0.02em", color: "var(--muted)" }}>
+          <p style={{ margin: "12px 0 0", fontFamily: "'Space Mono',monospace", fontSize: 11.5, letterSpacing: "0.02em", color: "var(--muted)", overflowWrap: "anywhere" }}>
             Effect {belief.effect.toFixed(2)} · 95% CI [{belief.ci[0].toFixed(2)},{" "}
             {belief.ci[1].toFixed(2)}] · {belief.nA + belief.nB} check-ins
           </p>

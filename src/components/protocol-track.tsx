@@ -78,7 +78,7 @@ export function ProtocolTrack({
         </p>
       )}
 
-      <p style={{ margin: "18px 0 0", fontSize: 14, lineHeight: 1.7, color: "var(--ink)", whiteSpace: "pre-line" }}>
+      <p style={{ margin: "18px 0 0", fontSize: 14, lineHeight: 1.7, color: "var(--ink)", whiteSpace: "pre-line", overflowWrap: "anywhere" }}>
         {design.instructions}
       </p>
 
@@ -87,9 +87,9 @@ export function ProtocolTrack({
           <div style={label}>Keep these steady</div>
           <ul style={{ margin: "10px 0 0", padding: 0, listStyle: "none", display: "grid", gap: 8 }}>
             {confounders.map((c) => (
-              <li key={c.name} style={{ display: "flex", gap: 10, fontSize: 13.5, lineHeight: 1.5, color: "var(--ink)" }}>
+              <li key={c.name} style={{ display: "flex", gap: 10, fontSize: 13.5, lineHeight: 1.5, color: "var(--ink)", minWidth: 0 }}>
                 <span aria-hidden style={{ color: "var(--s1)" }}>·</span>
-                <span>{c.control}</span>
+                <span style={{ overflowWrap: "anywhere" }}>{c.control}</span>
               </li>
             ))}
           </ul>

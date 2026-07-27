@@ -55,7 +55,7 @@ export default function HunchDashboard({ params }: { params: Promise<{ id: strin
           Your experiment
         </h1>
 
-        <div style={{ marginTop: 26 }}>{content()}</div>
+        <div style={{ marginTop: 26, transition: "opacity 300ms ease", opacity: query.isPending ? 0.5 : 1 }}>{content()}</div>
       </div>
     </main>
   );
