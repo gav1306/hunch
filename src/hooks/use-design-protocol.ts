@@ -18,6 +18,8 @@ export type DesignResponse = {
     confounders: Confounder[];
   };
   safety: SafetyVerdict;
+  /** The sharpened hypothesis this protocol tests — for the plan's header. */
+  hypothesis: { statement: string; outcomeMetric: string };
 };
 
 async function postDesign(hunchId: string): Promise<DesignResponse> {

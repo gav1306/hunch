@@ -38,6 +38,35 @@ export const protocolDesignSchema = z.object({
 });
 export type ProtocolDesign = z.infer<typeof protocolDesignSchema>;
 
+/**
+ * Parse a design read from storage, tolerating rows written before `name`/
+ * `action` existed on the phase schema. Backfills sensible defaults so older
+ * protocols still render — the scheduler only needs label/kind/days, and the
+ * names are cosmetic. New designs from the agent already carry both fields.
+ */
+export function parseStoredDesign(
+  raw: unknown,
+  outcomeMetric = "your outcome",
+): ProtocolDesign {
+  const obj = (raw ?? {}) as { phases?: unknown };
+  const phases = Array.isArray(obj.phases)
+    ? obj.phases.map((p) => {
+        const ph = (p ?? {}) as Partial<ProtocolPhase>;
+        const baseline = ph.kind === "baseline";
+        return {
+          ...ph,
+          name: ph.name?.trim() || (baseline ? "Baseline" : "Intervention"),
+          action:
+            ph.action?.trim() ||
+            (baseline
+              ? `Keep your normal routine. Log your ${outcomeMetric} each day.`
+              : `Apply the change you're testing. Log your ${outcomeMetric} each day.`),
+        };
+      })
+    : obj.phases;
+  return protocolDesignSchema.parse({ ...(obj as object), phases });
+}
+
 /** Output of the deterministic power-analysis tool. */
 export const powerInfoSchema = z.object({
   minDaysPerPhase: z.number().int().positive(),

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   confounderSchema,
   designResultSchema,
+  parseStoredDesign,
   powerInfoSchema,
   protocolDesignSchema,
   protocolPhaseSchema,
@@ -77,5 +78,38 @@ describe("protocolPhaseSchema name/action", () => {
       name: "Normal coffee",
     });
     expect(bad.success).toBe(false);
+  });
+});
+
+describe("parseStoredDesign (tolerates pre-name/action rows)", () => {
+  // A design as stored before name/action existed on the phase schema.
+  const legacy = {
+    phases: [
+      { label: "A", kind: "baseline", days: 7 },
+      { label: "B", kind: "intervention", days: 7 },
+      { label: "A", kind: "baseline", days: 7 },
+    ],
+    washoutDays: 0,
+    controls: ["Keep sleep constant."],
+    instructions: "Log your sleep each morning.",
+  };
+
+  it("backfills name/action so a legacy design parses", () => {
+    const design = parseStoredDesign(legacy, "sleep score");
+    expect(design.phases).toHaveLength(3);
+    expect(design.phases[0].name).toBe("Baseline");
+    expect(design.phases[1].name).toBe("Intervention");
+    expect(design.phases[0].action).toContain("sleep score");
+    expect(design.phases[1].action.length).toBeGreaterThan(0);
+  });
+
+  it("preserves name/action already present", () => {
+    const withNames = {
+      ...legacy,
+      phases: legacy.phases.map((p, i) => ({ ...p, name: `Phase ${i}`, action: `Do thing ${i}.` })),
+    };
+    const design = parseStoredDesign(withNames);
+    expect(design.phases[1].name).toBe("Phase 1");
+    expect(design.phases[1].action).toBe("Do thing 1.");
   });
 });

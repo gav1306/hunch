@@ -66,5 +66,15 @@ export async function POST(
     await db.hunch.update({ where: { id: hunch.id }, data: { status: "running" } });
   }
 
-  return NextResponse.json({ protocol, safety: result.safety }, { status: 201 });
+  return NextResponse.json(
+    {
+      protocol,
+      safety: result.safety,
+      hypothesis: {
+        statement: hunch.hypothesis.statement,
+        outcomeMetric: hunch.hypothesis.outcomeMetric,
+      },
+    },
+    { status: 201 },
+  );
 }

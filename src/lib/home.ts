@@ -2,7 +2,7 @@ import "server-only";
 
 import { db } from "@/lib/db";
 import { currentPhase } from "@/lib/schedule";
-import { protocolDesignSchema } from "@/lib/schemas/protocol";
+import { parseStoredDesign } from "@/lib/schemas/protocol";
 
 /** Whole UTC calendar days from `from` to `to` (date-only). */
 function utcDaysBetween(from: Date, to: Date): number {
@@ -61,7 +61,7 @@ export async function getHomeData(userId: string): Promise<HomeData> {
 
     if (h.protocol?.startedAt) {
       try {
-        const design = protocolDesignSchema.parse(h.protocol.design);
+        const design = parseStoredDesign(h.protocol.design);
         const total =
           design.phases.reduce((s, p) => s + p.days, 0) +
           design.washoutDays * Math.max(0, design.phases.length - 1);

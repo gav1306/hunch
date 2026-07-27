@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { computeBelief } from "@/lib/bayes";
 import { currentPhase } from "@/lib/schedule";
 import { checkInInputSchema } from "@/lib/schemas/belief";
-import { protocolDesignSchema } from "@/lib/schemas/protocol";
+import { parseStoredDesign } from "@/lib/schemas/protocol";
 
 /** UTC calendar date (midnight) for today — the per-day check-in bucket. */
 function utcToday(): Date {
@@ -48,7 +48,7 @@ export async function POST(
     return NextResponse.json({ error: "A check-in needs a numeric value." }, { status: 400 });
   }
 
-  const design = protocolDesignSchema.parse(hunch.protocol.design);
+  const design = parseStoredDesign(hunch.protocol.design);
   const status = currentPhase(hunch.protocol.startedAt, design, new Date());
   if (status.done) {
     return NextResponse.json({ error: "This trial is complete." }, { status: 409 });

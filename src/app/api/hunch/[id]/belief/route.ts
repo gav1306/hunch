@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { computeBelief } from "@/lib/bayes";
 import { currentPhase } from "@/lib/schedule";
-import { protocolDesignSchema } from "@/lib/schemas/protocol";
+import { parseStoredDesign } from "@/lib/schemas/protocol";
 
 /**
  * Phase 4: compute-on-read belief. Reads every check-in for the hunch, runs the
@@ -37,7 +37,7 @@ export async function GET(
 
   let schedule = null;
   if (hunch.protocol?.startedAt) {
-    const design = protocolDesignSchema.parse(hunch.protocol.design);
+    const design = parseStoredDesign(hunch.protocol.design, hunch.hypothesis.outcomeMetric);
     schedule = currentPhase(hunch.protocol.startedAt, design, new Date());
   }
 

@@ -8,7 +8,7 @@ import { classifyVerdict } from "@/lib/verdict";
 import { writeEdgeData } from "@/lib/memory/causal-graph";
 import { runAnalysis } from "@/mastra/workflows/analysis";
 import { verdictSchema, type Verdict } from "@/lib/schemas/verdict";
-import { protocolDesignSchema } from "@/lib/schemas/protocol";
+import { parseStoredDesign } from "@/lib/schemas/protocol";
 
 /** Shape a persisted Verdict row into the API DTO (ciLow/ciHigh -> ci tuple). */
 function toDto(row: {
@@ -69,7 +69,7 @@ export async function GET(
     hunch.checkIns.map((c) => ({ phase: c.phase, value: c.value })),
     outcomeType,
   );
-  const design = protocolDesignSchema.parse(hunch.protocol.design);
+  const design = parseStoredDesign(hunch.protocol.design, hunch.hypothesis.outcomeMetric);
   const schedule = currentPhase(hunch.protocol.startedAt, design, new Date());
 
   const category = classifyVerdict(belief, schedule);

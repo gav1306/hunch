@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useClarify } from "@/hooks/use-clarify";
-import { useCreateHunch, type HunchWithHypothesis } from "@/hooks/use-create-hunch";
+import { useCreateHunch } from "@/hooks/use-create-hunch";
 import type { ClarifyingAnswer, ClarifyingQuestion } from "@/lib/schemas/clarify";
 import { appThemeStyle } from "@/lib/app-theme";
 
@@ -95,45 +96,19 @@ function QuestionCard({
   );
 }
 
-/** Lean done card — the sharpened hypothesis, no info dump. */
-function LeanResult({ hunch, onReset }: { hunch: HunchWithHypothesis; onReset: () => void }) {
-  const h = hunch.hypothesis;
-  return (
-    <div style={{ marginTop: 28 }}>
-      <div style={{ background: "color-mix(in srgb,var(--paper) 90%,var(--ink))", border: "1px solid var(--rule)", padding: "clamp(20px,2.4vw,28px)" }}>
-        <div style={label}>Your hypothesis</div>
-        <h2 style={{ margin: "10px 0 0", fontFamily: "'Clash Display',sans-serif", fontWeight: 600, fontSize: "clamp(19px,2.4vw,26px)", lineHeight: 1.25, letterSpacing: "-0.01em", color: "var(--ink)", overflowWrap: "anywhere" }}>
-          {h.statement}
-        </h2>
-        <p style={{ margin: "12px 0 0", fontSize: 13.5, color: "var(--muted)", overflowWrap: "anywhere" }}>
-          Measured by {h.outcomeMetric}
-        </p>
-      </div>
-      <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
-        <Link
-          href={`/hunch/${hunch.id}/protocol`}
-          style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "14px 24px", border: "1px solid var(--ink)", background: "var(--ink)", color: "var(--paper)", fontFamily: "'Space Mono',monospace", fontWeight: 700, fontSize: 13, letterSpacing: "0.12em", textTransform: "uppercase", textDecoration: "none" }}
-        >
-          Continue →
-        </Link>
-        <button
-          type="button"
-          onClick={onReset}
-          style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "'Space Mono',monospace", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted)" }}
-        >
-          start over
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export function NewHunchForm({ seed }: { seed: string }) {
+  const router = useRouter();
   const [rawText, setRawText] = useState(seed);
   const [questions, setQuestions] = useState<ClarifyingQuestion[] | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const clarify = useClarify();
   const createHunch = useCreateHunch();
+
+  // Once sharpened, hand off to the protocol page — that's where the user
+  // confirms the hypothesis and the plan is designed (Variation B: one page).
+  useEffect(() => {
+    if (createHunch.data) router.push(`/hunch/${createHunch.data.id}/protocol`);
+  }, [createHunch.data, router]);
 
   const step: "idle" | "asking" | "answering" | "committing" | "done" = createHunch.data
     ? "done"
@@ -162,14 +137,6 @@ export function NewHunchForm({ seed }: { seed: string }) {
       .filter((q) => (answers[q.id] ?? "").trim() !== "")
       .map((q) => ({ id: q.id, prompt: q.prompt, answer: answers[q.id].trim() }));
     createHunch.mutate({ rawText: rawText.trim(), answers: payload });
-  }
-
-  function reset() {
-    createHunch.reset();
-    clarify.reset();
-    setQuestions(null);
-    setAnswers({});
-    setRawText("");
   }
 
   const allAnswered = questions?.every((q) => (answers[q.id] ?? "").trim() !== "") ?? false;
@@ -230,7 +197,7 @@ export function NewHunchForm({ seed }: { seed: string }) {
           </div>
         )}
 
-        {step === "committing" && (
+        {(step === "committing" || step === "done") && (
           <div style={{ marginTop: 44, textAlign: "center" }}>
             <div style={{ width: 200, height: 200, margin: "0 auto" }} aria-hidden>
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -242,12 +209,10 @@ export function NewHunchForm({ seed }: { seed: string }) {
               />
             </div>
             <p aria-live="polite" style={{ marginTop: 4, fontFamily: "'Space Mono',monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--muted)" }}>
-              Sharpening…
+              {step === "done" ? "Opening your plan…" : "Sharpening…"}
             </p>
           </div>
         )}
-
-        {step === "done" && createHunch.data && <LeanResult hunch={createHunch.data} onReset={reset} />}
 
         {(clarify.isError && step === "idle") || createHunch.isError ? (
           <p role="alert" style={{ marginTop: 20, fontSize: 13, color: "var(--s1)", overflowWrap: "anywhere" }}>
