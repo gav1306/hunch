@@ -27,6 +27,8 @@ export function ProtocolTrack({
         background: "color-mix(in srgb,var(--paper) 90%,var(--ink))",
         border: "1px solid var(--rule)",
         padding: "clamp(20px,2.4vw,28px)",
+        minWidth: 0,
+        maxWidth: "100%",
       }}
     >
       <h2 style={{ margin: 0, fontFamily: "'Clash Display',sans-serif", fontWeight: 600, fontSize: "clamp(18px,2.2vw,24px)", letterSpacing: "-0.01em", color: "var(--ink)" }}>
