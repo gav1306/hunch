@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { recallPriors } from "@/lib/memory/recall";
 import { sharpenRequestSchema } from "@/lib/schemas/clarify";
@@ -11,7 +11,7 @@ import { sharpenHunch } from "@/mastra/agents/hypothesis-coach";
  * the Hunch and its Hypothesis, then return the pair for the Hunch Card.
  */
 export async function POST(request: Request) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getSession(await headers());
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

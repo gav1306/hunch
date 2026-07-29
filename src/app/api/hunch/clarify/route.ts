@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { recallPriors } from "@/lib/memory/recall";
 import { hunchInputSchema } from "@/lib/schemas/hypothesis";
 import { askClarifying } from "@/mastra/agents/clarifier";
@@ -11,7 +11,7 @@ import { askClarifying } from "@/mastra/agents/clarifier";
  * user has answered and the coach commits a hypothesis.
  */
 export async function POST(request: Request) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getSession(await headers());
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

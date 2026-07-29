@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { NewHunchForm } from "@/components/hunch/new-hunch-form";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { parseSeed } from "@/lib/seed";
 
 export default async function NewHunchPage({
@@ -9,7 +9,7 @@ export default async function NewHunchPage({
 }: {
   searchParams: Promise<{ seed?: string | string[] }>;
 }) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getSession(await headers());
   if (!session) redirect("/signin");
 
   const { seed } = await searchParams;

@@ -2,10 +2,10 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app/app-shell";
 import { SecuritySettings } from "@/components/app/security-settings";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 
 export default async function SecurityPage() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getSession(await headers());
   if (!session) redirect("/signin");
 
   return (
