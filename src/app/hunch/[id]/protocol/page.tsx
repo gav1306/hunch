@@ -16,6 +16,20 @@ const label: React.CSSProperties = {
 
 const mono = "'Space Mono',monospace";
 
+const gateBtn: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
+  padding: "12px 18px",
+  borderRadius: 11,
+  fontFamily: mono,
+  fontWeight: 700,
+  fontSize: 12,
+  letterSpacing: "0.1em",
+  textTransform: "uppercase",
+};
+
 /**
  * Phase 3 UI — Variation B: confirm the sharpened hypothesis, then design the
  * protocol and step through it, all on one page. The design does NOT auto-run;
@@ -56,34 +70,23 @@ export default function ProtocolPage({
           {/* Confirm gate — no protocol yet, hypothesis in hand, not mid-design */}
           {hypothesis && !approved && !refused && !design.isPending && (
             <div>
-              <h1 style={{ margin: 0, fontFamily: "'Clash Display',sans-serif", fontWeight: 700, fontSize: "clamp(28px,4vw,44px)", letterSpacing: "-0.02em", color: "var(--ink)" }}>
-                Ready to design it?
-              </h1>
-              <p style={{ margin: "14px 0 0", fontSize: 14.5, lineHeight: 1.7, color: "var(--muted)" }}>
-                Here&apos;s what we&apos;ll build a safe, runnable n-of-1 experiment around.
-              </p>
-
-              <div style={{ marginTop: 26, background: "color-mix(in srgb,var(--paper) 90%,var(--ink))", border: "1px solid var(--rule)", borderLeft: "2px solid var(--s1)", padding: "clamp(20px,2.4vw,28px)", minWidth: 0 }}>
+              <div style={{ background: "color-mix(in srgb,var(--paper) 90%,var(--ink))", border: "1px solid var(--rule)", borderLeft: "2px solid var(--s1)", borderRadius: 14, padding: "clamp(16px,2vw,20px)", minWidth: 0 }}>
                 <div style={label}>What you&apos;re testing</div>
-                <h2 style={{ margin: "10px 0 0", fontFamily: "'Clash Display',sans-serif", fontWeight: 600, fontSize: "clamp(19px,2.4vw,26px)", lineHeight: 1.25, letterSpacing: "-0.01em", color: "var(--ink)", overflowWrap: "anywhere" }}>
+                <h2 style={{ margin: "8px 0 0", fontFamily: "'Clash Display',sans-serif", fontWeight: 600, fontSize: "clamp(17px,2.4vw,22px)", lineHeight: 1.28, letterSpacing: "-0.01em", color: "var(--ink)", overflowWrap: "anywhere" }}>
                   {hypothesis.statement}
                 </h2>
-                <p style={{ margin: "12px 0 0", fontSize: 13.5, color: "var(--muted)", overflowWrap: "anywhere" }}>
+                <p style={{ margin: "10px 0 0", fontFamily: mono, fontSize: 11.5, color: "var(--muted)", overflowWrap: "anywhere" }}>
                   Measured by {hypothesis.outcomeMetric}
                 </p>
               </div>
 
-              <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-                <button
-                  type="button"
-                  onClick={() => design.mutate()}
-                  style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "14px 24px", border: "1px solid var(--s1)", background: "var(--s1)", color: "var(--paper)", fontFamily: mono, fontWeight: 700, fontSize: 13, letterSpacing: "0.12em", textTransform: "uppercase", cursor: "pointer" }}
-                >
-                  Looks right — design it →
-                </button>
-                <Link href="/hunch/new" style={{ background: "none", border: "none", cursor: "pointer", fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted)", textDecoration: "none" }}>
+              <div style={{ marginTop: 16, display: "flex", gap: 10 }}>
+                <Link href="/hunch/new" style={{ ...gateBtn, flex: 1, border: "1px solid var(--ink)", background: "transparent", color: "var(--ink)", textDecoration: "none" }}>
                   ↻ redo
                 </Link>
+                <button type="button" onClick={() => design.mutate()} style={{ ...gateBtn, flex: 1, border: "1px solid var(--s1)", background: "var(--s1)", color: "var(--paper)", cursor: "pointer" }}>
+                  Looks right — design it →
+                </button>
               </div>
             </div>
           )}
@@ -97,7 +100,7 @@ export default function ProtocolPage({
           )}
 
           {design.isError && (
-            <div role="alert" style={{ marginTop: 20, border: "1px solid var(--rule)", background: "color-mix(in srgb,var(--paper) 86%,var(--ink))", padding: "16px 18px" }}>
+            <div role="alert" style={{ marginTop: 20, border: "1px solid var(--rule)", borderRadius: 14, background: "color-mix(in srgb,var(--paper) 86%,var(--ink))", padding: "16px 18px" }}>
               <div style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
                 <span aria-hidden style={{ color: "var(--s1)" }}>✦</span>
                 <div style={{ fontFamily: "'Clash Display',sans-serif", fontWeight: 600, fontSize: 15.5, color: "var(--ink)" }}>
@@ -128,7 +131,7 @@ export default function ProtocolPage({
           )}
 
           {refused && !design.isPending && (
-            <section style={{ border: "1px solid var(--s1)", background: "color-mix(in srgb,var(--paper) 88%,var(--ink))", padding: "clamp(20px,2.4vw,28px)" }}>
+            <section style={{ border: "1px solid var(--s1)", borderRadius: 16, background: "color-mix(in srgb,var(--paper) 88%,var(--ink))", padding: "clamp(20px,2.4vw,28px)" }}>
               <h2 style={{ margin: 0, fontFamily: "'Clash Display',sans-serif", fontWeight: 600, fontSize: "clamp(18px,2.2vw,22px)", letterSpacing: "-0.01em", color: "var(--ink)" }}>
                 Let&apos;s not run this one on your own
               </h2>

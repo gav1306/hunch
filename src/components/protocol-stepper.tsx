@@ -62,6 +62,7 @@ export function ProtocolStepper({
           background: "color-mix(in srgb,var(--paper) 90%,var(--ink))",
           border: "1px solid var(--rule)",
           borderLeft: "2px solid var(--s1)",
+          borderRadius: 14,
           padding: "clamp(16px,2vw,20px)",
           minWidth: 0,
         }}
@@ -134,8 +135,11 @@ export function ProtocolStepper({
           style={{
             ["--hx" as string]: `${dir * 14}px`,
             animation: "hunch-phase-in .32s cubic-bezier(.2,.7,.2,1) both",
-            border: `1px solid ${intervention ? "var(--s1)" : "var(--rule)"}`,
-            background: intervention ? "color-mix(in srgb,var(--paper) 82%,var(--s1))" : "color-mix(in srgb,var(--paper) 90%,var(--ink))",
+            borderRadius: 16,
+            border: `1px solid ${intervention ? "color-mix(in srgb,var(--s1) 55%,var(--rule))" : "var(--rule)"}`,
+            background: intervention
+              ? "color-mix(in srgb,var(--s1) 8%,color-mix(in srgb,var(--paper) 90%,var(--ink)))"
+              : "color-mix(in srgb,var(--paper) 90%,var(--ink))",
             padding: "clamp(18px,2.2vw,24px)",
             minWidth: 0,
           }}
@@ -189,11 +193,6 @@ export function ProtocolStepper({
           <span aria-hidden style={{ color: "var(--s1)", fontSize: 15 }}>+</span>
         </summary>
         <div style={{ display: "grid", gap: 14, padding: "4px 2px 10px" }}>
-          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "var(--muted)" }}>
-            The phases repeat so the change has to prove itself: if your{" "}
-            {hypothesis.outcomeMetric} moves during the intervention and settles back afterward, the
-            change caused it — not a lucky stretch.
-          </p>
           {confounders.length > 0 && (
             <div>
               <div style={{ ...label, marginBottom: 6 }}>Keep these steady</div>
@@ -207,9 +206,14 @@ export function ProtocolStepper({
               </ul>
             </div>
           )}
-          <p style={{ margin: 0, fontSize: 12.5, fontStyle: "italic", lineHeight: 1.6, color: "var(--muted)", overflowWrap: "anywhere" }}>
-            {powerInfo.rationale}
-          </p>
+          <div>
+            <div style={{ ...label, marginBottom: 6 }}>Why A → B → A</div>
+            <p style={{ margin: 0, fontSize: 12.5, fontStyle: "italic", lineHeight: 1.6, color: "var(--muted)", overflowWrap: "anywhere" }}>
+              The phases repeat so the change has to prove itself: if your {hypothesis.outcomeMetric}{" "}
+              moves during the intervention and settles back afterward, the change caused it — not a
+              lucky stretch. {powerInfo.rationale}
+            </p>
+          </div>
         </div>
       </details>
     </section>
@@ -223,5 +227,6 @@ const navBtn: React.CSSProperties = {
   letterSpacing: "0.1em",
   textTransform: "uppercase",
   padding: "12px 18px",
+  borderRadius: 11,
   border: "1px solid var(--rule)",
 };
