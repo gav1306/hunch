@@ -159,7 +159,7 @@ export function FinalCta() {
               color: "var(--ink)",
             }}
           >
-            hunch
+            hun<span style={{ color: "var(--s1)" }}>ch</span>
           </span>
         </div>
         <div style={{ display: "flex", gap: "clamp(14px,2vw,28px)" }}>
