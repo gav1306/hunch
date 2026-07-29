@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useClarify } from "@/hooks/use-clarify";
 import { useCreateHunch } from "@/hooks/use-create-hunch";
+import type { HunchInfo } from "@/hooks/use-hunch-info";
 import type { ClarifyingAnswer, ClarifyingQuestion } from "@/lib/schemas/clarify";
 import { appThemeStyle } from "@/lib/app-theme";
 
@@ -28,6 +30,26 @@ function primaryBtn(enabled: boolean): React.CSSProperties {
     fontSize: 13,
     letterSpacing: "0.12em",
     textTransform: "uppercase",
+  };
+}
+
+/**
+ * Action button that morphs into an indeterminate progress bar while the hunch
+ * is being sharpened — keeps the user on the same view instead of blanking to a
+ * loader screen, then a redirect. `loading` wins over `enabled`.
+ */
+function actionBtn(enabled: boolean, loading: boolean): React.CSSProperties {
+  const base = primaryBtn(enabled);
+  if (!loading) return base;
+  return {
+    ...base,
+    color: "var(--paper)",
+    cursor: "wait",
+    border: "1px solid var(--ink)",
+    background:
+      "linear-gradient(100deg,var(--ink) 30%,color-mix(in srgb,var(--ink) 55%,var(--paper)) 50%,var(--ink) 70%)",
+    backgroundSize: "220% 100%",
+    animation: "hunch-btn-sweep 1.1s linear infinite",
   };
 }
 
@@ -98,6 +120,7 @@ function QuestionCard({
 
 export function NewHunchForm({ seed }: { seed: string }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [rawText, setRawText] = useState(seed);
   const [questions, setQuestions] = useState<ClarifyingQuestion[] | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -106,9 +129,20 @@ export function NewHunchForm({ seed }: { seed: string }) {
 
   // Once sharpened, hand off to the protocol page — that's where the user
   // confirms the hypothesis and the plan is designed (Variation B: one page).
+  // Seed the protocol page's query cache with the hypothesis we already have so
+  // it renders the confirm gate instantly instead of blanking on a refetch.
   useEffect(() => {
-    if (createHunch.data) router.push(`/hunch/${createHunch.data.id}/protocol`);
-  }, [createHunch.data, router]);
+    const hunch = createHunch.data;
+    if (!hunch) return;
+    queryClient.setQueryData<HunchInfo>(["hunch-info", hunch.id], {
+      hypothesis: {
+        statement: hunch.hypothesis.statement,
+        outcomeMetric: hunch.hypothesis.outcomeMetric,
+      },
+      protocol: null,
+    });
+    router.push(`/hunch/${hunch.id}/protocol`);
+  }, [createHunch.data, queryClient, router]);
 
   const step: "idle" | "asking" | "answering" | "committing" | "done" = createHunch.data
     ? "done"
@@ -140,13 +174,22 @@ export function NewHunchForm({ seed }: { seed: string }) {
   }
 
   const allAnswered = questions?.every((q) => (answers[q.id] ?? "").trim() !== "") ?? false;
+  // Sharpen is in flight (or just resolved and we're about to navigate).
+  const busy = createHunch.isPending || !!createHunch.data;
 
   return (
     <main style={{ minHeight: "100dvh", ...appThemeStyle() }}>
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "clamp(20px,6vh,56px) 20px 96px" }}>
         <Link href="/home" style={{ ...label, textDecoration: "none" }}>← home</Link>
 
-        {step === "idle" || step === "asking" ? (
+        <style>{`
+          @keyframes hunch-btn-sweep { from { background-position: 220% 0 } to { background-position: -220% 0 } }
+          @media (prefers-reduced-motion: reduce) {
+            [data-hunch-loading] { animation: none !important }
+          }
+        `}</style>
+
+        {!questions ? (
           <div style={{ marginTop: 40, opacity: step === "asking" ? 0.4 : 1, transition: "opacity 300ms ease", pointerEvents: step === "asking" ? "none" : "auto" }}>
             <h1 style={{ margin: 0, fontFamily: "'Clash Display',sans-serif", fontWeight: 700, fontSize: "clamp(30px,4.4vw,48px)", letterSpacing: "-0.02em", color: "var(--ink)" }}>
               What&apos;s nagging you?
@@ -160,20 +203,23 @@ export function NewHunchForm({ seed }: { seed: string }) {
                 onChange={(e) => setRawText(e.target.value)}
                 rows={3}
                 autoFocus
-                disabled={step === "asking"}
+                disabled={step === "asking" || busy}
                 placeholder="coffee after lunch wrecks my sleep…"
                 style={{ width: "100%", resize: "none", padding: "14px 16px", background: "color-mix(in srgb,var(--paper) 82%,var(--ink))", border: "1px solid var(--rule)", color: "var(--ink)", fontFamily: "inherit", fontSize: 15, lineHeight: 1.5, outline: "none" }}
                 onFocus={(e) => (e.currentTarget.style.borderColor = "var(--s1)")}
                 onBlur={(e) => (e.currentTarget.style.borderColor = "var(--rule)")}
               />
-              <button type="submit" disabled={step === "asking" || !rawText.trim()} style={primaryBtn(!!rawText.trim())}>
-                {step === "asking" ? "Thinking…" : "Sharpen it"}
+              <button
+                type="submit"
+                data-hunch-loading={busy || undefined}
+                disabled={step === "asking" || busy || !rawText.trim()}
+                style={actionBtn(!!rawText.trim(), busy || step === "asking")}
+              >
+                {busy ? "Sharpening…" : step === "asking" ? "Thinking…" : "Sharpen it"}
               </button>
             </form>
           </div>
-        ) : null}
-
-        {step === "answering" && questions && (
+        ) : (
           <div style={{ marginTop: 40, display: "grid", gap: 22 }}>
             <p style={{ margin: 0, fontStyle: "italic", fontSize: 13, color: "var(--muted)", overflowWrap: "anywhere" }}>
               &ldquo;{rawText}&rdquo;
@@ -190,27 +236,16 @@ export function NewHunchForm({ seed }: { seed: string }) {
               />
             ))}
             <div>
-              <button type="button" onClick={commit} disabled={!allAnswered} style={primaryBtn(allAnswered)}>
-                Lock it in
+              <button
+                type="button"
+                onClick={commit}
+                data-hunch-loading={busy || undefined}
+                disabled={!allAnswered || busy}
+                style={actionBtn(allAnswered, busy)}
+              >
+                {busy ? "Sharpening…" : "Lock it in"}
               </button>
             </div>
-          </div>
-        )}
-
-        {(step === "committing" || step === "done") && (
-          <div style={{ marginTop: 44, textAlign: "center" }}>
-            <div style={{ width: 200, height: 200, margin: "0 auto" }} aria-hidden>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/starburst.png"
-                alt=""
-                aria-hidden
-                style={{ width: "60%", height: "60%", objectFit: "contain", opacity: 0.45, margin: "20% auto", display: "block" }}
-              />
-            </div>
-            <p aria-live="polite" style={{ marginTop: 4, fontFamily: "'Space Mono',monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--muted)" }}>
-              {step === "done" ? "Opening your plan…" : "Sharpening…"}
-            </p>
           </div>
         )}
 
