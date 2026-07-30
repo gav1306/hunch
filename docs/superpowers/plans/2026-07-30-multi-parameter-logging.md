@@ -17,7 +17,8 @@
 - Prisma has a custom client output path and Turbopack caches it: after **any** schema/migration change run `npx prisma generate`, then `rm -rf .next`, then restart the dev server.
 - Never add `Co-Authored-By` or `Generated with` trailers to commits.
 - UI is inline-style + CSS custom properties (`var(--ink)`, `var(--paper)`, `var(--muted)`, `var(--rule)`, `var(--s1)`, `var(--s2)`), fonts `'Clash Display',sans-serif` for headings and `'Space Mono',monospace` for labels/controls. Do **not** introduce shadcn/Tailwind components in this work.
-- Every task ends green: `npm run test` (Vitest) and `npm run typecheck` both pass before the commit step.
+- Every task ends with `npm run test` (Vitest) green before its commit step — no exceptions.
+- `npm run typecheck` is green at the end of Tasks 1, 3, 4, 7, and 8. Tasks 2, 5, and 6 are mid-migration and end red **by design**: dropping `CheckIn.value` breaks its readers until Task 6, and the design-mutation signature breaks the protocol page until Task 7. Each of those tasks names the exact files expected to still fail; anything failing beyond that list is a real defect. Task 8 restores a fully clean typecheck.
 
 ---
 
