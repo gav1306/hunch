@@ -6,6 +6,7 @@ import { BeliefMeter } from "@/components/belief-meter";
 import { CheckInTap } from "@/components/checkin-tap";
 import { VerdictView } from "@/components/verdict";
 import { useBelief } from "@/hooks/use-belief";
+import { useHunchInfo } from "@/hooks/use-hunch-info";
 import { appThemeStyle } from "@/lib/app-theme";
 
 const label: React.CSSProperties = {
@@ -23,6 +24,7 @@ const label: React.CSSProperties = {
 export default function HunchDashboard({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const query = useBelief(id);
+  const info = useHunchInfo(id);
 
   const content = () => {
     if (query.isPending) {
@@ -36,12 +38,24 @@ export default function HunchDashboard({ params }: { params: Promise<{ id: strin
     const outcomeType = belief.model === "beta-binomial" ? "binary" : "continuous";
     const concluded = schedule?.done ?? false;
 
+    const outcomeMetric = info.data?.hypothesis.outcomeMetric;
+    // Today's instruction: the design phase matching the phase we're logging.
+    const phaseAction = info.data?.protocol?.design.phases.find(
+      (p) => p.label === schedule?.phase,
+    )?.action;
+
     return concluded ? (
       <VerdictView hunchId={id} />
     ) : (
       <div style={{ display: "grid", gap: 20 }}>
         <BeliefMeter belief={belief} />
-        <CheckInTap hunchId={id} schedule={schedule} outcomeType={outcomeType} />
+        <CheckInTap
+          hunchId={id}
+          schedule={schedule}
+          outcomeType={outcomeType}
+          outcomeMetric={outcomeMetric}
+          phaseAction={phaseAction}
+        />
       </div>
     );
   };

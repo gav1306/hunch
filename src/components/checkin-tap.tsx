@@ -38,10 +38,16 @@ export function CheckInTap({
   hunchId,
   schedule,
   outcomeType,
+  outcomeMetric,
+  phaseAction,
 }: {
   hunchId: string;
   schedule: PhaseStatus | null;
   outcomeType: "binary" | "continuous";
+  /** What the user is measuring — shown so they know what they're logging. */
+  outcomeMetric?: string;
+  /** Today's phase instruction from the protocol, if available. */
+  phaseAction?: string;
 }) {
   const checkIn = useCheckIn(hunchId);
   const [value, setValue] = useState("");
@@ -69,12 +75,21 @@ export function CheckInTap({
         maxWidth: "100%",
       }}
     >
-      <p style={label}>Today</p>
-      <p style={{ margin: "8px 0 0", fontFamily: "'Clash Display',sans-serif", fontWeight: 600, fontSize: 20, letterSpacing: "-0.01em", color: "var(--ink)" }}>
-        Phase {schedule.phase}{" "}
-        <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 13, fontWeight: 400, color: "var(--muted)" }}>
-          ({phaseLabel})
-        </span>
+      <p style={label}>
+        Log today · Phase {schedule.phase}{" "}
+        <span style={{ textTransform: "none", letterSpacing: "0.04em" }}>({phaseLabel})</span>
+      </p>
+
+      {/* What you're logging — so the daily tap is never a mystery number. */}
+      <h3 style={{ margin: "10px 0 0", fontFamily: "'Clash Display',sans-serif", fontWeight: 600, fontSize: "clamp(18px,2.4vw,22px)", lineHeight: 1.25, letterSpacing: "-0.01em", color: "var(--ink)", overflowWrap: "anywhere" }}>
+        {outcomeMetric ?? "Today's reading"}
+      </h3>
+      <p style={{ margin: "8px 0 0", fontSize: 13, lineHeight: 1.55, color: "var(--muted)", overflowWrap: "anywhere" }}>
+        {phaseAction
+          ? phaseAction
+          : outcomeType === "binary"
+            ? "Tap Yes or No for today."
+            : "Enter today's number."}
       </p>
 
       {outcomeType === "binary" ? (
@@ -108,7 +123,7 @@ export function CheckInTap({
           <input
             type="number"
             step="any"
-            aria-label="Today's reading"
+            aria-label={outcomeMetric ?? "Today's reading"}
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder="reading"

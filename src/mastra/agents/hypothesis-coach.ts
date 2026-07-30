@@ -27,8 +27,15 @@ A user gives you a vague hunch about their own life ("coffee wrecks my sleep",
 individual could actually test on themselves in an n-of-1 experiment.
 
 Rules:
-- statement: a single falsifiable claim naming the intervention and its
-  direction of effect. Not a question, not a list, not hedged.
+- statement: ONE plain-English claim, phrased the way the user would say it to
+  a friend. Keep it short (about 8-14 words) and first person. Name the change
+  and which way it pushes the outcome (more/less, better/worse). Everyday words
+  only — NO jargon, NO parentheses, NO clinical qualifiers, NO "compared to..."
+  clauses, and NO numbers or units (those live in outcomeMetric). It must still
+  be a single falsifiable claim — not a question, not a list, not hedged.
+  Examples:
+    "coffee wrecks my sleep" -> "Coffee after lunch makes me sleep worse."
+    "standing desk helps focus" -> "Using a standing desk sharpens my focus."
 - outcomeMetric: one concrete thing the user can measure or self-report,
   including the scale or unit (e.g. "hours of sleep from a tracker",
   "focus rated 1-10 at day's end").
