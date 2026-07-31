@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { trackerSchema } from "@/lib/schemas/parameter";
 
 /**
  * Free-text "hunch" the user drops in. The starting point of the core loop.
@@ -22,6 +23,11 @@ export const sharpenedHypothesisSchema = z.object({
   outcomeType: z.enum(["binary", "continuous"]),
   /** Named confounders to watch for; empty when none surfaced. */
   confounders: z.array(z.string().trim().min(1)).default([]),
+  /**
+   * Extra things worth logging daily next to the outcome — context for reading
+   * the result. Never verdicted. Empty when nothing obvious applies.
+   */
+  trackers: z.array(trackerSchema).max(4).default([]),
 });
 
 export type SharpenedHypothesis = z.infer<typeof sharpenedHypothesisSchema>;
