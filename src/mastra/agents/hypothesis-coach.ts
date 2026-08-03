@@ -44,6 +44,12 @@ Rules:
 - confounders: real factors that could independently move the outcome during
   the experiment (stress, travel, illness, weekends). Empty array if none are
   obvious. Do not invent far-fetched ones.
+- trackers: 0-4 OTHER things the person could log daily that help interpret the
+  result — the symptoms or co-variables around the outcome (e.g. caffeine after
+  2pm, stress, exercise, screen time). Each is { label, type, unit?, min?, max? }.
+  Use "binary" for yes/no logs and "continuous" for numbers or scales; for a
+  rating scale set unit (e.g. "1-10") plus min and max. Never repeat the
+  outcomeMetric as a tracker. Propose none rather than padding with filler.
 
 Keep it grounded in what one person can run at home. Do not give medical advice.`,
 });

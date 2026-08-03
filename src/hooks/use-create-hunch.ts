@@ -4,6 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import type { SharpenedHypothesis } from "@/lib/schemas/hypothesis";
 import type { Prior } from "@/lib/schemas/prior";
 import type { ClarifyingAnswer } from "@/lib/schemas/clarify";
+import type { Parameter } from "@/lib/schemas/parameter";
 
 /** A persisted hunch with its sharpened hypothesis + any recalled priors. */
 export type HunchWithHypothesis = {
@@ -11,6 +12,8 @@ export type HunchWithHypothesis = {
   rawText: string;
   status: string;
   hypothesis: SharpenedHypothesis & { id: string };
+  /** The proposed parameter set the confirm gate will edit. */
+  parameters: Parameter[];
   priors: Prior[];
 };
 
