@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
+import { toParameterDto } from "@/lib/parameters";
 
 /**
  * Lightweight read of a hunch for the protocol page: the sharpened hypothesis
@@ -20,7 +21,11 @@ export async function GET(
   const { id } = await params;
   const hunch = await db.hunch.findFirst({
     where: { id, userId: session.user.id },
-    include: { hypothesis: true, protocol: true },
+    include: {
+      hypothesis: true,
+      protocol: true,
+      parameters: { orderBy: { sortOrder: "asc" } },
+    },
   });
   if (!hunch || !hunch.hypothesis) {
     return NextResponse.json({ error: "Hunch not found." }, { status: 404 });
@@ -31,7 +36,10 @@ export async function GET(
     hypothesis: {
       statement: hunch.hypothesis.statement,
       outcomeMetric: hunch.hypothesis.outcomeMetric,
+      // The gate needs this to seed a primary row for pre-migration hunches.
+      outcomeType: hunch.hypothesis.outcomeType,
     },
+    parameters: hunch.parameters.map(toParameterDto),
     protocol: p
       ? {
           id: p.id,

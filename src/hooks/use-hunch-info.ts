@@ -2,10 +2,13 @@
 
 import { useQuery } from "@tanstack/react-query";
 import type { Confounder, PowerInfo, ProtocolDesign } from "@/lib/schemas/protocol";
+import type { Parameter } from "@/lib/schemas/parameter";
 
 /** The protocol page's read model: the hypothesis + any already-designed protocol. */
 export type HunchInfo = {
-  hypothesis: { statement: string; outcomeMetric: string };
+  hypothesis: { statement: string; outcomeMetric: string; outcomeType: "binary" | "continuous" };
+  /** The parameters logged daily. Exactly one is primary once designed. */
+  parameters: Parameter[];
   protocol: null | {
     id: string;
     safetyState: "approved" | "refused" | "pending";
