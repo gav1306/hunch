@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { use } from "react";
+import { useEffect, useState, use } from "react";
 import { ProtocolStepper } from "@/components/protocol-stepper";
+import { ParameterEditor } from "@/components/hunch/parameter-editor";
 import { useDesignProtocol } from "@/hooks/use-design-protocol";
 import { useHunchInfo } from "@/hooks/use-hunch-info";
 import { appThemeStyle } from "@/lib/app-theme";
+import { draftsFromSharpened } from "@/lib/parameters";
+import { parameterListSchema, type ParameterDraft } from "@/lib/schemas/parameter";
 
 const label: React.CSSProperties = {
   fontSize: 10.5,
@@ -46,6 +49,33 @@ export default function ProtocolPage({
   const info = useHunchInfo(id);
   const design = useDesignProtocol(id);
 
+  const [drafts, setDrafts] = useState<ParameterDraft[] | null>(null);
+
+  // Seed the editable list once the read lands: the persisted parameters if the
+  // sharpen step wrote them, otherwise just the outcome as the primary.
+  useEffect(() => {
+    if (drafts !== null || !info.data) return;
+    const stored = info.data.parameters;
+    setDrafts(
+      stored.length > 0
+        ? stored.map((p) => ({
+            label: p.label,
+            type: p.type,
+            unit: p.unit,
+            min: p.min,
+            max: p.max,
+            isPrimary: p.isPrimary,
+          }))
+        : draftsFromSharpened({
+            outcomeMetric: info.data.hypothesis.outcomeMetric,
+            outcomeType: info.data.hypothesis.outcomeType,
+          }),
+    );
+  }, [info.data, drafts]);
+
+  const cleaned = (drafts ?? []).filter((d) => d.label.trim() !== "");
+  const canDesign = parameterListSchema.safeParse(cleaned).success;
+
   // Prefer a freshly-designed result; fall back to an already-stored protocol.
   const protocol = design.data?.protocol ?? info.data?.protocol ?? null;
   const hypothesis = design.data?.hypothesis ?? info.data?.hypothesis ?? null;
@@ -76,15 +106,29 @@ export default function ProtocolPage({
                   {hypothesis.statement}
                 </h2>
                 <p style={{ margin: "10px 0 0", fontFamily: mono, fontSize: 11.5, color: "var(--muted)", overflowWrap: "anywhere" }}>
-                  Measured by {hypothesis.outcomeMetric}
+                  You&apos;ll log this daily — edit anything that&apos;s off.
                 </p>
               </div>
+
+              {drafts && <ParameterEditor value={drafts} onChange={setDrafts} />}
 
               <div style={{ marginTop: 16, display: "flex", gap: 10 }}>
                 <Link href="/hunch/new" style={{ ...gateBtn, flex: 1, border: "1px solid var(--ink)", background: "transparent", color: "var(--ink)", textDecoration: "none" }}>
                   ↻ redo
                 </Link>
-                <button type="button" onClick={() => design.mutate()} style={{ ...gateBtn, flex: 1, border: "1px solid var(--s1)", background: "var(--s1)", color: "var(--paper)", cursor: "pointer" }}>
+                <button
+                  type="button"
+                  disabled={!canDesign}
+                  onClick={() => design.mutate(cleaned)}
+                  style={{
+                    ...gateBtn,
+                    flex: 1,
+                    border: "1px solid var(--s1)",
+                    background: canDesign ? "var(--s1)" : "transparent",
+                    color: canDesign ? "var(--paper)" : "var(--muted)",
+                    cursor: canDesign ? "pointer" : "not-allowed",
+                  }}
+                >
                   Looks right — design it →
                 </button>
               </div>
@@ -112,7 +156,7 @@ export default function ProtocolPage({
               </p>
               <button
                 type="button"
-                onClick={() => design.mutate()}
+                onClick={() => design.mutate(cleaned)}
                 style={{ margin: "12px 0 0 20px", background: "none", border: "none", cursor: "pointer", fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--s1)" }}
               >
                 ↻ try again

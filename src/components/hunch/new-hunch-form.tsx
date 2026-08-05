@@ -138,7 +138,9 @@ export function NewHunchForm({ seed }: { seed: string }) {
       hypothesis: {
         statement: hunch.hypothesis.statement,
         outcomeMetric: hunch.hypothesis.outcomeMetric,
+        outcomeType: hunch.hypothesis.outcomeType,
       },
+      parameters: hunch.parameters ?? [],
       protocol: null,
     });
     router.push(`/hunch/${hunch.id}/protocol`);
