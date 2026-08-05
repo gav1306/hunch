@@ -3,10 +3,13 @@
 import { useQuery } from "@tanstack/react-query";
 import type { Belief } from "@/lib/schemas/belief";
 import type { PhaseStatus } from "@/lib/schedule";
+import type { Parameter } from "@/lib/schemas/parameter";
 
 export type BeliefResponse = {
   belief: Belief;
-  checkIns: { phase: string; value: number; loggedAt: string }[];
+  /** Everything logged daily; exactly one is primary. */
+  parameters: Parameter[];
+  checkIns: { phase: string; loggedAt: string; values: { parameterId: string; value: number }[] }[];
   schedule: PhaseStatus | null;
 };
 

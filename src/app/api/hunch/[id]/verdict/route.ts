@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { computeBelief } from "@/lib/bayes";
+import { pickPrimary, primaryBeliefRows } from "@/lib/parameters";
 import { currentPhase } from "@/lib/schedule";
 import { classifyVerdict } from "@/lib/verdict";
 import { writeEdgeData } from "@/lib/memory/causal-graph";
@@ -49,7 +50,11 @@ export async function GET(
       hypothesis: true,
       protocol: true,
       verdict: true,
-      checkIns: { orderBy: { loggedAt: "asc" } },
+      parameters: true,
+      checkIns: {
+        orderBy: { loggedAt: "asc" },
+        include: { values: { select: { parameterId: true, value: true } } },
+      },
     },
   });
   if (!hunch || !hunch.hypothesis) {
@@ -64,11 +69,9 @@ export async function GET(
     return NextResponse.json({ error: "This trial hasn't started." }, { status: 409 });
   }
 
-  const outcomeType = hunch.hypothesis.outcomeType as "binary" | "continuous";
-  const belief = computeBelief(
-    hunch.checkIns.map((c) => ({ phase: c.phase, value: c.value })),
-    outcomeType,
-  );
+  const primary = pickPrimary(hunch.parameters);
+  const outcomeType = (primary?.type ?? hunch.hypothesis.outcomeType) as "binary" | "continuous";
+  const belief = computeBelief(primaryBeliefRows(hunch.checkIns, primary?.id), outcomeType);
   const design = parseStoredDesign(hunch.protocol.design, hunch.hypothesis.outcomeMetric);
   const schedule = currentPhase(hunch.protocol.startedAt, design, new Date());
 

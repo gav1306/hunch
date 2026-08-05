@@ -1,17 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { beliefSchema, checkInInputSchema } from "@/lib/schemas/belief";
-
-describe("checkInInputSchema", () => {
-  it("accepts a numeric value", () => {
-    expect(checkInInputSchema.safeParse({ value: 1 }).success).toBe(true);
-  });
-  it("rejects a non-numeric value", () => {
-    expect(checkInInputSchema.safeParse({ value: "yes" }).success).toBe(false);
-  });
-  it("rejects a missing value", () => {
-    expect(checkInInputSchema.safeParse({}).success).toBe(false);
-  });
-});
+import { beliefSchema } from "@/lib/schemas/belief";
 
 describe("beliefSchema", () => {
   it("accepts a well-formed belief", () => {
