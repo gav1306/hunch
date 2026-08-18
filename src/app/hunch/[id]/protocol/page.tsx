@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, use } from "react";
+import { useMemo, useState, use } from "react";
 import { ProtocolStepper } from "@/components/protocol-stepper";
 import { ParameterEditor } from "@/components/hunch/parameter-editor";
 import { useDesignProtocol } from "@/hooks/use-design-protocol";
@@ -49,29 +49,29 @@ export default function ProtocolPage({
   const info = useHunchInfo(id);
   const design = useDesignProtocol(id);
 
-  const [drafts, setDrafts] = useState<ParameterDraft[] | null>(null);
-
-  // Seed the editable list once the read lands: the persisted parameters if the
-  // sharpen step wrote them, otherwise just the outcome as the primary.
-  useEffect(() => {
-    if (drafts !== null || !info.data) return;
+  // What the read gives us: the persisted parameters if the sharpen step wrote
+  // them, otherwise just the outcome as the primary. Derived, not stored — the
+  // user's edits take over the moment they touch the list.
+  const seeded = useMemo<ParameterDraft[] | null>(() => {
+    if (!info.data) return null;
     const stored = info.data.parameters;
-    setDrafts(
-      stored.length > 0
-        ? stored.map((p) => ({
-            label: p.label,
-            type: p.type,
-            unit: p.unit,
-            min: p.min,
-            max: p.max,
-            isPrimary: p.isPrimary,
-          }))
-        : draftsFromSharpened({
-            outcomeMetric: info.data.hypothesis.outcomeMetric,
-            outcomeType: info.data.hypothesis.outcomeType,
-          }),
-    );
-  }, [info.data, drafts]);
+    return stored.length > 0
+      ? stored.map((p) => ({
+          label: p.label,
+          type: p.type,
+          unit: p.unit,
+          min: p.min,
+          max: p.max,
+          isPrimary: p.isPrimary,
+        }))
+      : draftsFromSharpened({
+          outcomeMetric: info.data.hypothesis.outcomeMetric,
+          outcomeType: info.data.hypothesis.outcomeType,
+        });
+  }, [info.data]);
+
+  const [edited, setEdited] = useState<ParameterDraft[] | null>(null);
+  const drafts = edited ?? seeded;
 
   const cleaned = (drafts ?? []).filter((d) => d.label.trim() !== "");
   const canDesign = parameterListSchema.safeParse(cleaned).success;
@@ -110,7 +110,7 @@ export default function ProtocolPage({
                 </p>
               </div>
 
-              {drafts && <ParameterEditor value={drafts} onChange={setDrafts} />}
+              {drafts && <ParameterEditor value={drafts} onChange={setEdited} />}
 
               <div style={{ marginTop: 16, display: "flex", gap: 10 }}>
                 <Link href="/hunch/new" style={{ ...gateBtn, flex: 1, border: "1px solid var(--ink)", background: "transparent", color: "var(--ink)", textDecoration: "none" }}>
