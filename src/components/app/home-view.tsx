@@ -74,6 +74,7 @@ function CheckinRow({ h }: { h: HomeHunch }) {
   const checkIn = useCheckIn(h.id);
   const [num, setNum] = useState("");
   const done = checkIn.isSuccess;
+  const primary = h.primaryParameter;
 
   return (
     <div
@@ -103,7 +104,7 @@ function CheckinRow({ h }: { h: HomeHunch }) {
         <div style={{ marginTop: 16, fontSize: 13, color: "var(--s2)" }}>
           Logged ✓ — see you tomorrow.
         </div>
-      ) : (
+      ) : !primary ? null : (
         <div style={{ marginTop: 18 }}>
           <div
             style={{
@@ -112,15 +113,15 @@ function CheckinRow({ h }: { h: HomeHunch }) {
               marginBottom: 10,
             }}
           >
-            How did today go?
+            {primary.label}
           </div>
-          {h.outcomeType === "binary" ? (
+          {primary.type === "binary" ? (
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button
                 type="button"
                 className="app-tap"
                 disabled={checkIn.isPending}
-                onClick={() => checkIn.mutate(1)}
+                onClick={() => checkIn.mutate([{ parameterId: primary.id, value: 1 }])}
                 style={tapBtn(true)}
               >
                 Yes
@@ -129,7 +130,7 @@ function CheckinRow({ h }: { h: HomeHunch }) {
                 type="button"
                 className="app-tap"
                 disabled={checkIn.isPending}
-                onClick={() => checkIn.mutate(0)}
+                onClick={() => checkIn.mutate([{ parameterId: primary.id, value: 0 }])}
                 style={tapBtn(false)}
               >
                 No
@@ -141,13 +142,16 @@ function CheckinRow({ h }: { h: HomeHunch }) {
               onSubmit={(e) => {
                 e.preventDefault();
                 const n = Number(num);
-                if (num.trim() !== "" && Number.isFinite(n)) checkIn.mutate(n);
+                if (num.trim() !== "" && Number.isFinite(n))
+                  checkIn.mutate([{ parameterId: primary.id, value: n }]);
               }}
             >
               <input
                 type="number"
                 step="any"
-                aria-label="Today's reading"
+                min={primary.min ?? undefined}
+                max={primary.max ?? undefined}
+                aria-label={primary.label}
                 value={num}
                 onChange={(e) => setNum(e.target.value)}
                 placeholder="reading"

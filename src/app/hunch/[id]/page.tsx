@@ -34,11 +34,9 @@ export default function HunchDashboard({ params }: { params: Promise<{ id: strin
       return <p style={{ fontSize: 13, color: "var(--s1)" }}>{query.error.message}</p>;
     }
 
-    const { belief, schedule } = query.data;
-    const outcomeType = belief.model === "beta-binomial" ? "binary" : "continuous";
+    const { belief, schedule, parameters } = query.data;
     const concluded = schedule?.done ?? false;
 
-    const outcomeMetric = info.data?.hypothesis.outcomeMetric;
     // Today's instruction: the design phase matching the phase we're logging.
     const phaseAction = info.data?.protocol?.design.phases.find(
       (p) => p.label === schedule?.phase,
@@ -52,8 +50,7 @@ export default function HunchDashboard({ params }: { params: Promise<{ id: strin
         <CheckInTap
           hunchId={id}
           schedule={schedule}
-          outcomeType={outcomeType}
-          outcomeMetric={outcomeMetric}
+          parameters={parameters}
           phaseAction={phaseAction}
         />
       </div>
