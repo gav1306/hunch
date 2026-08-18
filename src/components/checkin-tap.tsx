@@ -132,6 +132,9 @@ export function CheckInTap({
       )}
 
       <form
+        // Our own range check words the problem in the parameter's own terms;
+        // the browser's native bubble would preempt it and say less.
+        noValidate
         style={{ marginTop: 18, display: "grid", gap: 16 }}
         onSubmit={(e) => {
           e.preventDefault();
