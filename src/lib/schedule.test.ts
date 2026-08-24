@@ -98,3 +98,38 @@ describe("currentPhase with no washout", () => {
     expect(s.phase).toBe(null);
   });
 });
+
+// The returned baseline carries its own wording, so the phase has to be
+// identified by position — the repeated "A" label can't tell the two apart.
+const abaWithDistinctBaselines: ProtocolDesign = {
+  ...design,
+  phases: [
+    { label: "A", kind: "baseline", days: 3, name: "Baseline", action: "Normal routine." },
+    { label: "B", kind: "intervention", days: 3, name: "Intervention", action: "Apply the change." },
+    { label: "A", kind: "baseline", days: 3, name: "Return", action: "Drop the change again." },
+  ],
+};
+
+describe("currentPhase phaseIndex", () => {
+  it("is null before the trial starts", () => {
+    expect(currentPhase(start, design, new Date(Date.UTC(2025, 11, 31))).phaseIndex).toBe(null);
+  });
+  it("points at the first phase on day 0", () => {
+    expect(currentPhase(start, design, day(0)).phaseIndex).toBe(0);
+  });
+  it("is null on a washout day", () => {
+    expect(currentPhase(start, design, day(3)).phaseIndex).toBe(null);
+  });
+  it("points at the intervention on day 4", () => {
+    expect(currentPhase(start, design, day(4)).phaseIndex).toBe(1);
+  });
+  it("points at the returned baseline, not the first one, on day 8", () => {
+    const s = currentPhase(start, abaWithDistinctBaselines, day(8));
+    expect(s.phase).toBe("A");
+    expect(s.phaseIndex).toBe(2);
+    expect(abaWithDistinctBaselines.phases[s.phaseIndex!].action).toBe("Drop the change again.");
+  });
+  it("is null once the trial is done", () => {
+    expect(currentPhase(start, design, day(11)).phaseIndex).toBe(null);
+  });
+});

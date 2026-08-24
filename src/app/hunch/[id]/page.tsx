@@ -37,10 +37,13 @@ export default function HunchDashboard({ params }: { params: Promise<{ id: strin
     const { belief, schedule, parameters } = query.data;
     const concluded = schedule?.done ?? false;
 
-    // Today's instruction: the design phase matching the phase we're logging.
-    const phaseAction = info.data?.protocol?.design.phases.find(
-      (p) => p.label === schedule?.phase,
-    )?.action;
+    // Today's instruction. An ABA design repeats the "A" label, so the phase is
+    // addressed by its index in the design — matching on the label alone would
+    // show the first baseline's action during the return baseline.
+    const phaseAction =
+      schedule?.phaseIndex === null || schedule?.phaseIndex === undefined
+        ? undefined
+        : info.data?.protocol?.design.phases[schedule.phaseIndex]?.action;
 
     return concluded ? (
       <VerdictView hunchId={id} />
