@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { toParameterDto } from "@/lib/parameters";
+import { parseStoredDesign } from "@/lib/schemas/protocol";
 
 /**
  * Lightweight read of a hunch for the protocol page: the sharpened hypothesis
@@ -44,7 +45,10 @@ export async function GET(
       ? {
           id: p.id,
           safetyState: p.safetyState,
-          design: p.design,
+          // Protocols designed before phases carried a name/action still have to
+          // render, so the stored design goes through the same tolerant parse
+          // every other read path uses.
+          design: parseStoredDesign(p.design, hunch.hypothesis.outcomeMetric),
           powerInfo: p.powerInfo,
           confounders: p.confounders,
         }
