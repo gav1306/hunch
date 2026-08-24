@@ -26,7 +26,7 @@ export async function POST(
   const { id } = await params;
   const hunch = await db.hunch.findFirst({
     where: { id, userId: session.user.id },
-    include: { hypothesis: true },
+    include: { hypothesis: true, _count: { select: { checkIns: true } } },
   });
   if (!hunch) {
     return NextResponse.json({ error: "Hunch not found." }, { status: 404 });
@@ -34,6 +34,15 @@ export async function POST(
   if (!hunch.hypothesis || hunch.status === "draft") {
     return NextResponse.json(
       { error: "Sharpen this hunch into a hypothesis first." },
+      { status: 409 },
+    );
+  }
+  // Designing replaces the parameter set, and readings hang off parameters by a
+  // cascading key — so a redesign once anything is logged would erase the trial's
+  // data. Retrying a failed design is still fine: nothing has been logged yet.
+  if (hunch._count.checkIns > 0) {
+    return NextResponse.json(
+      { error: "You've already logged days on this plan — redesigning would erase them." },
       { status: 409 },
     );
   }

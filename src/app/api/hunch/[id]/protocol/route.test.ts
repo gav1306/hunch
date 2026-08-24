@@ -41,6 +41,7 @@ const sharpened = {
     outcomeType: "continuous",
     confounders: [],
   },
+  _count: { checkIns: 0 },
 };
 
 describe("POST /api/hunch/[id]/protocol", () => {
@@ -85,6 +86,20 @@ describe("POST /api/hunch/[id]/protocol", () => {
     expect(created.data).toHaveLength(2);
     expect(created.data[0]).toMatchObject({ isPrimary: true, sortOrder: 0 });
     expect(created.data[1]).toMatchObject({ label: "stress", min: 1, max: 10, sortOrder: 1 });
+  });
+
+  it("409s once days have been logged, so a redesign can't erase them", async () => {
+    vi.mocked(db.hunch.findFirst).mockResolvedValue({
+      ...sharpened,
+      _count: { checkIns: 4 },
+    } as never);
+    const res = await POST(
+      req({ parameters: [{ label: "hours of sleep", type: "continuous", isPrimary: true }] }),
+      params,
+    );
+    expect(res.status).toBe(409);
+    expect(designProtocol).not.toHaveBeenCalled();
+    expect(tx.parameter.deleteMany).not.toHaveBeenCalled();
   });
 
   it("409s when the hunch was never sharpened", async () => {
