@@ -2,15 +2,8 @@ import "server-only";
 
 import { db } from "@/lib/db";
 import { pickPrimary } from "@/lib/parameters";
-import { currentPhase } from "@/lib/schedule";
+import { currentPhase, utcDaysBetween } from "@/lib/schedule";
 import { parseStoredDesign } from "@/lib/schemas/protocol";
-
-/** Whole UTC calendar days from `from` to `to` (date-only). */
-function utcDaysBetween(from: Date, to: Date): number {
-  const a = Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate());
-  const b = Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate());
-  return Math.floor((b - a) / 86_400_000);
-}
 
 export type HomeHunch = {
   id: string;
@@ -27,6 +20,15 @@ export type HomeHunch = {
     max: number | null;
   } | null;
   phaseLabel: "baseline" | "intervention" | null;
+  /**
+   * How far setting this hunch up has got, for the "Finish setting up" cards.
+   * `ready-to-start` only became reachable once designing stopped starting the
+   * trial: a hunch can now hold a finished plan it has not begun.
+   */
+  setupStage: "needs-sharpening" | "needs-plan" | "ready-to-start" | null;
+  /** Set only while a started trial is still waiting for its first day. */
+  startsOn: string | null;
+  /** Null until the trial actually begins — a scheduled trial is not on day 1. */
   progress: { day: number; total: number } | null;
   loggableToday: boolean;
   loggedToday: boolean;
@@ -68,21 +70,29 @@ export async function getHomeData(userId: string): Promise<HomeData> {
     let progress: HomeHunch["progress"] = null;
     let phaseLabel: HomeHunch["phaseLabel"] = null;
     let loggableToday = false;
+    let startsOn: string | null = null;
     const primary = pickPrimary(h.parameters);
 
     if (h.protocol?.startedAt) {
       try {
         const design = parseStoredDesign(h.protocol.design);
-        const total =
-          design.phases.reduce((s, p) => s + p.days, 0) +
-          design.washoutDays * Math.max(0, design.phases.length - 1);
-        const day = Math.min(
-          total,
-          Math.max(1, utcDaysBetween(h.protocol.startedAt, now) + 1),
-        );
-        progress = { day, total };
-
         const ph = currentPhase(h.protocol.startedAt, design, now);
+
+        if (ph.started) {
+          const total =
+            design.phases.reduce((s, p) => s + p.days, 0) +
+            design.washoutDays * Math.max(0, design.phases.length - 1);
+          const day = Math.min(
+            total,
+            Math.max(1, utcDaysBetween(h.protocol.startedAt, now) + 1),
+          );
+          progress = { day, total };
+        } else {
+          // Started "tomorrow": anchored, but no day has run. Reporting day 1 of
+          // N here would claim a day the user has not lived yet.
+          startsOn = h.protocol.startedAt.toISOString();
+        }
+
         phaseLabel = ph.kind;
         loggableToday =
           h.status === "running" &&
@@ -93,6 +103,20 @@ export async function getHomeData(userId: string): Promise<HomeData> {
           ph.phase !== null;
       } catch {
         // malformed design — treat as not loggable
+      }
+    }
+
+    // What the "Finish setting up" card should offer. A designed-but-unstarted
+    // hunch is not "needs a plan": it has one, and needs a start.
+    let setupStage: HomeHunch["setupStage"] = null;
+    if (!h.verdict) {
+      if (h.status === "draft" || !h.hypothesis) {
+        setupStage = "needs-sharpening";
+      } else if (h.status === "sharpened") {
+        setupStage =
+          h.protocol && h.protocol.safetyState === "approved"
+            ? "ready-to-start"
+            : "needs-plan";
       }
     }
 
@@ -112,6 +136,8 @@ export async function getHomeData(userId: string): Promise<HomeData> {
           }
         : null,
       phaseLabel,
+      setupStage,
+      startsOn,
       progress,
       loggableToday,
       loggedToday: h.checkIns.length > 0,

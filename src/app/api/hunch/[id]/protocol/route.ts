@@ -10,9 +10,15 @@ import { designProtocol, resolveSafetyState } from "@/mastra/workflows/design";
  * Phase 3: design a protocol for a sharpened hunch. Takes the parameter set the
  * user confirmed on the gate, replaces the proposed set with it, runs the design
  * workflow (confounders -> trial length -> ABA design -> safety review), applies
- * the safety gate, persists the Protocol, and flips the hunch to "running" only
- * when approved. Parameters and Protocol are written in one transaction — a
- * designed trial always has exactly one primary parameter.
+ * the safety gate, and persists the Protocol. Parameters and Protocol are written
+ * in one transaction — a designed trial always has exactly one primary parameter.
+ *
+ * Designing does NOT start the trial. This route used to stamp `startedAt` and
+ * flip the hunch to "running" the moment the workflow returned, so the clock
+ * began before the user had read a phase — read the plan tonight, begin
+ * tomorrow, and a baseline day was already spent. The hunch stays "sharpened"
+ * with a designed plan until POST /api/hunch/[id]/start, which is now the only
+ * writer of `startedAt`.
  */
 export async function POST(
   request: Request,
@@ -26,7 +32,7 @@ export async function POST(
   const { id } = await params;
   const hunch = await db.hunch.findFirst({
     where: { id, userId: session.user.id },
-    include: { hypothesis: true, _count: { select: { checkIns: true } } },
+    include: { hypothesis: true, protocol: true, _count: { select: { checkIns: true } } },
   });
   if (!hunch) {
     return NextResponse.json({ error: "Hunch not found." }, { status: 404 });
@@ -43,6 +49,14 @@ export async function POST(
   if (hunch._count.checkIns > 0) {
     return NextResponse.json(
       { error: "You've already logged days on this plan — redesigning would erase them." },
+      { status: 409 },
+    );
+  }
+  // A started trial has an anchor every logged day is measured from. Redesigning
+  // would replace the phases underneath it while leaving the anchor in place.
+  if (hunch.protocol?.startedAt) {
+    return NextResponse.json(
+      { error: "This trial has already started — redesigning would move the goalposts." },
       { status: 409 },
     );
   }
@@ -64,12 +78,13 @@ export async function POST(
   });
 
   const safetyState = resolveSafetyState(result.safety);
+  // No `startedAt` here, deliberately: the user starts the trial, not the
+  // designer. See the note on this route.
   const protocolData = {
     design: result.design,
     powerInfo: result.powerInfo,
     confounders: result.confounders,
     safetyState,
-    startedAt: safetyState === "approved" ? new Date() : null,
   };
 
   const { protocol, parameters } = await db.$transaction(async (tx) => {
@@ -93,10 +108,6 @@ export async function POST(
       create: { hunchId: hunch.id, ...protocolData },
       update: protocolData,
     });
-
-    if (safetyState === "approved") {
-      await tx.hunch.update({ where: { id: hunch.id }, data: { status: "running" } });
-    }
 
     const rows = await tx.parameter.findMany({
       where: { hunchId: hunch.id },

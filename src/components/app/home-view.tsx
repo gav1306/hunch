@@ -21,6 +21,45 @@ const item = {
   show: { opacity: 1, y: 0, transition: { duration: 0.42, ease: [0.22, 1, 0.36, 1] as const } },
 };
 
+/**
+ * Where a half-set-up hunch should send the user, and what its card should say.
+ *
+ * Every one of these used to be a single card reading "Sharpened · needs a plan"
+ * pointing at /hunch/{id} — the dashboard, which for an un-started hunch renders
+ * "Your trial hasn't started yet." and nothing else. The one card whose whole job
+ * was to resume setup routed away from the setup page.
+ */
+const SETUP_CTA: Record<
+  "needs-sharpening" | "needs-plan" | "ready-to-start",
+  { text: string; href: (id: string) => string }
+> = {
+  "needs-sharpening": {
+    text: "Draft · pick up where you left off →",
+    href: (id) => `/hunch/new?resume=${id}`,
+  },
+  "needs-plan": {
+    text: "Sharpened · needs a plan →",
+    href: (id) => `/hunch/${id}/protocol`,
+  },
+  "ready-to-start": {
+    text: "Plan ready · start it →",
+    href: (id) => `/hunch/${id}/protocol`,
+  },
+};
+
+/** "Starts tomorrow", "Starts in 3 days" — for an anchored trial with no day yet. */
+function startsCopy(iso: string): string {
+  const start = new Date(iso);
+  const now = new Date();
+  const days = Math.round(
+    (Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()) -
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())) /
+      86_400_000,
+  );
+  if (days <= 1) return "Starts tomorrow";
+  return `Starts in ${days} days`;
+}
+
 const VERDICT_LABEL: Record<string, { text: string; color: string }> = {
   helped: { text: "Helped", color: "var(--good)" },
   hurt: { text: "Hurt", color: "var(--bad)" },
@@ -320,9 +359,16 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
               <div style={{ display: "grid", gap: "clamp(12px,1.6vw,18px)", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))" }}>
                 {data.running.map((h) => (
                   <Link key={h.id} href={`/hunch/${h.id}`} className="app-card" style={{ ...cardBase }}>
-                    <div style={{ fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: h.loggedToday ? "var(--good)" : "var(--muted)", marginBottom: 10 }}>
-                      {h.loggedToday ? "Logged today ✓" : "Running"}
-                      {h.phaseLabel ? ` · ${h.phaseLabel}` : ""}
+                    <div style={{ fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: !h.startsOn && h.loggedToday ? "var(--good)" : "var(--muted)", marginBottom: 10 }}>
+                      {/* Anchored but not yet begun — a start the user scheduled
+                          for tomorrow, which has no day and nothing to log. It is
+                          not a confirmation, so it stays muted rather than green. */}
+                      {h.startsOn
+                        ? startsCopy(h.startsOn)
+                        : h.loggedToday
+                          ? "Logged today ✓"
+                          : "Running"}
+                      {!h.startsOn && h.phaseLabel ? ` · ${h.phaseLabel}` : ""}
                     </div>
                     {statement(h)}
                     {h.progress && <ProgressBar day={h.progress.day} total={h.progress.total} />}
@@ -337,14 +383,17 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
             <section>
               {eyebrow("Finish setting up")}
               <div style={{ display: "grid", gap: "clamp(12px,1.6vw,18px)", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))" }}>
-                {data.needsSetup.map((h) => (
-                  <Link key={h.id} href={`/hunch/${h.id}`} className="app-card" style={{ ...cardBase }}>
-                    <div style={{ fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 10 }}>
-                      Sharpened · needs a plan →
-                    </div>
-                    {statement(h)}
-                  </Link>
-                ))}
+                {data.needsSetup.map((h) => {
+                  const cta = SETUP_CTA[h.setupStage ?? "needs-plan"];
+                  return (
+                    <Link key={h.id} href={cta.href(h.id)} className="app-card" style={{ ...cardBase }}>
+                      <div style={{ fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 10 }}>
+                        {cta.text}
+                      </div>
+                      {statement(h)}
+                    </Link>
+                  );
+                })}
               </div>
             </section>
           )}

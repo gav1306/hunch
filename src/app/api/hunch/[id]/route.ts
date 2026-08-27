@@ -34,6 +34,10 @@ export async function GET(
 
   const p = hunch.protocol;
   return NextResponse.json({
+    // The words the user actually typed. Re-sharpening reloads them rather than
+    // dropping the user on a blank page with their original hunch lost.
+    rawText: hunch.rawText,
+    status: hunch.status,
     hypothesis: {
       statement: hunch.hypothesis.statement,
       outcomeMetric: hunch.hypothesis.outcomeMetric,
@@ -54,4 +58,34 @@ export async function GET(
         }
       : null,
   });
+}
+
+/**
+ * Abandon a hunch and everything hanging off it.
+ *
+ * There was no delete anywhere in the app. A hunch the user gave up on sat in
+ * "Finish setting up" permanently, and a concluded one sat on home forever, so
+ * after a few experiments home was mostly history the user couldn't clear.
+ *
+ * Protocol, parameters, check-ins and the verdict all cascade from the Hunch
+ * row, so this is a single delete rather than a hand-rolled teardown.
+ */
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const session = await getSession(await headers());
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  // Scoped to the owner: deleteMany rather than delete, so another user's id
+  // reports "not found" instead of throwing on a row they can't see.
+  const { count } = await db.hunch.deleteMany({ where: { id, userId: session.user.id } });
+  if (count === 0) {
+    return NextResponse.json({ error: "Hunch not found." }, { status: 404 });
+  }
+
+  return NextResponse.json({ deleted: id });
 }

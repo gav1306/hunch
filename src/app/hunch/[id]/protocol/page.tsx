@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState, use } from "react";
 import { ProtocolStepper } from "@/components/protocol-stepper";
+import { AbandonHunch } from "@/components/hunch/abandon-hunch";
 import { ParameterEditor } from "@/components/hunch/parameter-editor";
 import { useDesignProtocol } from "@/hooks/use-design-protocol";
 import { useHunchInfo } from "@/hooks/use-hunch-info";
@@ -113,7 +114,11 @@ export default function ProtocolPage({
               {drafts && <ParameterEditor value={drafts} onChange={setEdited} />}
 
               <div style={{ marginTop: 16, display: "flex", gap: 10 }}>
-                <Link href="/hunch/new" style={{ ...gateBtn, flex: 1, border: "1px solid var(--ink)", background: "transparent", color: "var(--ink)", textDecoration: "none" }}>
+                {/* Re-sharpens this hunch, pre-filled with the words it started
+                    as. This used to link to a blank /hunch/new, which discarded
+                    the raw text and the clarifying answers and left the old
+                    hunch stranded in "Finish setting up" with no way to remove it. */}
+                <Link href={`/hunch/new?resume=${id}`} style={{ ...gateBtn, flex: 1, border: "1px solid var(--ink)", background: "transparent", color: "var(--ink)", textDecoration: "none" }}>
                   ↻ redo
                 </Link>
                 <button
@@ -189,6 +194,12 @@ export default function ProtocolPage({
               </p>
             </section>
           )}
+
+          {/* Reachable here too: home's setup cards point at this page, so a
+              hunch the user gave up on mid-setup would otherwise have no exit. */}
+          <div style={{ marginTop: 40, borderTop: "1px solid var(--rule)", paddingTop: 8 }}>
+            <AbandonHunch hunchId={id} />
+          </div>
         </div>
       </div>
     </main>

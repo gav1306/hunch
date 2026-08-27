@@ -118,14 +118,21 @@ function QuestionCard({
   );
 }
 
-export function NewHunchForm({ seed }: { seed: string }) {
+export function NewHunchForm({
+  seed,
+  resuming = null,
+}: {
+  seed: string;
+  /** Set when re-sharpening an existing hunch, carrying the text it started as. */
+  resuming?: { id: string; rawText: string } | null;
+}) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [rawText, setRawText] = useState(seed);
+  const [rawText, setRawText] = useState(resuming?.rawText ?? seed);
   const [questions, setQuestions] = useState<ClarifyingQuestion[] | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const clarify = useClarify();
-  const createHunch = useCreateHunch();
+  const createHunch = useCreateHunch(resuming?.id);
 
   // Once sharpened, hand off to the protocol page — that's where the user
   // confirms the hypothesis and the plan is designed (Variation B: one page).
@@ -194,10 +201,12 @@ export function NewHunchForm({ seed }: { seed: string }) {
         {!questions ? (
           <div style={{ marginTop: 40, opacity: step === "asking" ? 0.4 : 1, transition: "opacity 300ms ease", pointerEvents: step === "asking" ? "none" : "auto" }}>
             <h1 style={{ margin: 0, fontFamily: "'Clash Display',sans-serif", fontWeight: 700, fontSize: "clamp(30px,4.4vw,48px)", letterSpacing: "-0.02em", color: "var(--ink)" }}>
-              What&apos;s nagging you?
+              {resuming ? "Say it another way" : "What\u2019s nagging you?"}
             </h1>
             <p style={{ margin: "14px 0 0", fontSize: 14.5, lineHeight: 1.7, color: "var(--muted)" }}>
-              Drop a gut feeling about your life. The coach asks a couple of quick questions, then sharpens it.
+              {resuming
+                ? "Your original words are below \u2014 reword them and the coach will sharpen this same hunch again."
+                : "Drop a gut feeling about your life. The coach asks a couple of quick questions, then sharpens it."}
             </p>
             <form onSubmit={startClarify} style={{ marginTop: 26 }}>
               <textarea

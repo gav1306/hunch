@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useCheckIn, type CheckInValueInput } from "@/hooks/use-checkin";
 import type { PhaseStatus } from "@/lib/schedule";
@@ -46,13 +47,19 @@ const input: React.CSSProperties = {
  * The daily log. One input per parameter — the primary first and emphasized,
  * trackers under it — submitted together. The phase comes from the schedule (the
  * user never picks it). Blank rows are simply not sent, so partial days are fine.
- * Washout, pre-start, and finished trials show a non-logging message. Brand system.
+ * Washout and finished trials show a non-logging message. A trial that has not
+ * begun gets a way forward instead of a full stop: this used to render the bare
+ * sentence "Your trial hasn't started yet." with no onward link, which made the
+ * dashboard the dead end that home's setup card pointed at. Brand system.
  */
 export function CheckInTap({
   hunchId,
   schedule,
   parameters,
   phaseAction,
+  startsOn,
+  hasPlan,
+  firstPhaseAction,
 }: {
   hunchId: string;
   schedule: PhaseStatus | null;
@@ -60,13 +67,26 @@ export function CheckInTap({
   parameters: Parameter[];
   /** Today's phase instruction from the protocol, if available. */
   phaseAction?: string;
+  /** The anchor, when the trial is scheduled but has not reached day 1. */
+  startsOn?: string | null;
+  /** Whether a protocol has been designed at all. */
+  hasPlan?: boolean;
+  /** Day 1's instruction, shown while the user waits for a scheduled start. */
+  firstPhaseAction?: string;
 }) {
   const checkIn = useCheckIn(hunchId);
   const [entries, setEntries] = useState<Record<string, string>>({});
   const [problem, setProblem] = useState<string | null>(null);
 
   if (!schedule || !schedule.started) {
-    return <p style={rest}>Your trial hasn&apos;t started yet.</p>;
+    return (
+      <NotStartedYet
+        hunchId={hunchId}
+        startsOn={schedule ? (startsOn ?? null) : null}
+        hasPlan={hasPlan ?? false}
+        firstPhaseAction={firstPhaseAction}
+      />
+    );
   }
   if (schedule.done) {
     return <p style={rest}>Trial complete — your verdict is coming soon.</p>;
@@ -235,6 +255,93 @@ export function CheckInTap({
       {checkIn.isError && (
         <p style={{ margin: "14px 0 0", fontSize: 13, color: "var(--s1)" }}>{checkIn.error.message}</p>
       )}
+    </section>
+  );
+}
+
+/** "tomorrow", "in 3 days" — how far off a scheduled start is. */
+function startsIn(iso: string): string {
+  const start = new Date(iso);
+  const now = new Date();
+  const days = Math.round(
+    (Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()) -
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())) /
+      86_400_000,
+  );
+  return days <= 1 ? "tomorrow" : `in ${days} days`;
+}
+
+const DATE_FMT = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+});
+
+/**
+ * A trial that has not begun. Two cases, and neither is a dead end:
+ * the plan hasn't been designed (send them to design it), or it has been
+ * designed and anchored on a future day (tell them which day, and what day 1
+ * asks of them).
+ */
+function NotStartedYet({
+  hunchId,
+  startsOn,
+  hasPlan,
+  firstPhaseAction,
+}: {
+  hunchId: string;
+  startsOn: string | null;
+  hasPlan: boolean;
+  firstPhaseAction?: string;
+}) {
+  const scheduled = startsOn !== null;
+  const eyebrowText = scheduled
+    ? `Starts ${startsIn(startsOn)} · ${DATE_FMT.format(new Date(startsOn))}`
+    : hasPlan
+      ? "Plan ready"
+      : "No plan yet";
+
+  return (
+    <section
+      style={{
+        border: "1px solid var(--rule)",
+        borderRadius: 14,
+        padding: "20px 18px",
+        display: "grid",
+        gap: 14,
+      }}
+    >
+      <div style={{ ...rest, ...label }}>{eyebrowText}</div>
+
+      <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: "var(--ink)", overflowWrap: "anywhere" }}>
+        {scheduled
+          ? firstPhaseAction
+            ? `Day 1 is a baseline day. ${firstPhaseAction}`
+            : "Day 1 hasn't come round yet — nothing to log until it does."
+          : hasPlan
+            ? "Your plan is designed and waiting. Nothing runs until you start it."
+            : "This hunch doesn't have a plan yet. Design one and you can start logging."}
+      </p>
+
+      <Link
+        href={`/hunch/${hunchId}/protocol`}
+        style={{
+          justifySelf: "start",
+          fontFamily: "'Space Mono',monospace",
+          fontWeight: 700,
+          fontSize: 12,
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          padding: "12px 18px",
+          borderRadius: 11,
+          textDecoration: "none",
+          border: "1px solid var(--s1)",
+          background: scheduled ? "transparent" : "var(--s1)",
+          color: scheduled ? "var(--s1)" : "var(--paper)",
+        }}
+      >
+        {scheduled ? "See the full plan →" : hasPlan ? "Start it →" : "Design your plan →"}
+      </Link>
     </section>
   );
 }
