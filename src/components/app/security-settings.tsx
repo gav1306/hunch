@@ -113,7 +113,7 @@ export function SecuritySettings() {
             fontSize: 11,
             letterSpacing: "0.2em",
             textTransform: "uppercase",
-            color: enabled ? "var(--s2)" : "var(--muted)",
+            color: enabled ? "var(--good)" : "var(--muted)",
             marginBottom: 14,
           }}
         >

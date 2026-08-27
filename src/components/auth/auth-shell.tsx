@@ -5,15 +5,8 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AuthGazeProvider } from "@/components/auth/auth-gaze";
-import { GRAIN_SVG, PALETTES } from "@/components/landing/palette";
-
-const DARK = {
-  paper: "#0E0D12",
-  ink: "#F2ECDD",
-  muted: "#8C8676",
-  rule: "rgba(242,236,221,0.16)",
-};
-const P = PALETTES.Riso;
+import { GRAIN_SVG } from "@/components/landing/palette";
+import { appThemeStyle } from "@/lib/app-theme";
 
 const HeroRobot = dynamic(
   () => import("@/components/landing/hero-robot").then((m) => m.HeroRobot),
@@ -147,21 +140,11 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
     <AuthGazeProvider value={gaze}>
     <div
       className="auth-shell"
-      style={
-        {
-          position: "relative",
-          background: DARK.paper,
-          color: DARK.ink,
-          fontFamily: "'Space Mono',ui-monospace,monospace",
-          overflowX: "hidden",
-          "--paper": DARK.paper,
-          "--ink": DARK.ink,
-          "--muted": DARK.muted,
-          "--rule": DARK.rule,
-          "--s1": P.s1,
-          "--s2": P.s2,
-        } as React.CSSProperties
-      }
+      style={{
+        position: "relative",
+        overflowX: "hidden",
+        ...appThemeStyle(),
+      }}
     >
       <style>{`
         .auth-mobilebrand{display:none;}

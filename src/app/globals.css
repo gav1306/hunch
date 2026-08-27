@@ -34,127 +34,178 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ---------------------------------------------------------------------------
+   Tokens
+
+   One layer doing three jobs:
+
+   1. `:root` carries the Hunch brand ground — `--paper/--ink/--muted/--rule/
+      --s1/--s2`. These used to be spread as inline custom properties by
+      `appThemeStyle()` and again by AuthShell's private copy of the same
+      values, which is why `body` stayed white underneath and any un-themed
+      route flashed on navigation. They live here now, and both callers read
+      them instead of restating them.
+   2. It also carries the result semantics — `--good/--bad/--neutral`. These are
+      deliberately not the brand accents, so "it helped" and "it hurt" read the
+      same way on home as they do on the detail page.
+   3. `@theme inline` maps shadcn's component tokens onto the brand ones. Two
+      names collide, and this mapping is where that gets resolved: Hunch's
+      `--muted` is a *text* colour while shadcn's is a *surface*, so
+      `--color-muted` points at `--surface-2` and `--color-muted-foreground` at
+      `--muted`. Mapping `--color-muted` back to `--muted` would turn every
+      `bg-muted` sand-coloured.
+   --------------------------------------------------------------------------- */
+
+:root {
+  color-scheme: dark;
+
+  /* Brand ground. The app is hard-dark — there is no light variant. */
+  --paper: #0e0d12;
+  --ink: #f2ecdd;
+  --muted: #8c8676; /* text, not a surface: 5.3:1, hence the 12px floor */
+  --rule: rgba(242, 236, 221, 0.16);
+
+  /* Surfaces lifted off the ground, for cards, popovers and hover states. */
+  --surface-1: #16151c;
+  --surface-2: rgba(242, 236, 221, 0.06);
+  --surface-3: rgba(242, 236, 221, 0.12);
+
+  /* Riso accents. --s2 is lightened for this ground: the authored #1F33E0
+     measures 2.4:1 here and misses even large-text AA. #7B8CFF holds the Riso
+     feel at 6.5:1. The light-ground original survives in landing/palette.ts,
+     which the landing page still reads for its own palettes. */
+  --s1: #ff3b14; /* 5.4:1 */
+  --s2: #7b8cff; /* 6.5:1 */
+
+  /* Result semantics — never the brand accents, always paired with a word. */
+  --good: #4fd1a5; /* 10.1:1 */
+  --bad: #ff6e8a; /* 7.2:1 */
+  --neutral: var(--muted);
+
+  /* Three radii. A thing is a control, a card or a sheet; there is no fourth
+     case, and five radii across four screens is what the audit found. */
+  --radius-control: 9px;
+  --radius-card: 14px;
+  --radius-sheet: 20px;
+  --radius: var(--radius-card);
+
+  /* shadcn component tokens, pointed at the brand. */
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--surface-1);
+  --card-foreground: var(--ink);
+  --popover: var(--surface-1);
+  --popover-foreground: var(--ink);
+  --primary: var(--s1);
+  --primary-foreground: #14100c;
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--ink);
+  --accent: var(--surface-2);
+  --accent-foreground: var(--ink);
+  --destructive: var(--s1);
+  --border: var(--rule);
+  --input: var(--surface-3);
+  --ring: var(--s1);
+
+  --chart-1: var(--s1);
+  --chart-2: var(--s2);
+  --chart-3: var(--good);
+  --chart-4: var(--bad);
+  --chart-5: var(--muted);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-geist-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
-}
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 
-:root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
+  /* The collision, resolved: surface from --surface-2, text from --muted. */
+  --color-muted: var(--surface-2);
+  --color-muted-foreground: var(--muted);
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Brand and semantics, addressable as utilities (text-s1, bg-good, …). */
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-rule: var(--rule);
+  --color-s1: var(--s1);
+  --color-s2: var(--s2);
+  --color-good: var(--good);
+  --color-bad: var(--bad);
+  --color-neutral: var(--neutral);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Radii: shadcn's scale collapsed onto the three real cases. */
+  --radius-sm: var(--radius-control);
+  --radius-md: var(--radius-control);
+  --radius-lg: var(--radius-card);
+  --radius-xl: var(--radius-sheet);
+  --radius-2xl: var(--radius-sheet);
+
+  /* Six steps. `--text-eyebrow` sits outside the scale on purpose: it is the
+     only size allowed below the 12px readable floor, and only for decoration. */
+  --text-eyebrow: 10.5px;
+  --text-xs: 12px;
+  --text-sm: 13.5px;
+  --text-base: 15px;
+  --text-lg: 18px;
+  --text-xl: 24px;
+  --text-2xl: 36px;
+
+  --font-sans: "Space Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-mono: "Space Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-heading: "Clash Display", "Space Mono", ui-sans-serif, sans-serif;
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+
   html {
     @apply font-sans;
+  }
+
+  /* A floor, not the fix: the auth inputs set `outline: none` inline, which
+     still beats this. Those get a real ring when they move onto the shared
+     input primitive. */
+  :focus-visible {
+    outline: 2px solid var(--s1);
+    outline-offset: 2px;
+  }
+
+  /* Chrome paints saved credentials on a pale-blue ground, which reads as a
+     light form dropped into a near-black page. The inset shadow is the only
+     way to repaint it. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  textarea:-webkit-autofill,
+  select:-webkit-autofill {
+    -webkit-text-fill-color: var(--ink);
+    -webkit-box-shadow: 0 0 0 1000px var(--paper) inset;
+    caret-color: var(--ink);
+    transition: background-color 9999s ease-out 0s;
   }
 }
