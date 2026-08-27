@@ -22,10 +22,10 @@ const item = {
 };
 
 const VERDICT_LABEL: Record<string, { text: string; color: string }> = {
-  helped: { text: "Helped", color: "var(--s1)" },
-  hurt: { text: "Hurt", color: "var(--s1)" },
-  inconclusive_no_effect: { text: "No effect", color: "var(--muted)" },
-  inconclusive_insufficient: { text: "Not enough data", color: "var(--muted)" },
+  helped: { text: "Helped", color: "var(--good)" },
+  hurt: { text: "Hurt", color: "var(--bad)" },
+  inconclusive_no_effect: { text: "No effect", color: "var(--neutral)" },
+  inconclusive_insufficient: { text: "Not enough data", color: "var(--neutral)" },
 };
 
 function eyebrow(text: string) {
@@ -101,7 +101,7 @@ function CheckinRow({ h }: { h: HomeHunch }) {
       {statement(h)}
 
       {done ? (
-        <div style={{ marginTop: 16, fontSize: 13, color: "var(--s2)" }}>
+        <div style={{ marginTop: 16, fontSize: 13, color: "var(--good)" }}>
           Logged ✓ — see you tomorrow.
         </div>
       ) : !primary ? null : (
@@ -320,7 +320,7 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
               <div style={{ display: "grid", gap: "clamp(12px,1.6vw,18px)", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))" }}>
                 {data.running.map((h) => (
                   <Link key={h.id} href={`/hunch/${h.id}`} className="app-card" style={{ ...cardBase }}>
-                    <div style={{ fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: h.loggedToday ? "var(--s2)" : "var(--muted)", marginBottom: 10 }}>
+                    <div style={{ fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: h.loggedToday ? "var(--good)" : "var(--muted)", marginBottom: 10 }}>
                       {h.loggedToday ? "Logged today ✓" : "Running"}
                       {h.phaseLabel ? ` · ${h.phaseLabel}` : ""}
                     </div>

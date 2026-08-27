@@ -12,12 +12,17 @@ const label: React.CSSProperties = {
   color: "var(--muted)",
 };
 
-/** Headline copy + brand tone token per verdict category. */
+/**
+ * Headline copy + result token per verdict category. The tone comes from the
+ * semantic pair, not the brand accents: helped and hurt used to be --s1 and --s2
+ * here but both --s1 on home, so the same result read two ways depending on the
+ * screen. The word carries the meaning; the colour only agrees with it.
+ */
 const HEADLINE: Record<Verdict["category"], { title: string; tone: string }> = {
-  helped: { title: "It helped ✓", tone: "var(--s1)" },
-  hurt: { title: "It hurt ✗", tone: "var(--s2)" },
-  inconclusive_no_effect: { title: "No detectable effect", tone: "var(--muted)" },
-  inconclusive_insufficient: { title: "Not enough data", tone: "var(--muted)" },
+  helped: { title: "It helped ✓", tone: "var(--good)" },
+  hurt: { title: "It hurt ✗", tone: "var(--bad)" },
+  inconclusive_no_effect: { title: "No detectable effect", tone: "var(--neutral)" },
+  inconclusive_insufficient: { title: "Not enough data", tone: "var(--neutral)" },
 };
 
 /** Reconstruct a live Belief from the frozen snapshot so we can reuse the meter. */
