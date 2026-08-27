@@ -3,6 +3,12 @@ import type { ProtocolDesign } from "@/lib/schemas/protocol";
 export type PhaseStatus = {
   phase: "A" | "B" | null;
   kind: "baseline" | "intervention" | null;
+  /**
+   * Which entry of `design.phases` we're in. An ABA design repeats the "A"
+   * label, so the label alone can't identify the phase — the returned baseline
+   * has its own name and action, and looking it up by label finds the first.
+   */
+  phaseIndex: number | null;
   dayInPhase: number;
   washout: boolean;
   done: boolean;
@@ -19,6 +25,7 @@ function utcDaysBetween(from: Date, to: Date): number {
 const NOT_STARTED: PhaseStatus = {
   phase: null,
   kind: null,
+  phaseIndex: null,
   dayInPhase: 0,
   washout: false,
   done: false,
@@ -49,6 +56,7 @@ export function currentPhase(
       return {
         phase: phase.label,
         kind: phase.kind,
+        phaseIndex: i,
         dayInPhase: dayIndex - phaseStart,
         washout: false,
         done: false,
@@ -63,6 +71,7 @@ export function currentPhase(
         return {
           phase: null,
           kind: null,
+          phaseIndex: null,
           dayInPhase: dayIndex - cursor,
           washout: true,
           done: false,
@@ -73,5 +82,13 @@ export function currentPhase(
     }
   }
 
-  return { phase: null, kind: null, dayInPhase: 0, washout: false, done: true, started: true };
+  return {
+    phase: null,
+    kind: null,
+    phaseIndex: null,
+    dayInPhase: 0,
+    washout: false,
+    done: true,
+    started: true,
+  };
 }

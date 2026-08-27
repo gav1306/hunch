@@ -1,9 +1,10 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { recallPriors } from "@/lib/memory/recall";
-import { hunchInputSchema } from "@/lib/schemas/hypothesis";
+import { draftsFromSharpened, toParameterDto } from "@/lib/parameters";
+import { sharpenRequestSchema } from "@/lib/schemas/clarify";
 import { sharpenHunch } from "@/mastra/agents/hypothesis-coach";
 
 /**
@@ -11,12 +12,12 @@ import { sharpenHunch } from "@/mastra/agents/hypothesis-coach";
  * the Hunch and its Hypothesis, then return the pair for the Hunch Card.
  */
 export async function POST(request: Request) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getSession(await headers());
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const parsed = hunchInputSchema.safeParse(await request.json());
+  const parsed = sharpenRequestSchema.safeParse(await request.json());
   if (!parsed.success) {
     return NextResponse.json({ error: "A hunch can't be empty." }, {
       status: 400,
@@ -25,7 +26,9 @@ export async function POST(request: Request) {
 
   try {
     const priors = await recallPriors(session.user.id, parsed.data.rawText);
-    const sharpened = await sharpenHunch(parsed.data.rawText, priors);
+    const sharpened = await sharpenHunch(parsed.data.rawText, priors, parsed.data.answers);
+
+    const drafts = draftsFromSharpened(sharpened);
 
     const hunch = await db.hunch.create({
       data: {
@@ -40,11 +43,27 @@ export async function POST(request: Request) {
             confounders: sharpened.confounders,
           },
         },
+        // The proposed set the confirm gate edits. Persisted now so a reload
+        // of the protocol page still shows the trackers the Coach suggested.
+        parameters: {
+          create: drafts.map((d, i) => ({
+            label: d.label,
+            type: d.type,
+            unit: d.unit ?? null,
+            min: d.min ?? null,
+            max: d.max ?? null,
+            isPrimary: d.isPrimary,
+            sortOrder: i,
+          })),
+        },
       },
-      include: { hypothesis: true },
+      include: { hypothesis: true, parameters: { orderBy: { sortOrder: "asc" } } },
     });
 
-    return NextResponse.json({ hunch, priors }, { status: 201 });
+    return NextResponse.json(
+      { hunch: { ...hunch, parameters: hunch.parameters.map(toParameterDto) }, priors },
+      { status: 201 },
+    );
   } catch (err) {
     // The Coach (LLM) or the DB write failed. Always answer with JSON so the
     // client shows a graceful message instead of choking on an empty body.

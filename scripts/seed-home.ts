@@ -23,9 +23,9 @@ function daysAgo(n: number): Date {
 
 const design = (): ProtocolDesign => ({
   phases: [
-    { label: "A", kind: "baseline", days: 7 },
-    { label: "B", kind: "intervention", days: 7 },
-    { label: "A", kind: "baseline", days: 7 },
+    { label: "A", kind: "baseline", days: 7, name: "Normal coffee", action: "Keep your usual coffee; log sleep each morning." },
+    { label: "B", kind: "intervention", days: 7, name: "No coffee after 2pm", action: "Skip caffeine after 2pm; log sleep each morning." },
+    { label: "A", kind: "baseline", days: 7, name: "Normal coffee", action: "Back to usual coffee; log sleep each morning." },
   ],
   washoutDays: 2,
   controls: ["Keep bedtime within 30 min", "No caffeine after 2pm"],
@@ -52,6 +52,19 @@ async function main() {
           confounders: ["alcohol", "screen time"],
         },
       },
+      parameters: {
+        create: [
+          {
+            label: "Deep sleep minutes",
+            type: "continuous",
+            unit: "min",
+            isPrimary: true,
+            sortOrder: 0,
+          },
+          { label: "Bedtime feel", type: "continuous", unit: "1-10", min: 1, max: 10, sortOrder: 1 },
+          { label: "Woke up rested", type: "binary", sortOrder: 2 },
+        ],
+      },
       protocol: {
         create: { design: design(), safetyState: "approved", startedAt: daysAgo(3) },
       },
@@ -72,13 +85,22 @@ async function main() {
           confounders: ["lunch size"],
         },
       },
+      parameters: {
+        create: [{ label: "Afternoon crash", type: "binary", isPrimary: true, sortOrder: 0 }],
+      },
       protocol: {
         create: { design: design(), safetyState: "approved", startedAt: daysAgo(9) },
       },
     },
+    include: { parameters: true },
   });
   await db.checkIn.create({
-    data: { hunchId: logged.id, phase: "B", value: 0, loggedOn: daysAgo(0) },
+    data: {
+      hunchId: logged.id,
+      phase: "B",
+      loggedOn: daysAgo(0),
+      values: { create: [{ parameterId: logged.parameters[0].id, value: 0 }] },
+    },
   });
 
   // 3) Sharpened, no protocol started → "Needs setup".
@@ -94,6 +116,12 @@ async function main() {
           outcomeType: "continuous",
           confounders: ["meal carbs"],
         },
+      },
+      parameters: {
+        create: [
+          { label: "Peak glucose", type: "continuous", unit: "mg/dL", isPrimary: true, sortOrder: 0 },
+          { label: "Walked after lunch", type: "binary", sortOrder: 1 },
+        ],
       },
     },
   });
@@ -111,6 +139,11 @@ async function main() {
           outcomeType: "continuous",
           confounders: ["stress"],
         },
+      },
+      parameters: {
+        create: [
+          { label: "Total sleep time", type: "continuous", unit: "min", isPrimary: true, sortOrder: 0 },
+        ],
       },
       protocol: {
         create: { design: design(), safetyState: "approved", startedAt: daysAgo(30) },

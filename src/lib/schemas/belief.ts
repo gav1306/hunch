@@ -1,11 +1,5 @@
 import { z } from "zod";
 
-/** What the client sends on a check-in. Phase + date are derived server-side. */
-export const checkInInputSchema = z.object({
-  value: z.number(),
-});
-export type CheckInInput = z.infer<typeof checkInInputSchema>;
-
 /**
  * The Bayesian engine's posterior summary. `pEffect` is P(intervention mean >
  * baseline mean); `ci` is the 95% credible interval on the effect. `warming-up`

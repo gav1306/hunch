@@ -4,7 +4,7 @@ import type { Belief } from "@/lib/schemas/belief";
 import type { PhaseStatus } from "@/lib/schedule";
 
 const done: PhaseStatus = {
-  phase: null, kind: null, dayInPhase: 0, washout: false, done: true, started: true,
+  phase: null, kind: null, phaseIndex: null, dayInPhase: 0, washout: false, done: true, started: true,
 };
 const running: PhaseStatus = { ...done, done: false };
 

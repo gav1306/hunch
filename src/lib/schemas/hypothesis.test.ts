@@ -51,4 +51,26 @@ describe("sharpenedHypothesisSchema", () => {
     expect(r.success).toBe(true);
     if (r.success) expect(r.data.confounders).toEqual([]);
   });
+
+  test("defaults trackers to an empty array when omitted", () => {
+    const r = sharpenedHypothesisSchema.safeParse(valid);
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.trackers).toEqual([]);
+  });
+
+  test("accepts up to four proposed trackers", () => {
+    const trackers = Array.from({ length: 4 }, (_, i) => ({
+      label: `tracker ${i}`,
+      type: "binary" as const,
+    }));
+    expect(sharpenedHypothesisSchema.safeParse({ ...valid, trackers }).success).toBe(true);
+  });
+
+  test("rejects more than four proposed trackers", () => {
+    const trackers = Array.from({ length: 5 }, (_, i) => ({
+      label: `tracker ${i}`,
+      type: "binary" as const,
+    }));
+    expect(sharpenedHypothesisSchema.safeParse({ ...valid, trackers }).success).toBe(false);
+  });
 });

@@ -1,8 +1,9 @@
 import "server-only";
 
 import { db } from "@/lib/db";
+import { pickPrimary } from "@/lib/parameters";
 import { currentPhase } from "@/lib/schedule";
-import { protocolDesignSchema } from "@/lib/schemas/protocol";
+import { parseStoredDesign } from "@/lib/schemas/protocol";
 
 /** Whole UTC calendar days from `from` to `to` (date-only). */
 function utcDaysBetween(from: Date, to: Date): number {
@@ -17,6 +18,14 @@ export type HomeHunch = {
   statement: string;
   status: string;
   outcomeType: "binary" | "continuous";
+  /** What the home quick-log writes to. Null before the hunch is sharpened. */
+  primaryParameter: {
+    id: string;
+    label: string;
+    type: "binary" | "continuous";
+    min: number | null;
+    max: number | null;
+  } | null;
   phaseLabel: "baseline" | "intervention" | null;
   progress: { day: number; total: number } | null;
   loggableToday: boolean;
@@ -50,6 +59,7 @@ export async function getHomeData(userId: string): Promise<HomeData> {
       hypothesis: true,
       protocol: true,
       verdict: true,
+      parameters: true,
       checkIns: { where: { loggedOn: today }, select: { id: true } },
     },
   });
@@ -58,10 +68,11 @@ export async function getHomeData(userId: string): Promise<HomeData> {
     let progress: HomeHunch["progress"] = null;
     let phaseLabel: HomeHunch["phaseLabel"] = null;
     let loggableToday = false;
+    const primary = pickPrimary(h.parameters);
 
     if (h.protocol?.startedAt) {
       try {
-        const design = protocolDesignSchema.parse(h.protocol.design);
+        const design = parseStoredDesign(h.protocol.design);
         const total =
           design.phases.reduce((s, p) => s + p.days, 0) +
           design.washoutDays * Math.max(0, design.phases.length - 1);
@@ -91,6 +102,15 @@ export async function getHomeData(userId: string): Promise<HomeData> {
       statement: h.hypothesis?.statement ?? h.rawText,
       status: h.status,
       outcomeType: (h.hypothesis?.outcomeType as "binary" | "continuous") ?? "binary",
+      primaryParameter: primary
+        ? {
+            id: primary.id,
+            label: primary.label,
+            type: primary.type as "binary" | "continuous",
+            min: primary.min,
+            max: primary.max,
+          }
+        : null,
       phaseLabel,
       progress,
       loggableToday,

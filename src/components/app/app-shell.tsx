@@ -186,7 +186,7 @@ export function AppShell({
               letterSpacing: "-0.01em",
             }}
           >
-            hunch
+            hun<span style={{ color: "var(--s1)" }}>ch</span>
           </span>
         </Link>
 

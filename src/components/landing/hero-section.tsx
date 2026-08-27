@@ -353,7 +353,7 @@ export function HeroSection({
               letterSpacing: "-0.01em",
             }}
           >
-            hunch
+            hun<span style={{ color: "var(--s1)" }}>ch</span>
           </span>
         </div>
         <div

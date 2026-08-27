@@ -8,9 +8,9 @@ const hasKey = Boolean(process.env.AWS_PROFILE || process.env.AWS_ACCESS_KEY_ID)
 function designWith(instructions: string): ProtocolDesign {
   return {
     phases: [
-      { label: "A", kind: "baseline", days: 7 },
-      { label: "B", kind: "intervention", days: 7 },
-      { label: "A", kind: "baseline", days: 7 },
+      { label: "A", kind: "baseline", days: 7, name: "Baseline", action: "Normal routine." },
+      { label: "B", kind: "intervention", days: 7, name: "Intervention", action: "Apply the change." },
+      { label: "A", kind: "baseline", days: 7, name: "Baseline", action: "Normal routine." },
     ],
     washoutDays: 2,
     controls: [],

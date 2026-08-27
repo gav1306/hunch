@@ -2,11 +2,11 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app/app-shell";
 import { HomeView } from "@/components/app/home-view";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { getHomeData } from "@/lib/home";
 
 export default async function HomePage() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getSession(await headers());
   if (!session) redirect("/signin");
 
   const data = await getHomeData(session.user.id);
