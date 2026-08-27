@@ -163,6 +163,18 @@ export function AuthForm({ mode }: { mode: Mode }) {
           />
         </div>
 
+        {!isSignup && (
+          <div style={{ marginBottom: 10, textAlign: "right" }}>
+            <Link
+              href="/forgot-password"
+              className="auth-link"
+              style={{ fontSize: 12, color: "var(--muted)", textDecoration: "none" }}
+            >
+              Forgot password?
+            </Link>
+          </div>
+        )}
+
         {error && (
           <div
             role="alert"

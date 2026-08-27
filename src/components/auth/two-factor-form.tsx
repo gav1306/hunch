@@ -29,28 +29,50 @@ export function TwoFactorForm() {
   const router = useRouter();
   const [code, setCode] = useState("");
   const [backup, setBackup] = useState(false);
-  const [trust, setTrust] = useState(true);
+  // Off by default. This is a security decision, and the screen it's on may
+  // well be a borrowed machine — the user opts in, we don't opt in for them.
+  const [trust, setTrust] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const sentOnce = useRef(false);
+  // Resend had no cooldown and no feedback beyond the paragraph above flicking
+  // back, so the only way to tell it had worked was to have been watching.
+  const [cooldown, setCooldown] = useState(0);
 
   // Email the code as soon as the user lands here.
   useEffect(() => {
     if (sentOnce.current) return;
     sentOnce.current = true;
     twoFactor.sendOtp().then((res) => {
-      if (res.error) setError(res.error.message ?? "Couldn't send your code.");
-      else setSent(true);
+      if (res.error) {
+        setError(res.error.message ?? "Couldn't send your code.");
+        return;
+      }
+      setSent(true);
+      // A code has just gone out, so the cooldown starts here too — otherwise
+      // "resend" is available the instant the page loads.
+      setCooldown(30);
     });
   }, []);
 
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = window.setTimeout(() => setCooldown((v) => v - 1), 1000);
+    return () => window.clearTimeout(t);
+  }, [cooldown]);
+
   async function resend() {
+    if (cooldown > 0) return;
     setError(null);
     setSent(false);
     const res = await twoFactor.sendOtp();
-    if (res.error) setError(res.error.message ?? "Couldn't resend your code.");
-    else setSent(true);
+    if (res.error) {
+      setError(res.error.message ?? "Couldn't resend your code.");
+      return;
+    }
+    setSent(true);
+    setCooldown(30);
   }
 
   const valid = backup ? code.trim().length > 0 : code.trim().length === 6;
@@ -138,7 +160,12 @@ export function TwoFactorForm() {
               cursor: "pointer",
             }}
           >
-            <input type="checkbox" checked={trust} onChange={(e) => setTrust(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={trust}
+              onChange={(e) => setTrust(e.target.checked)}
+              style={{ accentColor: "var(--s1)", width: 16, height: 16 }}
+            />
             Trust this device for 30 days
           </label>
         )}
@@ -176,8 +203,18 @@ export function TwoFactorForm() {
 
       <div style={{ marginTop: 24, display: "flex", gap: 18, flexWrap: "wrap" }}>
         {!backup && (
-          <button type="button" onClick={resend} className="auth-link" style={linkBtn}>
-            Resend code
+          <button
+            type="button"
+            onClick={resend}
+            disabled={cooldown > 0}
+            className="auth-link"
+            style={{
+              ...linkBtn,
+              cursor: cooldown > 0 ? "default" : "pointer",
+              opacity: cooldown > 0 ? 0.5 : 1,
+            }}
+          >
+            {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
           </button>
         )}
         <button
