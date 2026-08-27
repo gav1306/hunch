@@ -1,7 +1,9 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useStartTrial } from "@/hooks/use-start-trial";
+import type { StartOn } from "@/lib/schedule";
 import type { Confounder, PowerInfo, ProtocolDesign } from "@/lib/schemas/protocol";
 
 const label: React.CSSProperties = {
@@ -17,8 +19,14 @@ const mono = "'Space Mono',monospace";
  * The approved protocol as a walk-through, not a wall. One phase fills the
  * screen at a time; a tappable A→B→A timeline shows where you are; the design
  * rationale (controls + power) folds away under "Why this design". The last
- * phase reveals the Start button. Brand system — Clash Display / Space Mono,
+ * phase reveals the start block. Brand system — Clash Display / Space Mono,
  * --ink/--paper/--rule/--s1.
+ *
+ * That block is where the trial actually begins. It used to be a plain link to
+ * the dashboard, because designing the protocol had already stamped the start
+ * date — so the button said "Start experiment" while starting nothing, and the
+ * anchor was however long ago the design finished. Now nothing is running until
+ * the user picks a day here.
  */
 export function ProtocolStepper({
   hunchId,
@@ -34,6 +42,8 @@ export function ProtocolStepper({
   confounders: Confounder[];
 }) {
   const phases = design.phases;
+  const router = useRouter();
+  const start = useStartTrial(hunchId);
   const [idx, setIdx] = useState(0);
   const [dir, setDir] = useState(0);
   const phase = phases[idx];
@@ -174,15 +184,26 @@ export function ProtocolStepper({
           phase {idx + 1} / {phases.length}
         </span>
         {last ? (
-          <Link href={`/hunch/${hunchId}`} style={{ ...navBtn, textDecoration: "none", border: "1px solid var(--s1)", background: "var(--s1)", color: "var(--paper)" }}>
-            Start experiment →
-          </Link>
+          <span aria-hidden style={{ ...navBtn, border: "1px solid transparent", visibility: "hidden" }}>
+            next →
+          </span>
         ) : (
           <button type="button" onClick={() => go(idx + 1)} style={{ ...navBtn, border: "1px solid var(--ink)", background: "var(--ink)", color: "var(--paper)" }}>
             next →
           </button>
         )}
       </div>
+
+      {last && (
+        <StartBlock
+          firstPhase={phases[0]}
+          pending={start.isPending}
+          error={start.error?.message ?? null}
+          onStart={(startOn) =>
+            start.mutate(startOn, { onSuccess: () => router.push(`/hunch/${hunchId}`) })
+          }
+        />
+      )}
 
       {/* Why this design */}
       <details style={{ borderTop: "1px solid var(--rule)", paddingTop: 4 }}>
@@ -217,6 +238,82 @@ export function ProtocolStepper({
         </div>
       </details>
     </section>
+  );
+}
+
+/**
+ * The only place a trial begins. Two choices rather than one button, because
+ * the anchor is a calendar day: reading the plan at 11pm and starting "now"
+ * spends a baseline day on an hour of sleep.
+ */
+function StartBlock({
+  firstPhase,
+  pending,
+  error,
+  onStart,
+}: {
+  firstPhase: ProtocolDesign["phases"][number];
+  pending: boolean;
+  error: string | null;
+  onStart: (startOn: StartOn) => void;
+}) {
+  return (
+    <div
+      style={{
+        borderTop: "1px solid var(--rule)",
+        paddingTop: 18,
+        display: "grid",
+        gap: 14,
+      }}
+    >
+      <div>
+        <div style={{ ...label, marginBottom: 6 }}>Ready when you are</div>
+        <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.6, color: "var(--ink)", overflowWrap: "anywhere" }}>
+          Day 1 is {firstPhase.name.toLowerCase()}. {firstPhase.action} Nothing is
+          running until you pick a day — starting tomorrow gives you a full first
+          day instead of whatever is left of this one.
+        </p>
+      </div>
+
+      {error && (
+        <p role="alert" style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "var(--s1)" }}>
+          {error}
+        </p>
+      )}
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => onStart("today")}
+          style={{
+            ...navBtn,
+            border: "1px solid var(--s1)",
+            background: "var(--s1)",
+            color: "var(--paper)",
+            cursor: pending ? "wait" : "pointer",
+            opacity: pending ? 0.6 : 1,
+          }}
+        >
+          {pending ? "Starting…" : "Start today →"}
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => onStart("tomorrow")}
+          style={{
+            ...navBtn,
+            border: "1px solid var(--rule)",
+            background: "transparent",
+            color: "var(--ink)",
+            cursor: pending ? "wait" : "pointer",
+            opacity: pending ? 0.6 : 1,
+          }}
+        >
+          Start tomorrow
+        </button>
+      </div>
+    </div>
   );
 }
 

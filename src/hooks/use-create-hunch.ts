@@ -17,11 +17,11 @@ export type HunchWithHypothesis = {
   priors: Prior[];
 };
 
-async function postHunch(input: {
-  rawText: string;
-  answers: ClarifyingAnswer[];
-}): Promise<HunchWithHypothesis> {
-  const res = await fetch("/api/hunch", {
+async function postHunch(
+  input: { rawText: string; answers: ClarifyingAnswer[] },
+  resumeId?: string,
+): Promise<HunchWithHypothesis> {
+  const res = await fetch(resumeId ? `/api/hunch/${resumeId}/sharpen` : "/api/hunch", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
@@ -36,7 +36,16 @@ async function postHunch(input: {
   return { ...body.hunch, priors: body.priors ?? [] } as HunchWithHypothesis;
 }
 
-/** Drop a free-text hunch and get back its sharpened hypothesis. */
-export function useCreateHunch() {
-  return useMutation({ mutationFn: postHunch });
+/**
+ * Drop a free-text hunch and get back its sharpened hypothesis.
+ *
+ * With `resumeId`, the same flow re-sharpens that hunch in place instead of
+ * creating another one — so "redo" keeps the user's original text and doesn't
+ * strand the old hunch in "Finish setting up" forever.
+ */
+export function useCreateHunch(resumeId?: string) {
+  return useMutation({
+    mutationFn: (input: { rawText: string; answers: ClarifyingAnswer[] }) =>
+      postHunch(input, resumeId),
+  });
 }

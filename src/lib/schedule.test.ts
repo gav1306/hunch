@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentPhase } from "@/lib/schedule";
+import { currentPhase, startDateFor } from "@/lib/schedule";
 import type { ProtocolDesign } from "@/lib/schemas/protocol";
 
 // ABA, 3 days per phase, 1 washout day between phases.
@@ -131,5 +131,38 @@ describe("currentPhase phaseIndex", () => {
   });
   it("is null once the trial is done", () => {
     expect(currentPhase(start, design, day(11)).phaseIndex).toBe(null);
+  });
+});
+
+describe("startDateFor", () => {
+  // Mid-afternoon UTC, so a wall-clock stamp would differ from the day anchor.
+  const now = new Date(Date.UTC(2026, 0, 15, 14, 32, 9));
+
+  it("anchors 'today' at midnight UTC, not the wall clock", () => {
+    expect(startDateFor("today", now).toISOString()).toBe("2026-01-15T00:00:00.000Z");
+  });
+
+  it("anchors 'tomorrow' at the next midnight UTC", () => {
+    expect(startDateFor("tomorrow", now).toISOString()).toBe("2026-01-16T00:00:00.000Z");
+  });
+
+  it("crosses a month boundary", () => {
+    const eve = new Date(Date.UTC(2026, 0, 31, 23, 59, 59));
+    expect(startDateFor("tomorrow", eve).toISOString()).toBe("2026-02-01T00:00:00.000Z");
+  });
+
+  it("puts day 0 of a 'today' start on today", () => {
+    const s = startDateFor("today", now);
+    expect(currentPhase(s, design, now).dayInPhase).toBe(0);
+    expect(currentPhase(s, design, now).started).toBe(true);
+  });
+
+  it("leaves a 'tomorrow' start unstarted until the date arrives", () => {
+    const s = startDateFor("tomorrow", now);
+    // The whole point of the split: reading the plan tonight must not burn day 1.
+    expect(currentPhase(s, design, now).started).toBe(false);
+    const next = new Date(Date.UTC(2026, 0, 16, 7, 0, 0));
+    expect(currentPhase(s, design, next).started).toBe(true);
+    expect(currentPhase(s, design, next).dayInPhase).toBe(0);
   });
 });

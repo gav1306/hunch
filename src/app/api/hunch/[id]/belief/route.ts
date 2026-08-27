@@ -57,5 +57,8 @@ export async function GET(
       values: c.values.map((v) => ({ parameterId: v.parameterId, value: v.value })),
     })),
     schedule,
+    // The anchor itself, so a trial the user scheduled for tomorrow can say
+    // when it begins rather than just reporting that it hasn't.
+    startsOn: hunch.protocol?.startedAt?.toISOString() ?? null,
   });
 }

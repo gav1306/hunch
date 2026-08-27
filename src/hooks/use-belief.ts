@@ -11,6 +11,8 @@ export type BeliefResponse = {
   parameters: Parameter[];
   checkIns: { phase: string; loggedAt: string; values: { parameterId: string; value: number }[] }[];
   schedule: PhaseStatus | null;
+  /** The trial's anchor, or null if it has never been started. */
+  startsOn: string | null;
 };
 
 async function fetchBelief(hunchId: string): Promise<BeliefResponse> {

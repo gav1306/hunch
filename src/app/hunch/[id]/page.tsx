@@ -4,6 +4,7 @@ import Link from "next/link";
 import { use } from "react";
 import { BeliefMeter } from "@/components/belief-meter";
 import { CheckInTap } from "@/components/checkin-tap";
+import { AbandonHunch } from "@/components/hunch/abandon-hunch";
 import { VerdictView } from "@/components/verdict";
 import { useBelief } from "@/hooks/use-belief";
 import { useHunchInfo } from "@/hooks/use-hunch-info";
@@ -34,7 +35,7 @@ export default function HunchDashboard({ params }: { params: Promise<{ id: strin
       return <p style={{ fontSize: 13, color: "var(--s1)" }}>{query.error.message}</p>;
     }
 
-    const { belief, schedule, parameters } = query.data;
+    const { belief, schedule, parameters, startsOn } = query.data;
     const concluded = schedule?.done ?? false;
 
     // Today's instruction. An ABA design repeats the "A" label, so the phase is
@@ -55,6 +56,9 @@ export default function HunchDashboard({ params }: { params: Promise<{ id: strin
           schedule={schedule}
           parameters={parameters}
           phaseAction={phaseAction}
+          startsOn={startsOn}
+          hasPlan={info.data?.protocol != null}
+          firstPhaseAction={info.data?.protocol?.design.phases[0]?.action}
         />
       </div>
     );
@@ -70,6 +74,10 @@ export default function HunchDashboard({ params }: { params: Promise<{ id: strin
         </h1>
 
         <div style={{ marginTop: 26, transition: "opacity 300ms ease", opacity: query.isPending ? 0.5 : 1 }}>{content()}</div>
+
+        <div style={{ marginTop: 48, borderTop: "1px solid var(--rule)", paddingTop: 8 }}>
+          <AbandonHunch hunchId={id} loggedDays={query.data?.checkIns.length ?? 0} />
+        </div>
       </div>
     </main>
   );
