@@ -55,6 +55,7 @@ export default function HunchDashboard({ params }: { params: Promise<{ id: strin
             week look identical on every screen the app has. */}
         {schedule?.started && startsOn && info.data?.protocol && (
           <AdherenceStrip
+            hunchId={id}
             startedAt={new Date(startsOn)}
             design={info.data.protocol.design}
             checkIns={query.data.checkIns}

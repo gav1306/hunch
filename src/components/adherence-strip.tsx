@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { PencilIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CheckIn } from "@/components/check-in";
 import { adherenceStrip, adherenceSummary, type AdherenceDay } from "@/lib/adherence";
 import type { ProtocolDesign } from "@/lib/schemas/protocol";
 import type { Parameter } from "@/lib/schemas/parameter";
@@ -36,12 +39,14 @@ const STATE: Record<AdherenceDay["state"], { fill: string; border: string; word:
  * like a perfect week. Tapping a day reads back what was logged on it.
  */
 export function AdherenceStrip({
+  hunchId,
   startedAt,
   design,
   checkIns,
   parameters,
   today = new Date(),
 }: {
+  hunchId: string;
   startedAt: Date;
   design: ProtocolDesign;
   checkIns: { loggedOn: string; values: { parameterId: string; value: number }[] }[];
@@ -49,6 +54,13 @@ export function AdherenceStrip({
   today?: Date;
 }) {
   const [openDay, setOpenDay] = useState<number | null>(null);
+  const [editing, setEditing] = useState<number | null>(null);
+
+  /** The saved day is in the belief query, which the mutation already
+      invalidates — this just closes the form the user is finished with. */
+  function onCorrected() {
+    setEditing(null);
+  }
 
   const byDay = new Map(checkIns.map((c) => [new Date(c.loggedOn).getTime(), c]));
   const strip = adherenceStrip({
@@ -101,7 +113,10 @@ export function AdherenceStrip({
                 type="button"
                 aria-pressed={isOpen}
                 aria-label={`Day ${d.day}, ${DATE_FMT.format(d.date)} — ${tone.word}`}
-                onClick={() => setOpenDay(isOpen ? null : d.day)}
+                onClick={() => {
+                  setOpenDay(isOpen ? null : d.day);
+                  setEditing(null);
+                }}
                 style={{
                   width: 26,
                   height: 26,
@@ -166,6 +181,34 @@ export function AdherenceStrip({
                     : "Nothing was logged on this day."}
             </p>
           )}
+
+          {/* A missed day is recoverable if you remember it, and a reading
+              typed wrong shouldn't have to stand for the rest of the trial.
+              Rest days and days that haven't happened stay closed — the route
+              refuses them either way, and offering the form would be a lie. */}
+          {(selected.state === "logged" || selected.state === "missed") &&
+            (editing === selected.day ? (
+              <div style={{ marginTop: 14 }}>
+                <CheckIn
+                  variant="correction"
+                  hunchId={hunchId}
+                  parameters={parameters}
+                  loggedOn={selected.date.toISOString()}
+                  onLogged={onCorrected}
+                />
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="brand"
+                size="touch"
+                className="mt-3.5"
+                onClick={() => setEditing(selected.day)}
+              >
+                <PencilIcon data-icon="inline-start" aria-hidden />
+                {selected.state === "logged" ? "Correct this day" : "Log it now"}
+              </Button>
+            ))}
         </div>
       )}
     </section>

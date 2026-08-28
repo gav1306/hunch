@@ -11,14 +11,21 @@ export type CheckInResponse = {
   belief: Belief;
 };
 
+/** One submission: the readings, and which day they are for. */
+export type CheckInSubmission = {
+  values: CheckInValueInput[];
+  /** ISO timestamp of an earlier day being corrected. Omitted means today. */
+  loggedOn?: string;
+};
+
 async function postCheckIn(
   hunchId: string,
-  values: CheckInValueInput[],
+  { values, loggedOn }: CheckInSubmission,
 ): Promise<CheckInResponse> {
   const res = await fetch(`/api/hunch/${hunchId}/checkin`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ values }),
+    body: JSON.stringify({ values, ...(loggedOn ? { loggedOn } : {}) }),
   });
   const body = await res.json();
   if (!res.ok) {
@@ -27,11 +34,11 @@ async function postCheckIn(
   return body as CheckInResponse;
 }
 
-/** Log today's readings; refreshes the belief meter on success. */
+/** Log a day's readings; refreshes the belief meter on success. */
 export function useCheckIn(hunchId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (values: CheckInValueInput[]) => postCheckIn(hunchId, values),
+    mutationFn: (submission: CheckInSubmission) => postCheckIn(hunchId, submission),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["belief", hunchId] });
     },
