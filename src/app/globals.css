@@ -191,9 +191,10 @@
     @apply font-sans;
   }
 
-  /* A floor, not the fix: the auth inputs set `outline: none` inline, which
-     still beats this. Those get a real ring when they move onto the shared
-     input primitive. */
+  /* The floor. Controls built on the primitives carry their own
+     focus-visible ring; this catches everything else — links, the plain
+     buttons the screen migration hasn't reached yet, the new-hunch textarea.
+     Nothing in the app sets `outline: none` any more. */
   :focus-visible {
     outline: 2px solid var(--s1);
     outline-offset: 2px;
