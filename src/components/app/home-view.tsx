@@ -1,17 +1,22 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowRightIcon, CheckIcon } from "lucide-react";
 import { CheckIn } from "@/components/check-in";
 import type { HomeData, HomeHunch } from "@/lib/home";
+import { cn } from "@/lib/utils";
 
 const EXAMPLES = [
   "Does coffee after lunch wreck my sleep?",
   "Do I focus better with my phone in another room?",
   "Does a 10-min walk beat my afternoon slump?",
 ];
+
+/** How many verdicts stay open before the rest collapse behind a count. */
+const VERDICTS_SHOWN = 2;
 
 const container = {
   hidden: {},
@@ -61,51 +66,41 @@ function startsCopy(iso: string): string {
   return `Starts in ${days} days`;
 }
 
-const VERDICT_LABEL: Record<string, { text: string; color: string }> = {
-  helped: { text: "Helped", color: "var(--good)" },
-  hurt: { text: "Hurt", color: "var(--bad)" },
-  inconclusive_no_effect: { text: "No effect", color: "var(--neutral)" },
-  inconclusive_insufficient: { text: "Not enough data", color: "var(--neutral)" },
+const VERDICT_LABEL: Record<string, { text: string; className: string }> = {
+  helped: { text: "Helped", className: "text-good" },
+  hurt: { text: "Hurt", className: "text-bad" },
+  inconclusive_no_effect: { text: "No effect", className: "text-neutral" },
+  inconclusive_insufficient: { text: "Not enough data", className: "text-neutral" },
 };
 
-function eyebrow(text: string) {
+/**
+ * The section heading: brand mark, then the label.
+ *
+ * An <h2>, not a styled div — home went h1 straight to card text, so a screen
+ * reader's outline of this page was a single heading and a pile of links.
+ */
+function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      style={{
-        fontSize: 11,
-        letterSpacing: "0.24em",
-        textTransform: "uppercase",
-        color: "var(--muted)",
-        marginBottom: 18,
-      }}
-    >
-      <span aria-hidden style={{ color: "var(--s1)" }}>✦</span> {text}
-    </div>
+    <h2 className="mb-[18px] text-xs font-normal tracking-[0.24em] text-muted-foreground uppercase">
+      <span aria-hidden className="text-s1">
+        ✦
+      </span>{" "}
+      {children}
+    </h2>
   );
 }
 
-const cardBase: React.CSSProperties = {
-  display: "block",
-  textDecoration: "none",
-  background: "color-mix(in srgb, var(--paper) 90%, var(--ink))",
-  border: "1px solid var(--rule)",
-  padding: "clamp(20px,2.2vw,28px)",
-};
+/** Every card on this screen sits on the same ground, at the same radius. */
+const CARD = "block rounded-lg border border-rule bg-card p-[clamp(20px,2.2vw,28px)] no-underline";
 
-function statement(h: HomeHunch) {
+/** The eyebrow line inside a card — 12px, the readable floor, not 10.5. */
+const CARD_EYEBROW = "mt-0 mb-2.5 text-xs tracking-[0.16em] uppercase";
+
+function Statement({ h }: { h: HomeHunch }) {
   return (
-    <div
-      style={{
-        fontFamily: "'Clash Display',sans-serif",
-        fontWeight: 600,
-        fontSize: "clamp(17px,1.7vw,21px)",
-        lineHeight: 1.25,
-        letterSpacing: "-0.01em",
-        color: "var(--ink)",
-      }}
-    >
+    <p className="m-0 font-heading text-[clamp(17px,1.7vw,21px)] leading-tight font-semibold tracking-[-0.01em] text-ink">
       {h.statement}
-    </div>
+    </p>
   );
 }
 
@@ -120,30 +115,23 @@ function CheckinRow({ h }: { h: HomeHunch }) {
 
   return (
     <div
-      style={{
-        ...cardBase,
-        borderTop: "2px solid transparent",
-        borderImage: "linear-gradient(90deg,var(--s1),var(--s2)) 1",
-        opacity: done ? 0.6 : 1,
-        transition: "opacity 300ms ease",
-      }}
+      className={cn(
+        CARD,
+        // The accent rule along the top of a card you can log into. Tailwind
+        // has no border-image utility, so this is the arbitrary property.
+        "border-t-2 border-t-transparent [border-image:linear-gradient(90deg,var(--s1),var(--s2))_1]",
+        "transition-opacity duration-300",
+        done && "opacity-60",
+      )}
     >
-      <div
-        style={{
-          fontSize: 12,
-          letterSpacing: "0.16em",
-          textTransform: "uppercase",
-          color: "var(--muted)",
-          marginBottom: 10,
-        }}
-      >
+      <p className={cn(CARD_EYEBROW, "text-muted-foreground")}>
         {h.phaseLabel ?? "today"}
         {h.progress ? ` · day ${h.progress.day} of ${h.progress.total}` : ""}
-      </div>
-      {statement(h)}
+      </p>
+      <Statement h={h} />
 
       {primary && (
-        <div style={{ marginTop: 18 }}>
+        <div className="mt-[18px]">
           <CheckIn
             variant="compact"
             hunchId={h.id}
@@ -159,57 +147,69 @@ function CheckinRow({ h }: { h: HomeHunch }) {
 function ProgressBar({ day, total }: { day: number; total: number }) {
   const pct = total > 0 ? Math.min(100, (day / total) * 100) : 0;
   return (
-    <div style={{ marginTop: 16 }}>
-      <div
-        style={{
-          fontSize: 10.5,
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          color: "var(--muted)",
-          marginBottom: 8,
-        }}
-      >
+    <div className="mt-4">
+      <p className="mt-0 mb-2 text-xs tracking-[0.1em] text-muted-foreground uppercase">
         Day {day} of {total}
-      </div>
-      <div style={{ position: "relative", height: 2, background: "var(--rule)" }}>
+      </p>
+      <div className="relative h-0.5 bg-rule">
         <div
-          style={{
-            position: "absolute",
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: `${pct}%`,
-            background: "linear-gradient(90deg,var(--s1),var(--s2))",
-          }}
+          className="absolute inset-y-0 left-0 bg-linear-to-r from-s1 to-s2"
+          style={{ width: `${pct}%` }}
         />
       </div>
     </div>
   );
 }
 
+/** A concluded experiment, as a card. */
+function VerdictCard({ h }: { h: HomeHunch }) {
+  const v = VERDICT_LABEL[h.verdict!.category] ?? {
+    text: h.verdict!.category,
+    className: "text-muted-foreground",
+  };
+  return (
+    <Link href={`/hunch/${h.id}`} className={cn(CARD, "app-card")}>
+      <p className={cn(CARD_EYEBROW, "text-muted-foreground")}>
+        The reveal
+        <ArrowRightIcon aria-hidden className="ml-1 inline-block size-(--icon) align-[-0.15em]" />
+      </p>
+      <Statement h={h} />
+      <p
+        className={cn(
+          "mt-4 mb-0 font-heading text-[clamp(26px,3vw,40px)] font-bold tracking-[-0.03em]",
+          v.className,
+        )}
+      >
+        {v.text}
+        <span className="text-s2">.</span>
+      </p>
+      <p className="mt-2 mb-0 text-xs text-muted-foreground">
+        {Math.round(h.verdict!.pEffect * 100)}% sure
+      </p>
+    </Link>
+  );
+}
+
+const GRID = "grid gap-[clamp(12px,1.6vw,18px)] grid-cols-[repeat(auto-fit,minmax(280px,1fr))]";
+
 export function HomeView({ user, data }: { user: { name: string }; data: HomeData }) {
   const firstName = (user.name || "there").split(" ")[0];
   const reduce = useReducedMotion();
 
+  // Verdicts are the payoff, but they are also permanent: by the tenth
+  // experiment home was mostly a list of answers the user already knows, with
+  // today's logging pushed below them. The newest stay open; the rest are one
+  // line away, with a count so nothing looks lost.
+  const openVerdicts = data.verdicts.slice(0, VERDICTS_SHOWN);
+  const olderVerdicts = data.verdicts.slice(VERDICTS_SHOWN);
+
   return (
     <div>
-      {/* `.app-newhunch` used to be defined in AppShell, which the empty state
-          borrowed from two components away. It only ever styled this one link,
-          so it lives with it until the screen migration replaces it. */}
-      <style>{`.app-newhunch{transition:background 200ms ease,color 200ms ease,border-color 200ms ease;} .app-newhunch:hover{background:var(--s1);color:var(--paper);border-color:var(--s1);}`}</style>
-
       <motion.h1
         initial={reduce ? false : { opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        style={{
-          margin: "0 0 clamp(28px,5vh,48px)",
-          fontFamily: "'Clash Display',sans-serif",
-          fontWeight: 700,
-          fontSize: "clamp(30px,4vw,46px)",
-          letterSpacing: "-0.02em",
-          color: "var(--ink)",
-        }}
+        className="mt-0 mb-[clamp(28px,5vh,48px)] font-heading text-[clamp(30px,4vw,46px)] font-bold tracking-[-0.02em] text-ink"
       >
         Hi, {firstName}.
       </motion.h1>
@@ -217,94 +217,94 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
       {!data.hasAny ? (
         <EmptyState />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "clamp(40px,7vh,72px)" }}>
-          {/* Today */}
+        <div className="flex flex-col gap-[clamp(40px,7vh,72px)]">
           <section>
-            {eyebrow("Today · check in")}
+            <Eyebrow>Today · check in</Eyebrow>
             {data.today.length > 0 ? (
-              <div style={{ display: "grid", gap: "clamp(12px,1.6vw,18px)" }}>
+              <div className="grid gap-[clamp(12px,1.6vw,18px)]">
                 {data.today.map((h) => (
                   <CheckinRow key={h.id} h={h} />
                 ))}
               </div>
             ) : (
-              <div style={{ ...cardBase, color: "var(--muted)", fontSize: 14 }}>
+              <p className={cn(CARD, "m-0 text-sm text-muted-foreground")}>
                 {data.running.length > 0 ? (
                   <>
-                    <CheckIcon aria-hidden className="mr-1.5 inline-block size-(--icon) align-[-0.15em]" />
+                    <CheckIcon
+                      aria-hidden
+                      className="mr-1.5 inline-block size-(--icon) align-[-0.15em]"
+                    />
                     All caught up — nothing to log today.
                   </>
                 ) : (
                   "No experiments running yet. Drop a hunch to start one."
                 )}
-              </div>
+              </p>
             )}
           </section>
 
-          {/* Verdicts */}
           {data.verdicts.length > 0 && (
             <section>
-              {eyebrow("Verdict ready")}
-              <div style={{ display: "grid", gap: "clamp(12px,1.6vw,18px)", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))" }}>
-                {data.verdicts.map((h) => {
-                  const v = VERDICT_LABEL[h.verdict!.category] ?? {
-                    text: h.verdict!.category,
-                    color: "var(--muted)",
-                  };
-                  return (
-                    <Link key={h.id} href={`/hunch/${h.id}`} className="app-card" style={{ ...cardBase }}>
-                      <div style={{ fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 10 }}>
-                        The reveal
-                        <ArrowRightIcon aria-hidden className="ml-1 inline-block size-(--icon) align-[-0.15em]" />
-                      </div>
-                      {statement(h)}
-                      <div
-                        style={{
-                          marginTop: 16,
-                          fontFamily: "'Clash Display',sans-serif",
-                          fontWeight: 700,
-                          fontSize: "clamp(26px,3vw,40px)",
-                          letterSpacing: "-0.03em",
-                          color: v.color,
-                        }}
-                      >
-                        {v.text}
-                        <span style={{ color: "var(--s2)" }}>.</span>
-                      </div>
-                      <div style={{ marginTop: 8, fontSize: 11.5, color: "var(--muted)" }}>
-                        {Math.round(h.verdict!.pEffect * 100)}% sure
-                      </div>
-                    </Link>
-                  );
-                })}
+              <Eyebrow>Verdict ready</Eyebrow>
+              <div className={GRID}>
+                {openVerdicts.map((h) => (
+                  <VerdictCard key={h.id} h={h} />
+                ))}
               </div>
+
+              {olderVerdicts.length > 0 && (
+                <details className="group mt-[clamp(12px,1.6vw,18px)]">
+                  <summary className="flex h-11 cursor-pointer list-none items-center gap-2 text-xs tracking-[0.16em] text-muted-foreground uppercase hover:text-ink">
+                    <span aria-hidden className="text-s1 group-open:hidden">
+                      +
+                    </span>
+                    <span aria-hidden className="hidden text-s1 group-open:inline">
+                      −
+                    </span>
+                    {olderVerdicts.length} earlier verdict
+                    {olderVerdicts.length === 1 ? "" : "s"}
+                  </summary>
+                  <div className={cn(GRID, "mt-[clamp(12px,1.6vw,18px)]")}>
+                    {olderVerdicts.map((h) => (
+                      <VerdictCard key={h.id} h={h} />
+                    ))}
+                  </div>
+                </details>
+              )}
             </section>
           )}
 
-          {/* In flight */}
           {data.running.length > 0 && (
             <section>
-              {eyebrow("In flight")}
-              <div style={{ display: "grid", gap: "clamp(12px,1.6vw,18px)", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))" }}>
+              <Eyebrow>In flight</Eyebrow>
+              <div className={GRID}>
                 {data.running.map((h) => (
-                  <Link key={h.id} href={`/hunch/${h.id}`} className="app-card" style={{ ...cardBase }}>
-                    <div style={{ fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: !h.startsOn && h.loggedToday ? "var(--good)" : "var(--muted)", marginBottom: 10 }}>
-                      {/* Anchored but not yet begun — a start the user scheduled
-                          for tomorrow, which has no day and nothing to log. It is
-                          not a confirmation, so it stays muted rather than green. */}
+                  <Link key={h.id} href={`/hunch/${h.id}`} className={cn(CARD, "app-card")}>
+                    {/* Anchored but not yet begun — a start the user scheduled
+                        for tomorrow, which has no day and nothing to log. It is
+                        not a confirmation, so it stays muted rather than green. */}
+                    <p
+                      className={cn(
+                        CARD_EYEBROW,
+                        !h.startsOn && h.loggedToday ? "text-good" : "text-muted-foreground",
+                      )}
+                    >
                       {h.startsOn ? (
                         startsCopy(h.startsOn)
                       ) : h.loggedToday ? (
                         <>
-                          <CheckIcon aria-hidden className="mr-1 inline-block size-(--icon) align-[-0.15em]" />
+                          <CheckIcon
+                            aria-hidden
+                            className="mr-1 inline-block size-(--icon) align-[-0.15em]"
+                          />
                           Logged today
                         </>
                       ) : (
                         "Running"
                       )}
                       {!h.startsOn && h.phaseLabel ? ` · ${h.phaseLabel}` : ""}
-                    </div>
-                    {statement(h)}
+                    </p>
+                    <Statement h={h} />
                     {h.progress && <ProgressBar day={h.progress.day} total={h.progress.total} />}
                   </Link>
                 ))}
@@ -312,20 +312,22 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
             </section>
           )}
 
-          {/* Needs setup */}
           {data.needsSetup.length > 0 && (
             <section>
-              {eyebrow("Finish setting up")}
-              <div style={{ display: "grid", gap: "clamp(12px,1.6vw,18px)", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))" }}>
+              <Eyebrow>Finish setting up</Eyebrow>
+              <div className={GRID}>
                 {data.needsSetup.map((h) => {
                   const cta = SETUP_CTA[h.setupStage ?? "needs-plan"];
                   return (
-                    <Link key={h.id} href={cta.href(h.id)} className="app-card" style={{ ...cardBase }}>
-                      <div style={{ fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 10 }}>
+                    <Link key={h.id} href={cta.href(h.id)} className={cn(CARD, "app-card")}>
+                      <p className={cn(CARD_EYEBROW, "text-muted-foreground")}>
                         {cta.text}
-                        <ArrowRightIcon aria-hidden className="ml-1 inline-block size-(--icon) align-[-0.15em]" />
-                      </div>
-                      {statement(h)}
+                        <ArrowRightIcon
+                          aria-hidden
+                          className="ml-1 inline-block size-(--icon) align-[-0.15em]"
+                        />
+                      </p>
+                      <Statement h={h} />
                     </Link>
                   );
                 })}
@@ -345,29 +347,30 @@ function EmptyState() {
       variants={container}
       initial={reduce ? "show" : "hidden"}
       animate="show"
-      style={{ position: "relative", maxWidth: 620 }}
+      className="relative max-w-[620px]"
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      {/* next/image, so the 1024px source stops shipping at full size for a
+          150px decoration. */}
+      <Image
         src="/starburst.png"
         alt=""
         aria-hidden
         width={150}
         height={150}
-        style={{ position: "absolute", top: -40, right: -20, width: 150, opacity: 0.08, pointerEvents: "none", userSelect: "none" }}
+        className="pointer-events-none absolute -top-10 -right-5 w-[150px] opacity-[0.08] select-none"
       />
 
-      <motion.div
+      <motion.p
         variants={item}
-        style={{ fontFamily: "'Clash Display',sans-serif", fontWeight: 700, fontSize: "clamp(28px,4vw,44px)", lineHeight: 1.05, letterSpacing: "-0.02em", color: "var(--ink)" }}
+        className="m-0 font-heading text-[clamp(28px,4vw,44px)] leading-[1.05] font-bold tracking-[-0.02em] text-ink"
       >
         Got a hunch?{" "}
-        <span style={{ backgroundImage: "linear-gradient(92deg,var(--s1),var(--s2))", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent" }}>
+        <span className="bg-[linear-gradient(92deg,var(--s1),var(--s2))] bg-clip-text text-transparent">
           Prove it.
         </span>
-      </motion.div>
+      </motion.p>
 
-      <motion.p variants={item} style={{ margin: "16px 0 28px", fontSize: 14, lineHeight: 1.7, color: "var(--muted)" }}>
+      <motion.p variants={item} className="mt-4 mb-7 text-sm leading-relaxed text-muted-foreground">
         Drop a gut feeling about your life. The coach sharpens it into something
         you can actually test — then the math calls it.
       </motion.p>
@@ -375,27 +378,27 @@ function EmptyState() {
       <motion.div variants={item}>
         <Link
           href="/hunch/new"
-          className="app-newhunch"
-          style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "15px 26px", border: "1px solid var(--ink)", background: "var(--ink)", color: "var(--paper)", fontFamily: "'Space Mono',monospace", fontWeight: 700, fontSize: 13, letterSpacing: "0.14em", textTransform: "uppercase", textDecoration: "none" }}
+          className="inline-flex items-center gap-2.5 border border-ink bg-ink px-6 py-4 font-mono text-[13px] font-bold tracking-[0.14em] text-paper uppercase no-underline transition-colors duration-200 hover:border-s1 hover:bg-s1 hover:text-paper"
         >
           Drop your first hunch
           <ArrowRightIcon aria-hidden className="size-(--icon)" />
         </Link>
       </motion.div>
 
-      <motion.div variants={item} style={{ marginTop: 40 }}>
-        <div style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 14 }}>
+      <motion.div variants={item} className="mt-10">
+        <h2 className="mb-3.5 text-xs font-normal tracking-[0.2em] text-muted-foreground uppercase">
           For instance
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        </h2>
+        <div className="flex flex-col gap-2.5">
           {EXAMPLES.map((q) => (
             <Link
               key={q}
               href={`/hunch/new?seed=${encodeURIComponent(q)}`}
-              className="app-card"
-              style={{ ...cardBase, display: "flex", alignItems: "center", gap: 12, fontSize: 13.5 }}
+              className={cn(CARD, "app-card flex items-center gap-3 text-sm text-ink")}
             >
-              <span aria-hidden style={{ color: "var(--s1)" }}>✦</span>
+              <span aria-hidden className="text-s1">
+                ✦
+              </span>
               {q}
             </Link>
           ))}
