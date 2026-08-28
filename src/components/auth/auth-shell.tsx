@@ -6,8 +6,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AuthGazeProvider } from "@/components/auth/auth-gaze";
-import { GRAIN_SVG } from "@/components/landing/palette";
-import { appThemeStyle } from "@/lib/app-theme";
 
 const HeroRobot = dynamic(
   () => import("@/components/landing/hero-robot").then((m) => m.HeroRobot),
@@ -80,10 +78,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthGazeProvider value={gaze}>
-      <div
-        className="auth-shell relative overflow-x-hidden"
-        style={appThemeStyle() as React.CSSProperties}
-      >
+      <div className="auth-shell relative overflow-x-hidden bg-paper font-mono text-ink">
         <style>{`
           .auth-submit:hover:not(:disabled){filter:brightness(0.92);}
           .auth-link:hover{color:var(--s1) !important;}
@@ -92,11 +87,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           @media (prefers-reduced-motion: reduce){ .auth-shell *{animation:none !important;} }
         `}</style>
 
-        <div
-          aria-hidden
-          className="pointer-events-none fixed inset-0 z-40 opacity-5 mix-blend-soft-light"
-          style={{ backgroundImage: GRAIN_SVG }}
-        />
+        <div aria-hidden className="grain-overlay" />
 
         <div className="flex min-h-dvh flex-col min-[821px]:flex-row">
           {/* Brand */}

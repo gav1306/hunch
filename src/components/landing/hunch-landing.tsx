@@ -7,7 +7,7 @@ import { HunchTicker } from "./hunch-ticker";
 import { MethodSection } from "./method-section";
 import { SmoothScroll } from "./smooth-scroll";
 import { VerdictReveal } from "./verdict-reveal";
-import { GRAIN_SVG, PALETTES, paletteVars, type PaletteName } from "./palette";
+import { PALETTES, paletteVars, type PaletteName } from "./palette";
 
 export type HunchLandingProps = {
   palette?: PaletteName | string;
@@ -23,9 +23,6 @@ export function HunchLanding({
   autoplay = true,
 }: HunchLandingProps) {
   const P = PALETTES[palette] ?? PALETTES.Riso;
-
-  const grainOp = 0.05;
-  const grainBlend = "soft-light";
 
   return (
     <SmoothScroll>
@@ -89,17 +86,7 @@ export function HunchLanding({
       >
         {/* page-wide grain */}
         {grain && (
-          <div
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 40,
-              pointerEvents: "none",
-              opacity: grainOp,
-              mixBlendMode: grainBlend as React.CSSProperties["mixBlendMode"],
-              backgroundImage: GRAIN_SVG,
-            }}
-          />
+          <div aria-hidden className="grain-overlay" />
         )}
 
         <HeroSection wordHold={wordHold} autoplay={autoplay} />
