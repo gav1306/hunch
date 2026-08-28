@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { useCheckIn } from "@/hooks/use-checkin";
+import { CheckIn } from "@/components/check-in";
 import type { HomeData, HomeHunch } from "@/lib/home";
 
 const EXAMPLES = [
@@ -108,11 +108,13 @@ function statement(h: HomeHunch) {
   );
 }
 
-/** One check-in row with the inline tap. */
+/**
+ * One card on home, with today's log inside it. The card's chrome is home's;
+ * the logging is the shared CheckIn, so home and the dashboard validate the
+ * same way and make the same promise about changing today's entry.
+ */
 function CheckinRow({ h }: { h: HomeHunch }) {
-  const checkIn = useCheckIn(h.id);
-  const [num, setNum] = useState("");
-  const done = checkIn.isSuccess;
+  const [done, setDone] = useState(false);
   const primary = h.primaryParameter;
 
   return (
@@ -127,7 +129,7 @@ function CheckinRow({ h }: { h: HomeHunch }) {
     >
       <div
         style={{
-          fontSize: 10.5,
+          fontSize: 12,
           letterSpacing: "0.16em",
           textTransform: "uppercase",
           color: "var(--muted)",
@@ -139,101 +141,18 @@ function CheckinRow({ h }: { h: HomeHunch }) {
       </div>
       {statement(h)}
 
-      {done ? (
-        <div style={{ marginTop: 16, fontSize: 13, color: "var(--good)" }}>
-          Logged ✓ — see you tomorrow.
-        </div>
-      ) : !primary ? null : (
+      {primary && (
         <div style={{ marginTop: 18 }}>
-          <div
-            style={{
-              fontSize: 12,
-              color: "var(--muted)",
-              marginBottom: 10,
-            }}
-          >
-            {primary.label}
-          </div>
-          {primary.type === "binary" ? (
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button
-                type="button"
-                className="app-tap"
-                disabled={checkIn.isPending}
-                onClick={() => checkIn.mutate([{ parameterId: primary.id, value: 1 }])}
-                style={tapBtn(true)}
-              >
-                Yes
-              </button>
-              <button
-                type="button"
-                className="app-tap"
-                disabled={checkIn.isPending}
-                onClick={() => checkIn.mutate([{ parameterId: primary.id, value: 0 }])}
-                style={tapBtn(false)}
-              >
-                No
-              </button>
-            </div>
-          ) : (
-            <form
-              style={{ display: "flex", gap: 10 }}
-              onSubmit={(e) => {
-                e.preventDefault();
-                const n = Number(num);
-                if (num.trim() !== "" && Number.isFinite(n))
-                  checkIn.mutate([{ parameterId: primary.id, value: n }]);
-              }}
-            >
-              <input
-                type="number"
-                step="any"
-                min={primary.min ?? undefined}
-                max={primary.max ?? undefined}
-                aria-label={primary.label}
-                value={num}
-                onChange={(e) => setNum(e.target.value)}
-                placeholder="reading"
-                style={{
-                  width: 120,
-                  padding: "10px 12px",
-                  background: "color-mix(in srgb, var(--paper) 82%, var(--ink))",
-                  border: "1px solid var(--rule)",
-                  color: "var(--ink)",
-                  fontFamily: "'Space Mono',monospace",
-                  fontSize: 14,
-                  outline: "none",
-                }}
-              />
-              <button type="submit" className="app-tap" disabled={checkIn.isPending} style={tapBtn(true)}>
-                Log
-              </button>
-            </form>
-          )}
-          {checkIn.isError && (
-            <div style={{ marginTop: 10, fontSize: 12, color: "var(--s1)" }}>
-              {(checkIn.error as Error).message}
-            </div>
-          )}
+          <CheckIn
+            variant="compact"
+            hunchId={h.id}
+            parameters={[{ ...primary, isPrimary: true }]}
+            onLogged={() => setDone(true)}
+          />
         </div>
       )}
     </div>
   );
-}
-
-function tapBtn(filled: boolean): React.CSSProperties {
-  return {
-    padding: "11px 22px",
-    border: "1px solid var(--ink)",
-    cursor: "pointer",
-    fontFamily: "'Space Mono',monospace",
-    fontWeight: 700,
-    fontSize: 12,
-    letterSpacing: "0.1em",
-    textTransform: "uppercase",
-    background: filled ? "var(--ink)" : "transparent",
-    color: filled ? "var(--paper)" : "var(--ink)",
-  };
 }
 
 function ProgressBar({ day, total }: { day: number; total: number }) {
@@ -276,7 +195,7 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
       {/* `.app-newhunch` used to be defined in AppShell, which the empty state
           borrowed from two components away. It only ever styled this one link,
           so it lives with it until the screen migration replaces it. */}
-      <style>{`.app-tap:disabled{opacity:.5;cursor:not-allowed;} .app-tap:hover:not(:disabled){filter:brightness(0.94);} .app-newhunch{transition:background 200ms ease,color 200ms ease,border-color 200ms ease;} .app-newhunch:hover{background:var(--s1);color:var(--paper);border-color:var(--s1);}`}</style>
+      <style>{`.app-newhunch{transition:background 200ms ease,color 200ms ease,border-color 200ms ease;} .app-newhunch:hover{background:var(--s1);color:var(--paper);border-color:var(--s1);}`}</style>
 
       <motion.h1
         initial={reduce ? false : { opacity: 0, y: 8 }}

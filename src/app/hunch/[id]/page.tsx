@@ -2,7 +2,7 @@
 
 import { use } from "react";
 import { BeliefMeter } from "@/components/belief-meter";
-import { CheckInTap } from "@/components/checkin-tap";
+import { CheckIn } from "@/components/check-in";
 import { AbandonHunch } from "@/components/hunch/abandon-hunch";
 import { VerdictView } from "@/components/verdict";
 import { useBelief } from "@/hooks/use-belief";
@@ -50,7 +50,7 @@ export default function HunchDashboard({ params }: { params: Promise<{ id: strin
     ) : (
       <div style={{ display: "grid", gap: 20 }}>
         <BeliefMeter belief={belief} />
-        <CheckInTap
+        <CheckIn
           hunchId={id}
           schedule={schedule}
           parameters={parameters}
