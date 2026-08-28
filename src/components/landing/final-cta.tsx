@@ -1,11 +1,14 @@
 "use client";
 
+import Image from "next/image";
+
 import Link from "next/link";
 import { Parallax, Reveal } from "./motion-primitives";
 
 export function FinalCta() {
   return (
     <section id="start" style={{ position: "relative" }}>
+      <h2 className="sr-only">Start your first experiment</h2>
       <div
         style={{
           position: "relative",
@@ -34,15 +37,15 @@ export function FinalCta() {
             opacity: 0.14,
           }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src="/starburst.png"
             alt=""
-            style={{
-              width: "100%",
-              display: "block",
-              animation: "hl-wobble 18s ease-in-out infinite",
-            }}
+            aria-hidden
+            width={400}
+            height={400}
+            sizes="(max-width: 900px) 40vw, 320px"
+            className="block h-auto w-full"
+            style={{ animation: "hl-wobble 18s ease-in-out infinite" }}
           />
         </Parallax>
 
@@ -143,11 +146,13 @@ export function FinalCta() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src="/starburst.png"
             alt=""
-            style={{ width: 18, height: 18, display: "block" }}
+            aria-hidden
+            width={18}
+            height={18}
+            className="block"
           />
           <span
             style={{

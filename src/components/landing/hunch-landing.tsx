@@ -24,15 +24,6 @@ export function HunchLanding({
 }: HunchLandingProps) {
   const P = PALETTES[palette] ?? PALETTES.Riso;
 
-  // Dark theme across the whole page (matches the dark glossy hero).
-  // Keeps brand accents (--s1/--s2); only flips the canvas + text tokens.
-  const DARK = {
-    paper: "#0E0D12",
-    ink: "#F2ECDD",
-    muted: "#8C8676",
-    rule: "rgba(242,236,221,0.16)",
-  };
-
   const grainOp = 0.05;
   const grainBlend = "soft-light";
 
@@ -80,20 +71,20 @@ export function HunchLanding({
         }
       `}</style>
 
-      <div
+      {/* `--paper/--ink/--muted/--rule` used to be redeclared here with the
+          same four values that live on `:root`. The palette vars stay: the
+          landing keeps its own Riso accents, which is the one place in the
+          product that still wants the light-ground `--s2`. */}
+      <main
         className="hl-root"
         style={{
           position: "relative",
-          minHeight: "100vh",
+          minHeight: "100dvh",
           background: "var(--paper)",
           color: "var(--ink)",
-          fontFamily: "'Space Mono',ui-monospace,monospace",
+          fontFamily: "var(--font-mono)",
           overflowX: "clip",
           ...paletteVars(P),
-          "--paper": DARK.paper,
-          "--ink": DARK.ink,
-          "--muted": DARK.muted,
-          "--rule": DARK.rule,
         } as React.CSSProperties}
       >
         {/* page-wide grain */}
@@ -117,7 +108,7 @@ export function HunchLanding({
         <VerdictReveal />
         <MethodSection />
         <FinalCta />
-      </div>
+      </main>
     </SmoothScroll>
   );
 }

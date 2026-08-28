@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { LogOutIcon, PlusIcon, ShieldIcon } from "lucide-react";
 import { signOut } from "@/lib/auth-client";
@@ -132,8 +133,7 @@ export function AppShell({
 
       <header className="relative z-1 flex items-center justify-between gap-4 border-b border-rule px-[clamp(20px,4vw,52px)] py-[clamp(14px,2.4vw,22px)]">
         <Link href="/home" className="inline-flex items-center gap-2 no-underline">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/starburst.png" alt="" width={22} height={22} aria-hidden="true" />
+          <Image src="/starburst.png" alt="" width={22} height={22} aria-hidden />
           <span className="font-heading text-lg font-semibold tracking-[-0.01em]">
             hun<span className="text-s1">ch</span>
           </span>
