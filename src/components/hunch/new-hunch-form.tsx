@@ -69,11 +69,13 @@ function QuestionCard({
         {question.prompt}
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-        {question.options.map((opt) => {
+        {question.options.map((opt, i) => {
           const active = value === opt;
           return (
             <button
               key={opt}
+              // The first option is where "answer this one" sends focus.
+              id={i === 0 ? `question-${question.id}` : undefined}
               type="button"
               onClick={() => onChange(opt)}
               style={{
@@ -108,7 +110,6 @@ function QuestionCard({
             color: "var(--ink)",
             fontFamily: "'Space Mono',monospace",
             fontSize: 13,
-            outline: "none",
           }}
         />
       )}
@@ -129,6 +130,8 @@ export function NewHunchForm({
   const [rawText, setRawText] = useState(resuming?.rawText ?? seed);
   const [questions, setQuestions] = useState<ClarifyingQuestion[] | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  /** Why the last press didn't do anything, when the form isn't ready yet. */
+  const [nudge, setNudge] = useState<string | null>(null);
   const clarify = useClarify();
   const createHunch = useCreateHunch(resuming?.id);
 
@@ -164,7 +167,15 @@ export function NewHunchForm({
   function startClarify(e: React.FormEvent) {
     e.preventDefault();
     const text = rawText.trim();
-    if (!text || clarify.isPending) return;
+    if (clarify.isPending) return;
+    // The button stays live on an empty box and says what it wants, rather
+    // than greying out and leaving the user to work out why.
+    if (!text) {
+      setNudge("Write the hunch first — a sentence in your own words is plenty.");
+      document.getElementById("raw-text")?.focus();
+      return;
+    }
+    setNudge(null);
     clarify.mutate(text, {
       onSuccess: (qs) => setQuestions(qs),
       // Degrade: if the clarifier fails, skip straight to a one-shot sharpen.
@@ -174,6 +185,13 @@ export function NewHunchForm({
 
   function commit() {
     if (!questions) return;
+    const unanswered = questions.find((q) => (answers[q.id] ?? "").trim() === "");
+    if (unanswered) {
+      setNudge("Answer the questions above and the coach can sharpen this properly.");
+      document.getElementById(`question-${unanswered.id}`)?.focus();
+      return;
+    }
+    setNudge(null);
     const payload: ClarifyingAnswer[] = questions
       .filter((q) => (answers[q.id] ?? "").trim() !== "")
       .map((q) => ({ id: q.id, prompt: q.prompt, answer: answers[q.id].trim() }));
@@ -205,20 +223,24 @@ export function NewHunchForm({
           </p>
           <form onSubmit={startClarify} style={{ marginTop: 26 }}>
             <textarea
+              id="raw-text"
               value={rawText}
-              onChange={(e) => setRawText(e.target.value)}
+              onChange={(e) => {
+                setRawText(e.target.value);
+                setNudge(null);
+              }}
               rows={3}
               autoFocus
               disabled={step === "asking" || busy}
               placeholder="coffee after lunch wrecks my sleep…"
-              style={{ width: "100%", resize: "none", padding: "14px 16px", background: "color-mix(in srgb,var(--paper) 82%,var(--ink))", border: "1px solid var(--rule)", color: "var(--ink)", fontFamily: "inherit", fontSize: 15, lineHeight: 1.5, outline: "none" }}
+              style={{ width: "100%", resize: "none", padding: "14px 16px", background: "color-mix(in srgb,var(--paper) 82%,var(--ink))", border: "1px solid var(--rule)", color: "var(--ink)", fontFamily: "inherit", fontSize: 15, lineHeight: 1.5 }}
               onFocus={(e) => (e.currentTarget.style.borderColor = "var(--s1)")}
               onBlur={(e) => (e.currentTarget.style.borderColor = "var(--rule)")}
             />
             <button
               type="submit"
               data-hunch-loading={busy || undefined}
-              disabled={step === "asking" || busy || !rawText.trim()}
+              disabled={step === "asking" || busy}
               style={actionBtn(!!rawText.trim(), busy || step === "asking")}
             >
               {busy ? "Sharpening…" : step === "asking" ? "Thinking…" : "Sharpen it"}
@@ -238,7 +260,10 @@ export function NewHunchForm({
               key={q.id}
               question={q}
               value={answers[q.id] ?? ""}
-              onChange={(a) => setAnswers((prev) => ({ ...prev, [q.id]: a }))}
+              onChange={(a) => {
+                setAnswers((prev) => ({ ...prev, [q.id]: a }));
+                setNudge(null);
+              }}
             />
           ))}
           <div>
@@ -246,13 +271,19 @@ export function NewHunchForm({
               type="button"
               onClick={commit}
               data-hunch-loading={busy || undefined}
-              disabled={!allAnswered || busy}
+              disabled={busy}
               style={actionBtn(allAnswered, busy)}
             >
               {busy ? "Sharpening…" : "Lock it in"}
             </button>
           </div>
         </div>
+      )}
+
+      {nudge && (
+        <p role="alert" style={{ marginTop: 16, fontSize: 13, color: "var(--s1)", overflowWrap: "anywhere" }}>
+          {nudge}
+        </p>
       )}
 
       {(clarify.isError && step === "idle") || createHunch.isError ? (

@@ -136,7 +136,6 @@ const inputStyle: React.CSSProperties = {
   color: "var(--ink)",
   fontFamily: "'Space Mono',monospace",
   fontSize: 14,
-  outline: "none",
 };
 
 const secondaryBtn: React.CSSProperties = {

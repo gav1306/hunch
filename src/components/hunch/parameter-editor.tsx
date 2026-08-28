@@ -20,7 +20,6 @@ const field: React.CSSProperties = {
   color: "var(--ink)",
   fontFamily: mono,
   fontSize: 12.5,
-  outline: "none",
   minWidth: 0,
 };
 
