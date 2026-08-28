@@ -11,7 +11,7 @@ export default async function SecurityPage() {
 
   return (
     <AppShell user={{ name: session.user.name, email: session.user.email }}>
-      <div style={{ display: "grid", gap: "clamp(20px,3vh,32px)" }}>
+      <div className="grid gap-[clamp(20px,3vh,32px)]">
         <SecuritySettings />
         <ReminderSettings />
       </div>

@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { CheckIcon } from "lucide-react";
 import { twoFactor, useSession } from "@/lib/auth-client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { cn } from "@/lib/utils";
 
 /**
  * The ten one-time codes, with a way to actually keep them.
@@ -47,32 +51,22 @@ function BackupCodes({ codes, onDone }: { codes: string[]; onDone: () => void })
 
   return (
     <div>
-      <p style={{ fontSize: 13, lineHeight: 1.6, color: "var(--ink)", margin: "0 0 6px" }}>
+      <p className="mt-0 mb-1.5 text-sm leading-relaxed text-ink">
         Two-factor is on. From now on we&apos;ll email a code at sign-in.
       </p>
-      <p style={{ fontSize: 12.5, lineHeight: 1.6, color: "var(--muted)", margin: "0 0 16px" }}>
+      <p className="mt-0 mb-4 text-xs leading-relaxed text-muted-foreground">
         Save these somewhere safe — each works once if you can&apos;t get the email.
         You won&apos;t see them again.
       </p>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(2,minmax(0,1fr))",
-          gap: "6px 20px",
-          maxWidth: 320,
-          fontFamily: "'Space Mono',monospace",
-          fontSize: 13,
-          color: "var(--ink)",
-        }}
-      >
+      <div className="grid max-w-[320px] grid-cols-2 gap-x-5 gap-y-1.5 font-mono text-sm text-ink">
         {codes.map((c) => (
           <span key={c}>{c}</span>
         ))}
       </div>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 18 }}>
-        <button type="button" onClick={copyAll} style={secondaryBtn}>
+      <div className="mt-[18px] flex flex-wrap gap-2.5">
+        <Button type="button" variant="brand" size="touch" onClick={copyAll} className={SECONDARY}>
           {copied ? (
             <>
               <CheckIcon aria-hidden className="mr-1.5 inline-block size-(--icon) align-[-0.15em]" />
@@ -81,98 +75,43 @@ function BackupCodes({ codes, onDone }: { codes: string[]; onDone: () => void })
           ) : (
             "Copy all"
           )}
-        </button>
-        <button type="button" onClick={download} style={secondaryBtn}>
+        </Button>
+        <Button type="button" variant="brand" size="touch" onClick={download} className={SECONDARY}>
           Download .txt
-        </button>
+        </Button>
       </div>
 
-      <label
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          marginTop: 20,
-          fontSize: 12.5,
-          color: "var(--ink)",
-          cursor: "pointer",
-        }}
-      >
+      <label className="mt-5 flex min-h-11 cursor-pointer items-center gap-2.5 text-xs text-ink">
         <input
           type="checkbox"
           checked={saved}
           onChange={(e) => setSaved(e.target.checked)}
-          style={{ accentColor: "var(--s1)", width: 16, height: 16 }}
+          className="size-4 accent-s1"
         />
         I&apos;ve saved these somewhere safe
       </label>
 
-      <button
+      <Button
         type="button"
+        variant="brand"
+        size="touch"
         disabled={!saved}
         onClick={onDone}
-        style={{
-          ...btnStyle,
-          cursor: saved ? "pointer" : "not-allowed",
-          opacity: saved ? 1 : 0.5,
-        }}
+        className={cn(PRIMARY, "mt-4")}
       >
         Done
-      </button>
+      </Button>
     </div>
   );
 }
 
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  marginBottom: 8,
-  fontSize: 10.5,
-  letterSpacing: "0.16em",
-  textTransform: "uppercase",
-  color: "var(--muted)",
-};
+const LABEL_CLASS = "text-xs uppercase tracking-[0.16em] text-muted-foreground";
 
-const inputStyle: React.CSSProperties = {
-  // Block, so a short button ("Turn off") drops below it rather than sitting
-  // beside it — a long one ("Turn on email codes") already wrapped anyway.
-  display: "block",
-  width: "100%",
-  maxWidth: 320,
-  padding: "12px 14px",
-  background: "color-mix(in srgb, var(--paper) 90%, var(--ink))",
-  border: "1px solid var(--rule)",
-  color: "var(--ink)",
-  fontFamily: "'Space Mono',monospace",
-  fontSize: 14,
-};
+/** The quiet, outlined action — copy, download, keep it on. */
+const SECONDARY = "border-rule font-bold";
 
-const secondaryBtn: React.CSSProperties = {
-  padding: "10px 16px",
-  cursor: "pointer",
-  fontFamily: "'Space Mono',monospace",
-  fontWeight: 700,
-  fontSize: 11.5,
-  letterSpacing: "0.12em",
-  textTransform: "uppercase",
-  color: "var(--ink)",
-  background: "transparent",
-  border: "1px solid var(--rule)",
-  borderRadius: "var(--radius-control)",
-};
-
-const btnStyle: React.CSSProperties = {
-  marginTop: 16,
-  padding: "13px 22px",
-  border: "none",
-  cursor: "pointer",
-  fontFamily: "'Space Mono',monospace",
-  fontWeight: 700,
-  fontSize: 12.5,
-  letterSpacing: "0.12em",
-  textTransform: "uppercase",
-  color: "var(--paper)",
-  background: "var(--ink)",
-};
+/** The filled one. */
+const PRIMARY = "border-ink bg-ink font-bold text-paper";
 
 export function SecuritySettings() {
   const { data: session, refetch } = useSession();
@@ -225,55 +164,27 @@ export function SecuritySettings() {
     refetch?.();
   }
 
-  const card: React.CSSProperties = {
-    maxWidth: 560,
-    background: "color-mix(in srgb, var(--paper) 90%, var(--ink))",
-    border: "1px solid var(--rule)",
-    borderTop: "2px solid transparent",
-    borderImage: "linear-gradient(90deg,var(--s1),var(--s2)) 1",
-    padding: "clamp(24px,3vw,36px)",
-  };
-
   return (
-    <div>
-      <h1
-        style={{
-          margin: "0 0 8px",
-          fontFamily: "'Clash Display',sans-serif",
-          fontWeight: 700,
-          fontSize: "clamp(28px,4vw,42px)",
-          letterSpacing: "-0.02em",
-        }}
-      >
+    <div className="max-w-[560px]">
+      <h1 className="mt-0 mb-2 font-heading text-[clamp(28px,4vw,42px)] font-bold tracking-[-0.02em] text-ink">
         Security
       </h1>
-      <p style={{ margin: "0 0 clamp(24px,4vh,40px)", fontSize: 13, color: "var(--muted)" }}>
+      <p className="mt-0 mb-[clamp(24px,4vh,40px)] text-sm text-muted-foreground">
         Add a second step at sign-in — we email you a code each time.
       </p>
 
-      <div style={card}>
-        <div
-          style={{
-            fontSize: 11,
-            letterSpacing: "0.2em",
-            textTransform: "uppercase",
-            color: enabled ? "var(--good)" : "var(--muted)",
-            marginBottom: 14,
-          }}
+      <div className="rounded-lg border border-rule border-t-2 border-t-transparent bg-card p-[clamp(24px,3vw,36px)] [border-image:linear-gradient(90deg,var(--s1),var(--s2))_1]">
+        <h2
+          className={cn(
+            "mt-0 mb-3.5 text-xs font-normal tracking-[0.2em] uppercase",
+            enabled ? "text-good" : "text-muted-foreground",
+          )}
         >
           Two-factor by email · {enabled ? "On" : "Off"}
-        </div>
+        </h2>
 
         {notice && (
-          <p
-            role="status"
-            style={{
-              margin: "0 0 16px",
-              fontSize: 12.5,
-              lineHeight: 1.6,
-              color: "var(--good)",
-            }}
-          >
+          <p role="status" className="mt-0 mb-4 text-xs leading-relaxed text-good">
             {notice}
           </p>
         )}
@@ -284,85 +195,102 @@ export function SecuritySettings() {
         ) : enabled ? (
           /* Enabled: offer disable */
           <form onSubmit={onDisable}>
-            <p style={{ fontSize: 13, lineHeight: 1.6, color: "var(--muted)", margin: "0 0 16px" }}>
+            <p className="mt-0 mb-4 text-sm leading-relaxed text-muted-foreground">
               We email a code at every sign-in. Enter your password to turn this
               off.
             </p>
-            <label htmlFor="pw-off" style={labelStyle}>
-              Password
-            </label>
-            <input
-              id="pw-off"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={inputStyle}
-            />
-            {error && <div style={{ marginTop: 10, fontSize: 12, color: "var(--s1)" }}>{error}</div>}
+            <Field className="max-w-[320px]">
+              <FieldLabel htmlFor="pw-off" className={LABEL_CLASS}>
+                Password
+              </FieldLabel>
+              <Input
+                id="pw-off"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="font-mono"
+              />
+            </Field>
+            {error && (
+              <p role="alert" className="mt-2.5 mb-0 text-xs text-s1">
+                {error}
+              </p>
+            )}
 
             {confirmingOff ? (
-              <div style={{ marginTop: 16 }}>
-                <p style={{ margin: "0 0 12px", fontSize: 13, lineHeight: 1.6, color: "var(--ink)" }}>
+              <div className="mt-4">
+                <p className="mt-0 mb-3 text-sm leading-relaxed text-ink">
                   Without email codes, your password is the only thing standing
                   between someone and your account. Your backup codes stop working too.
                 </p>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                  <button
+                <div className="flex flex-wrap gap-2.5">
+                  <Button
                     type="submit"
+                    variant="brand"
+                    size="touch"
                     disabled={busy}
-                    style={{ ...btnStyle, marginTop: 0, background: "var(--s1)", color: "var(--paper)" }}
+                    className="border-s1 bg-s1 font-bold text-paper hover:bg-s1"
                   >
                     {busy ? "Turning off…" : "Yes, turn it off"}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="brand"
+                    size="touch"
                     onClick={() => setConfirmingOff(false)}
-                    style={{ ...secondaryBtn, padding: "13px 22px", fontSize: 12.5 }}
+                    className={SECONDARY}
                   >
                     Keep it on
-                  </button>
+                  </Button>
                 </div>
               </div>
             ) : (
-              <button
+              <Button
                 type="button"
+                variant="brand"
+                size="touch"
                 disabled={busy || !password}
                 onClick={() => setConfirmingOff(true)}
-                style={{
-                  ...btnStyle,
-                  background: "transparent",
-                  color: "var(--ink)",
-                  border: "1px solid var(--ink)",
-                  cursor: password ? "pointer" : "not-allowed",
-                  opacity: password ? 1 : 0.5,
-                }}
+                className="mt-4 border-ink font-bold"
               >
                 Turn off
-              </button>
+              </Button>
             )}
           </form>
         ) : (
           /* Disabled: enable */
           <form onSubmit={onEnable}>
-            <p style={{ fontSize: 13, lineHeight: 1.6, color: "var(--muted)", margin: "0 0 16px" }}>
+            <p className="mt-0 mb-4 text-sm leading-relaxed text-muted-foreground">
               Confirm your password to switch on email codes at sign-in.
             </p>
-            <label htmlFor="pw-on" style={labelStyle}>
-              Password
-            </label>
-            <input
-              id="pw-on"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={inputStyle}
-            />
-            {error && <div style={{ marginTop: 10, fontSize: 12, color: "var(--s1)" }}>{error}</div>}
-            <button type="submit" disabled={busy} style={btnStyle}>
+            <Field className="max-w-[320px]">
+              <FieldLabel htmlFor="pw-on" className={LABEL_CLASS}>
+                Password
+              </FieldLabel>
+              <Input
+                id="pw-on"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="font-mono"
+              />
+            </Field>
+            {error && (
+              <p role="alert" className="mt-2.5 mb-0 text-xs text-s1">
+                {error}
+              </p>
+            )}
+            <Button
+              type="submit"
+              variant="brand"
+              size="touch"
+              disabled={busy}
+              className={cn(PRIMARY, "mt-4")}
+            >
               {busy ? "Turning on…" : "Turn on email codes"}
-            </button>
+            </Button>
           </form>
         )}
       </div>

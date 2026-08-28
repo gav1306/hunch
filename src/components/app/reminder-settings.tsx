@@ -76,34 +76,17 @@ export function ReminderSettings() {
   const on = prefs?.reminderHour !== null && prefs !== null;
 
   return (
-    <div
-      style={{
-        border: "1px solid var(--rule)",
-        borderRadius: "var(--radius-card)",
-        padding: "clamp(20px,2.4vw,28px)",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          fontSize: 12,
-          letterSpacing: "0.16em",
-          textTransform: "uppercase",
-          color: "var(--muted)",
-          marginBottom: 12,
-        }}
-      >
+    <div className="max-w-[560px] rounded-lg border border-rule p-[clamp(20px,2.4vw,28px)]">
+      <h2 className="mt-0 mb-3 flex items-center gap-2 text-xs font-normal tracking-[0.16em] text-muted-foreground uppercase">
         {on ? (
           <BellIcon aria-hidden className="size-(--icon)" />
         ) : (
           <BellOffIcon aria-hidden className="size-(--icon)" />
         )}
         Daily reminder
-      </div>
+      </h2>
 
-      <p style={{ margin: "0 0 18px", fontSize: 13, lineHeight: 1.6, color: "var(--muted)" }}>
+      <p className="mt-0 mb-[18px] text-sm leading-relaxed text-muted-foreground">
         {prefs === null
           ? "Loading…"
           : on
@@ -111,7 +94,7 @@ export function ReminderSettings() {
             : "Reminders are off. Nothing will nudge you to log, which on a 14-day trial is usually the difference between a verdict and a shrug."}
       </p>
 
-      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 12 }}>
+      <div className="flex flex-wrap items-end gap-3">
         <Field className="w-auto">
           <FieldLabel
             htmlFor="reminder-hour"
@@ -127,7 +110,7 @@ export function ReminderSettings() {
             className="h-11 rounded-[var(--radius-control)] border border-input bg-transparent px-3 font-mono text-[16px] text-foreground md:text-sm"
           >
             {REMINDER_HOURS.map((h) => (
-              <option key={h} value={h} style={{ background: "var(--paper)" }}>
+              <option key={h} value={h} className="bg-paper">
                 {formatHour(h)}
               </option>
             ))}
@@ -159,7 +142,7 @@ export function ReminderSettings() {
       </div>
 
       {error && (
-        <p role="alert" style={{ margin: "12px 0 0", fontSize: 12, color: "var(--s1)" }}>
+        <p role="alert" className="mt-3 mb-0 text-xs text-s1">
           {error}
         </p>
       )}
