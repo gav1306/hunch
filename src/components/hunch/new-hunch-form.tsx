@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -8,7 +7,6 @@ import { useClarify } from "@/hooks/use-clarify";
 import { useCreateHunch } from "@/hooks/use-create-hunch";
 import type { HunchInfo } from "@/hooks/use-hunch-info";
 import type { ClarifyingAnswer, ClarifyingQuestion } from "@/lib/schemas/clarify";
-import { appThemeStyle } from "@/lib/app-theme";
 
 const label: React.CSSProperties = {
   fontSize: 10.5,
@@ -187,85 +185,81 @@ export function NewHunchForm({
   const busy = createHunch.isPending || !!createHunch.data;
 
   return (
-    <main style={{ minHeight: "100dvh", ...appThemeStyle() }}>
-      <div style={{ maxWidth: 640, margin: "0 auto", padding: "clamp(20px,6vh,56px) 20px 96px" }}>
-        <Link href="/home" style={{ ...label, textDecoration: "none" }}>← home</Link>
+    <div>
+      <style>{`
+        @keyframes hunch-btn-sweep { from { background-position: 220% 0 } to { background-position: -220% 0 } }
+        @media (prefers-reduced-motion: reduce) {
+          [data-hunch-loading] { animation: none !important }
+        }
+      `}</style>
 
-        <style>{`
-          @keyframes hunch-btn-sweep { from { background-position: 220% 0 } to { background-position: -220% 0 } }
-          @media (prefers-reduced-motion: reduce) {
-            [data-hunch-loading] { animation: none !important }
-          }
-        `}</style>
-
-        {!questions ? (
-          <div style={{ marginTop: 40, opacity: step === "asking" ? 0.4 : 1, transition: "opacity 300ms ease", pointerEvents: step === "asking" ? "none" : "auto" }}>
-            <h1 style={{ margin: 0, fontFamily: "'Clash Display',sans-serif", fontWeight: 700, fontSize: "clamp(30px,4.4vw,48px)", letterSpacing: "-0.02em", color: "var(--ink)" }}>
-              {resuming ? "Say it another way" : "What\u2019s nagging you?"}
-            </h1>
-            <p style={{ margin: "14px 0 0", fontSize: 14.5, lineHeight: 1.7, color: "var(--muted)" }}>
-              {resuming
-                ? "Your original words are below \u2014 reword them and the coach will sharpen this same hunch again."
-                : "Drop a gut feeling about your life. The coach asks a couple of quick questions, then sharpens it."}
-            </p>
-            <form onSubmit={startClarify} style={{ marginTop: 26 }}>
-              <textarea
-                value={rawText}
-                onChange={(e) => setRawText(e.target.value)}
-                rows={3}
-                autoFocus
-                disabled={step === "asking" || busy}
-                placeholder="coffee after lunch wrecks my sleep…"
-                style={{ width: "100%", resize: "none", padding: "14px 16px", background: "color-mix(in srgb,var(--paper) 82%,var(--ink))", border: "1px solid var(--rule)", color: "var(--ink)", fontFamily: "inherit", fontSize: 15, lineHeight: 1.5, outline: "none" }}
-                onFocus={(e) => (e.currentTarget.style.borderColor = "var(--s1)")}
-                onBlur={(e) => (e.currentTarget.style.borderColor = "var(--rule)")}
-              />
-              <button
-                type="submit"
-                data-hunch-loading={busy || undefined}
-                disabled={step === "asking" || busy || !rawText.trim()}
-                style={actionBtn(!!rawText.trim(), busy || step === "asking")}
-              >
-                {busy ? "Sharpening…" : step === "asking" ? "Thinking…" : "Sharpen it"}
-              </button>
-            </form>
-          </div>
-        ) : (
-          <div style={{ marginTop: 40, display: "grid", gap: 22 }}>
-            <p style={{ margin: 0, fontStyle: "italic", fontSize: 13, color: "var(--muted)", overflowWrap: "anywhere" }}>
-              &ldquo;{rawText}&rdquo;
-            </p>
-            <h1 style={{ margin: 0, fontFamily: "'Clash Display',sans-serif", fontWeight: 700, fontSize: "clamp(24px,3.4vw,34px)", letterSpacing: "-0.02em", color: "var(--ink)" }}>
-              A couple of quick things
-            </h1>
-            {questions.map((q) => (
-              <QuestionCard
-                key={q.id}
-                question={q}
-                value={answers[q.id] ?? ""}
-                onChange={(a) => setAnswers((prev) => ({ ...prev, [q.id]: a }))}
-              />
-            ))}
-            <div>
-              <button
-                type="button"
-                onClick={commit}
-                data-hunch-loading={busy || undefined}
-                disabled={!allAnswered || busy}
-                style={actionBtn(allAnswered, busy)}
-              >
-                {busy ? "Sharpening…" : "Lock it in"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {(clarify.isError && step === "idle") || createHunch.isError ? (
-          <p role="alert" style={{ marginTop: 20, fontSize: 13, color: "var(--s1)", overflowWrap: "anywhere" }}>
-            {createHunch.error?.message ?? clarify.error?.message}
+      {!questions ? (
+        <div style={{ marginTop: 40, opacity: step === "asking" ? 0.4 : 1, transition: "opacity 300ms ease", pointerEvents: step === "asking" ? "none" : "auto" }}>
+          <h1 style={{ margin: 0, fontFamily: "'Clash Display',sans-serif", fontWeight: 700, fontSize: "clamp(30px,4.4vw,48px)", letterSpacing: "-0.02em", color: "var(--ink)" }}>
+            {resuming ? "Say it another way" : "What\u2019s nagging you?"}
+          </h1>
+          <p style={{ margin: "14px 0 0", fontSize: 14.5, lineHeight: 1.7, color: "var(--muted)" }}>
+            {resuming
+              ? "Your original words are below \u2014 reword them and the coach will sharpen this same hunch again."
+              : "Drop a gut feeling about your life. The coach asks a couple of quick questions, then sharpens it."}
           </p>
-        ) : null}
-      </div>
-    </main>
+          <form onSubmit={startClarify} style={{ marginTop: 26 }}>
+            <textarea
+              value={rawText}
+              onChange={(e) => setRawText(e.target.value)}
+              rows={3}
+              autoFocus
+              disabled={step === "asking" || busy}
+              placeholder="coffee after lunch wrecks my sleep…"
+              style={{ width: "100%", resize: "none", padding: "14px 16px", background: "color-mix(in srgb,var(--paper) 82%,var(--ink))", border: "1px solid var(--rule)", color: "var(--ink)", fontFamily: "inherit", fontSize: 15, lineHeight: 1.5, outline: "none" }}
+              onFocus={(e) => (e.currentTarget.style.borderColor = "var(--s1)")}
+              onBlur={(e) => (e.currentTarget.style.borderColor = "var(--rule)")}
+            />
+            <button
+              type="submit"
+              data-hunch-loading={busy || undefined}
+              disabled={step === "asking" || busy || !rawText.trim()}
+              style={actionBtn(!!rawText.trim(), busy || step === "asking")}
+            >
+              {busy ? "Sharpening…" : step === "asking" ? "Thinking…" : "Sharpen it"}
+            </button>
+          </form>
+        </div>
+      ) : (
+        <div style={{ marginTop: 40, display: "grid", gap: 22 }}>
+          <p style={{ margin: 0, fontStyle: "italic", fontSize: 13, color: "var(--muted)", overflowWrap: "anywhere" }}>
+            &ldquo;{rawText}&rdquo;
+          </p>
+          <h1 style={{ margin: 0, fontFamily: "'Clash Display',sans-serif", fontWeight: 700, fontSize: "clamp(24px,3.4vw,34px)", letterSpacing: "-0.02em", color: "var(--ink)" }}>
+            A couple of quick things
+          </h1>
+          {questions.map((q) => (
+            <QuestionCard
+              key={q.id}
+              question={q}
+              value={answers[q.id] ?? ""}
+              onChange={(a) => setAnswers((prev) => ({ ...prev, [q.id]: a }))}
+            />
+          ))}
+          <div>
+            <button
+              type="button"
+              onClick={commit}
+              data-hunch-loading={busy || undefined}
+              disabled={!allAnswered || busy}
+              style={actionBtn(allAnswered, busy)}
+            >
+              {busy ? "Sharpening…" : "Lock it in"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {(clarify.isError && step === "idle") || createHunch.isError ? (
+        <p role="alert" style={{ marginTop: 20, fontSize: 13, color: "var(--s1)", overflowWrap: "anywhere" }}>
+          {createHunch.error?.message ?? clarify.error?.message}
+        </p>
+      ) : null}
+    </div>
   );
 }

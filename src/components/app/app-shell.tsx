@@ -2,27 +2,33 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { LogOutIcon, PlusIcon, ShieldIcon } from "lucide-react";
 import { signOut } from "@/lib/auth-client";
 import { GRAIN_SVG } from "@/components/landing/palette";
 import { appThemeStyle } from "@/lib/app-theme";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export type SessionUser = { name: string; email: string };
 
+/**
+ * The account menu.
+ *
+ * It used to be a `useState` boolean and a document `mousedown` listener: no
+ * Escape, no arrow keys, no `aria-expanded`, no focus return, and a div of
+ * links with no menu semantics. On DropdownMenu all of that is Base UI's
+ * problem, and it gets solved the same way everywhere the menu appears.
+ */
 function AccountMenu({ user }: { user: SessionUser }) {
-  const [open, setOpen] = useState(false);
   const router = useRouter();
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [open]);
-
   const initial = (user.name || user.email || "?").trim().charAt(0).toUpperCase();
 
   async function handleSignOut() {
@@ -32,101 +38,74 @@ function AccountMenu({ user }: { user: SessionUser }) {
   }
 
   return (
-    <div ref={ref} style={{ position: "relative" }}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-label="Account"
-        style={{
-          width: 34,
-          height: 34,
-          borderRadius: "50%",
-          border: "1px solid var(--rule)",
-          background: "color-mix(in srgb, var(--paper) 84%, var(--ink))",
-          color: "var(--ink)",
-          cursor: "pointer",
-          fontFamily: "'Clash Display',sans-serif",
-          fontWeight: 600,
-          fontSize: 14,
-        }}
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="outline"
+            size="icon-touch"
+            aria-label="Account"
+            className="rounded-full border-rule font-heading text-base font-semibold"
+          />
+        }
       >
         {initial}
-      </button>
-      {open && (
-        <div
-          style={{
-            position: "absolute",
-            top: 44,
-            right: 0,
-            minWidth: 200,
-            zIndex: 30,
-            background: "color-mix(in srgb, var(--paper) 92%, var(--ink))",
-            border: "1px solid var(--rule)",
-            boxShadow: "0 24px 50px -20px rgba(0,0,0,0.6)",
-          }}
-        >
-          <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--rule)" }}>
-            <div style={{ fontSize: 13, color: "var(--ink)" }}>{user.name}</div>
-            <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
-              {user.email}
-            </div>
-          </div>
-          <Link
-            href="/security"
-            className="app-menu-item"
-            onClick={() => setOpen(false)}
-            style={{
-              display: "block",
-              padding: "12px 16px",
-              borderBottom: "1px solid var(--rule)",
-              color: "var(--ink)",
-              textDecoration: "none",
-              fontFamily: "'Space Mono',monospace",
-              fontSize: 12,
-              letterSpacing: "0.06em",
-            }}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" sideOffset={8} className="w-56 min-w-56">
+        <DropdownMenuLabel className="flex flex-col gap-0.5">
+          <span className="text-sm text-foreground">{user.name}</span>
+          <span className="truncate text-xs font-normal text-muted-foreground">
+            {user.email}
+          </span>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            className="h-11 gap-2 px-2.5 font-mono text-xs tracking-[0.06em]"
+            render={<Link href="/security" />}
           >
+            <ShieldIcon />
             Security
-          </Link>
-          <button
-            type="button"
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="h-11 gap-2 px-2.5 font-mono text-xs tracking-[0.06em]"
             onClick={handleSignOut}
-            className="app-menu-item"
-            style={{
-              display: "block",
-              width: "100%",
-              textAlign: "left",
-              padding: "12px 16px",
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              color: "var(--ink)",
-              fontFamily: "'Space Mono',monospace",
-              fontSize: 12,
-              letterSpacing: "0.06em",
-            }}
           >
+            <LogOutIcon />
             Sign out
-          </button>
-        </div>
-      )}
-    </div>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
+/**
+ * The authed frame.
+ *
+ * `slim` is the same header over a 640px column — the width the dashboard,
+ * protocol and new-hunch screens already lay themselves out at. They used to
+ * draw their own `<main>` and offer a 10.5px "← home" link as the entire
+ * navigation, which meant three screens where signing out was unreachable
+ * without first guessing your way back to home.
+ */
 export function AppShell({
   user,
   children,
+  variant = "default",
 }: {
   user: SessionUser;
   children: React.ReactNode;
+  variant?: "default" | "slim";
 }) {
+  const slim = variant === "slim";
+
   return (
     <div
       className="app-shell"
       style={
         {
-          minHeight: "100vh",
+          minHeight: "100dvh",
           width: "100%",
           ...appThemeStyle(),
         } as React.CSSProperties
@@ -134,9 +113,6 @@ export function AppShell({
     >
       <style>{`
         .app-shell a{color:inherit;}
-        .app-newhunch{transition:background 200ms ease,color 200ms ease;}
-        .app-newhunch:hover{background:var(--s1);color:var(--paper);border-color:var(--s1);}
-        .app-menu-item:hover{background:color-mix(in srgb,var(--paper) 80%,var(--s1));}
         .app-card{transition:border-color 240ms ease,background 240ms ease,transform 240ms ease,box-shadow 240ms ease;}
         .app-card:hover{border-color:var(--ink);transform:translateY(-2px);box-shadow:0 8px 28px -14px color-mix(in srgb,var(--ink) 45%,transparent);}
         @media (prefers-reduced-motion: reduce){.app-card:hover{transform:none;}}
@@ -154,69 +130,35 @@ export function AppShell({
         }}
       />
 
-      {/* header */}
-      <header
-        style={{
-          position: "relative",
-          zIndex: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 16,
-          padding: "clamp(18px,2.4vw,26px) clamp(20px,4vw,52px)",
-          borderBottom: "1px solid var(--rule)",
-        }}
-      >
-        <Link
-          href="/home"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 9,
-            textDecoration: "none",
-          }}
-        >
+      <header className="relative z-1 flex items-center justify-between gap-4 border-b border-rule px-[clamp(20px,4vw,52px)] py-[clamp(14px,2.4vw,22px)]">
+        <Link href="/home" className="inline-flex items-center gap-2 no-underline">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/starburst.png" alt="" width={22} height={22} />
-          <span
-            style={{
-              fontFamily: "'Clash Display',sans-serif",
-              fontWeight: 600,
-              fontSize: 20,
-              letterSpacing: "-0.01em",
-            }}
-          >
-            hun<span style={{ color: "var(--s1)" }}>ch</span>
+          <img src="/starburst.png" alt="" width={22} height={22} aria-hidden="true" />
+          <span className="font-heading text-lg font-semibold tracking-[-0.01em]">
+            hun<span className="text-s1">ch</span>
           </span>
         </Link>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "clamp(12px,2vw,20px)" }}>
-          <Link
-            href="/hunch/new"
-            className="app-newhunch"
-            style={{
-              padding: "9px 16px",
-              border: "1px solid var(--ink)",
-              fontSize: 11.5,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              textDecoration: "none",
-            }}
+        <div className="flex items-center gap-[clamp(10px,2vw,18px)]">
+          <Button
+            variant="brand"
+            size="touch"
+            className="rounded-none"
+            render={<Link href="/hunch/new" />}
           >
-            + New hunch
-          </Link>
+            <PlusIcon data-icon="inline-start" />
+            New hunch
+          </Button>
           <AccountMenu user={user} />
         </div>
       </header>
 
       <main
-        style={{
-          position: "relative",
-          zIndex: 1,
-          maxWidth: 1080,
-          margin: "0 auto",
-          padding: "clamp(32px,6vh,64px) clamp(20px,4vw,52px) clamp(60px,10vh,110px)",
-        }}
+        className={
+          slim
+            ? "relative z-1 mx-auto w-full max-w-160 px-5 pt-[clamp(24px,5vh,44px)] pb-24"
+            : "relative z-1 mx-auto w-full max-w-270 px-[clamp(20px,4vw,52px)] pt-[clamp(32px,6vh,64px)] pb-[clamp(60px,10vh,110px)]"
+        }
       >
         {children}
       </main>

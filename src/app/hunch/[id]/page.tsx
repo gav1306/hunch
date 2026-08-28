@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { use } from "react";
 import { BeliefMeter } from "@/components/belief-meter";
 import { CheckInTap } from "@/components/checkin-tap";
@@ -8,7 +7,6 @@ import { AbandonHunch } from "@/components/hunch/abandon-hunch";
 import { VerdictView } from "@/components/verdict";
 import { useBelief } from "@/hooks/use-belief";
 import { useHunchInfo } from "@/hooks/use-hunch-info";
-import { appThemeStyle } from "@/lib/app-theme";
 
 const label: React.CSSProperties = {
   fontSize: 10.5,
@@ -20,7 +18,8 @@ const label: React.CSSProperties = {
 /**
  * Phase 4 dashboard: the live belief meter plus today's one-tap check-in. The
  * meter narrows as check-ins accumulate (compute-on-read, refreshed on each tap).
- * Shell-less authed page — spreads appThemeStyle() onto its own root.
+ * The frame — ground, header, column — comes from the slim AppShell in
+ * `/hunch/layout.tsx`.
  */
 export default function HunchDashboard({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -65,20 +64,16 @@ export default function HunchDashboard({ params }: { params: Promise<{ id: strin
   };
 
   return (
-    <main style={{ minHeight: "100dvh", ...appThemeStyle() }}>
-      <div style={{ maxWidth: 640, margin: "0 auto", padding: "clamp(20px,6vh,56px) 20px 96px" }}>
-        <Link href="/home" style={{ ...label, textDecoration: "none" }}>← home</Link>
+    <>
+      <h1 style={{ margin: 0, fontFamily: "'Clash Display',sans-serif", fontWeight: 700, fontSize: "clamp(30px,4.4vw,48px)", letterSpacing: "-0.02em", color: "var(--ink)" }}>
+        Your experiment
+      </h1>
 
-        <h1 style={{ margin: "40px 0 0", fontFamily: "'Clash Display',sans-serif", fontWeight: 700, fontSize: "clamp(30px,4.4vw,48px)", letterSpacing: "-0.02em", color: "var(--ink)" }}>
-          Your experiment
-        </h1>
+      <div style={{ marginTop: 26, transition: "opacity 300ms ease", opacity: query.isPending ? 0.5 : 1 }}>{content()}</div>
 
-        <div style={{ marginTop: 26, transition: "opacity 300ms ease", opacity: query.isPending ? 0.5 : 1 }}>{content()}</div>
-
-        <div style={{ marginTop: 48, borderTop: "1px solid var(--rule)", paddingTop: 8 }}>
-          <AbandonHunch hunchId={id} loggedDays={query.data?.checkIns.length ?? 0} />
-        </div>
+      <div style={{ marginTop: 48, borderTop: "1px solid var(--rule)", paddingTop: 8 }}>
+        <AbandonHunch hunchId={id} loggedDays={query.data?.checkIns.length ?? 0} />
       </div>
-    </main>
+    </>
   );
 }

@@ -273,7 +273,10 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
 
   return (
     <div>
-      <style>{`.app-tap:disabled{opacity:.5;cursor:not-allowed;} .app-tap:hover:not(:disabled){filter:brightness(0.94);}`}</style>
+      {/* `.app-newhunch` used to be defined in AppShell, which the empty state
+          borrowed from two components away. It only ever styled this one link,
+          so it lives with it until the screen migration replaces it. */}
+      <style>{`.app-tap:disabled{opacity:.5;cursor:not-allowed;} .app-tap:hover:not(:disabled){filter:brightness(0.94);} .app-newhunch{transition:background 200ms ease,color 200ms ease,border-color 200ms ease;} .app-newhunch:hover{background:var(--s1);color:var(--paper);border-color:var(--s1);}`}</style>
 
       <motion.h1
         initial={reduce ? false : { opacity: 0, y: 8 }}
