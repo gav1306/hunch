@@ -2,6 +2,7 @@
 
 import { useReducedMotion } from "motion/react";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AuthGazeProvider } from "@/components/auth/auth-gaze";
@@ -23,27 +24,10 @@ const ROTATING = [
 
 function Wordmark() {
   return (
-    <Link
-      href="/"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 9,
-        textDecoration: "none",
-        color: "var(--ink)",
-      }}
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/starburst.png" alt="" width={22} height={22} />
-      <span
-        style={{
-          fontFamily: "'Clash Display',sans-serif",
-          fontWeight: 600,
-          fontSize: 21,
-          letterSpacing: "-0.01em",
-        }}
-      >
-        hun<span style={{ color: "var(--s1)" }}>ch</span>
+    <Link href="/" className="inline-flex items-center gap-2 text-ink no-underline">
+      <Image src="/starburst.png" alt="" aria-hidden width={22} height={22} />
+      <span className="font-heading text-xl font-semibold tracking-[-0.01em]">
+        hun<span className="text-s1">ch</span>
       </span>
     </Link>
   );
@@ -57,50 +41,35 @@ function RotatingHunch() {
   }, []);
   return (
     <div>
-      <div
-        style={{
-          fontSize: 11,
-          letterSpacing: "0.24em",
-          textTransform: "uppercase",
-          color: "var(--muted)",
-          marginBottom: 16,
-        }}
-      >
-        Testing right now <span aria-hidden style={{ color: "var(--s1)" }}>✦</span>
-      </div>
-      <div
-        style={{
-          minHeight: "clamp(90px,12vh,130px)",
-          display: "flex",
-          alignItems: "center",
-        }}
-      >
-        <div
+      <p className="mt-0 mb-4 text-xs tracking-[0.24em] text-muted-foreground uppercase">
+        Testing right now{" "}
+        <span aria-hidden className="text-s1">
+          ✦
+        </span>
+      </p>
+      <div className="flex min-h-[clamp(64px,12vh,130px)] items-center">
+        <p
           key={i}
-          className="auth-rotate"
-          style={{
-            fontFamily: "'Clash Display',sans-serif",
-            fontWeight: 600,
-            fontSize: "clamp(24px,2.6vw,38px)",
-            lineHeight: 1.05,
-            letterSpacing: "-0.02em",
-          }}
+          className="auth-rotate m-0 font-heading text-[clamp(20px,2.6vw,38px)] leading-[1.05] font-semibold tracking-[-0.02em]"
         >
           “{ROTATING[i]}”
-        </div>
+        </p>
       </div>
-      <div
-        style={{
-          width: "clamp(70px,8vw,110px)",
-          height: 2,
-          marginTop: 18,
-          background: "linear-gradient(90deg,var(--s1),var(--s2))",
-        }}
-      />
+      <div className="mt-[18px] h-0.5 w-[clamp(70px,8vw,110px)] bg-linear-to-r from-s1 to-s2" />
     </div>
   );
 }
 
+/**
+ * The two-column auth frame: brand on the left, form on the right.
+ *
+ * Below 820px the brand column used to be `display: none` and a bare wordmark
+ * took its place — so the mobile sign-up, which is most sign-ups, was a form on
+ * a black page with no evidence of what it was for. It stacks now: wordmark,
+ * one rotating hunch, then the form. The mascot is the one part that stays
+ * desktop-only; it is a three.js scene and a 240px square, and neither belongs
+ * above the fold on a phone.
+ */
 export function AuthShell({ children }: { children: React.ReactNode }) {
   const reduce = useReducedMotion();
 
@@ -109,126 +78,67 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
   const [passwordFocused, setPasswordFocused] = useState(false);
   const gaze = useMemo(() => ({ setPasswordFocused }), [setPasswordFocused]);
 
-  const mascot = (
-    <div
-      style={{
-        width: "clamp(150px,17vw,240px)",
-        aspectRatio: "1 / 1",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      {reduce ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src="/starburst.png"
-          alt=""
-          style={{
-            width: "70%",
-            filter:
-              "brightness(1.16) drop-shadow(0 0 40px color-mix(in srgb, var(--s1) 42%, transparent))",
-          }}
-        />
-      ) : (
-        <HeroRobot play gaze={passwordFocused ? "away" : "form"} />
-      )}
-    </div>
-  );
-
   return (
     <AuthGazeProvider value={gaze}>
-    <div
-      className="auth-shell"
-      style={{
-        position: "relative",
-        overflowX: "hidden",
-        ...appThemeStyle(),
-      }}
-    >
-      <style>{`
-        .auth-mobilebrand{display:none;}
-        .auth-submit:hover:not(:disabled){filter:brightness(0.92);}
-        .auth-link:hover{color:var(--s1) !important;}
-        .auth-rotate{animation:auth-fade 600ms ease;}
-        @keyframes auth-fade{from{opacity:0;filter:blur(10px);transform:translateY(6px)}to{opacity:1;filter:blur(0);transform:none}}
-        @media (max-width:820px){
-          .auth-brand{display:none !important;}
-          .auth-mobilebrand{display:flex !important;}
-        }
-        @media (prefers-reduced-motion: reduce){ .auth-shell *{animation:none !important;} }
-      `}</style>
-
-      {/* page grain */}
       <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 40,
-          pointerEvents: "none",
-          opacity: 0.05,
-          mixBlendMode: "soft-light",
-          backgroundImage: GRAIN_SVG,
-        }}
-      />
+        className="auth-shell relative overflow-x-hidden"
+        style={appThemeStyle() as React.CSSProperties}
+      >
+        <style>{`
+          .auth-submit:hover:not(:disabled){filter:brightness(0.92);}
+          .auth-link:hover{color:var(--s1) !important;}
+          .auth-rotate{animation:auth-fade 600ms ease;}
+          @keyframes auth-fade{from{opacity:0;filter:blur(10px);transform:translateY(6px)}to{opacity:1;filter:blur(0);transform:none}}
+          @media (prefers-reduced-motion: reduce){ .auth-shell *{animation:none !important;} }
+        `}</style>
 
-      <div style={{ minHeight: "100vh", display: "flex" }}>
-        {/* LEFT — branded panel */}
         <div
-          className="auth-brand"
-          style={{
-            position: "relative",
-            flex: "1 1 46%",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            padding: "clamp(28px,4vw,56px)",
-            borderRight: "1px solid var(--rule)",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              inset: 0,
-              zIndex: 0,
-              pointerEvents: "none",
-              background:
-                "radial-gradient(70% 60% at 50% 42%, color-mix(in srgb, var(--s1) 22%, transparent) 0%, color-mix(in srgb, var(--s2) 12%, transparent) 40%, transparent 70%)",
-            }}
-          />
-          <div style={{ position: "relative", zIndex: 1 }}>
-            <Wordmark />
-          </div>
-          <div style={{ position: "relative", zIndex: 1, alignSelf: "center" }}>
-            {mascot}
-          </div>
-          <div style={{ position: "relative", zIndex: 1 }}>
-            <RotatingHunch />
-          </div>
-        </div>
+          aria-hidden
+          className="pointer-events-none fixed inset-0 z-40 opacity-5 mix-blend-soft-light"
+          style={{ backgroundImage: GRAIN_SVG }}
+        />
 
-        {/* RIGHT — form */}
-        <div
-          style={{
-            position: "relative",
-            flex: "1 1 54%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "clamp(28px,4vw,56px)",
-          }}
-        >
-          <div style={{ width: "100%", maxWidth: 420 }}>
-            <div className="auth-mobilebrand" style={{ marginBottom: 28 }}>
+        <div className="flex min-h-dvh flex-col min-[821px]:flex-row">
+          {/* Brand */}
+          <div className="relative flex flex-col justify-between gap-8 overflow-hidden border-b border-rule p-[clamp(24px,4vw,56px)] min-[821px]:flex-[1_1_46%] min-[821px]:border-r min-[821px]:border-b-0">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(70%_60%_at_50%_42%,color-mix(in_srgb,var(--s1)_22%,transparent)_0%,color-mix(in_srgb,var(--s2)_12%,transparent)_40%,transparent_70%)]"
+            />
+            <div className="relative z-1">
               <Wordmark />
             </div>
-            {children}
+
+            {/* Desktop only: a three.js mascot is not what a phone needs above
+                the form it came to fill in. */}
+            <div className="relative z-1 hidden self-center min-[821px]:flex">
+              <div className="flex aspect-square w-[clamp(150px,17vw,240px)] items-center justify-center">
+                {reduce ? (
+                  <Image
+                    src="/starburst.png"
+                    alt=""
+                    aria-hidden
+                    width={240}
+                    height={240}
+                    className="w-[70%] brightness-115 drop-shadow-[0_0_40px_color-mix(in_srgb,var(--s1)_42%,transparent)]"
+                  />
+                ) : (
+                  <HeroRobot play gaze={passwordFocused ? "away" : "form"} />
+                )}
+              </div>
+            </div>
+
+            <div className="relative z-1">
+              <RotatingHunch />
+            </div>
+          </div>
+
+          {/* Form */}
+          <div className="relative flex flex-1 items-center justify-center p-[clamp(24px,4vw,56px)] min-[821px]:flex-[1_1_54%]">
+            <div className="w-full max-w-[420px]">{children}</div>
           </div>
         </div>
       </div>
-    </div>
     </AuthGazeProvider>
   );
 }

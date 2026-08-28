@@ -11,6 +11,13 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 /** Uppercase mono, at the 12px readable floor rather than the old 10.5px. */
 const LABEL_CLASS = "text-xs uppercase tracking-[0.16em] text-muted-foreground";
 
+/**
+ * Resend and "use a backup code" read as links but are buttons, and were 12.5px
+ * of text with no padding — the two controls a locked-out user needs most.
+ */
+const LINK_BTN =
+  "border-transparent px-1 font-mono text-xs normal-case tracking-normal text-muted-foreground hover:border-transparent hover:bg-transparent hover:text-s1";
+
 export function TwoFactorForm() {
   const router = useRouter();
   const [code, setCode] = useState("");
@@ -98,31 +105,17 @@ export function TwoFactorForm() {
 
   return (
     <div>
-      <div
-        style={{
-          fontSize: 11,
-          letterSpacing: "0.24em",
-          textTransform: "uppercase",
-          color: "var(--muted)",
-          marginBottom: 14,
-        }}
-      >
-        <span aria-hidden style={{ color: "var(--s1)" }}>✦</span> Security check
-      </div>
+      <p className="mt-0 mb-3.5 text-xs tracking-[0.24em] text-muted-foreground uppercase">
+        <span aria-hidden className="text-s1">
+          ✦
+        </span>{" "}
+        Security check
+      </p>
 
-      <h1
-        style={{
-          margin: "0 0 10px",
-          fontFamily: "'Clash Display',sans-serif",
-          fontWeight: 700,
-          fontSize: "clamp(30px,4vw,44px)",
-          lineHeight: 1,
-          letterSpacing: "-0.02em",
-        }}
-      >
+      <h1 className="mt-0 mb-2.5 font-heading text-[clamp(30px,4vw,44px)] leading-none font-bold tracking-[-0.02em] text-ink">
         Two-factor
       </h1>
-      <p style={{ margin: "0 0 28px", fontSize: 13, lineHeight: 1.6, color: "var(--muted)" }}>
+      <p className="mt-0 mb-7 text-sm leading-relaxed text-muted-foreground">
         {backup
           ? "Enter one of your saved backup codes."
           : sent
@@ -155,29 +148,19 @@ export function TwoFactorForm() {
         </Field>
 
         {!backup && (
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              marginTop: 16,
-              fontSize: 12,
-              color: "var(--muted)",
-              cursor: "pointer",
-            }}
-          >
+          <label className="mt-4 flex min-h-11 cursor-pointer items-center gap-2 text-xs text-muted-foreground">
             <input
               type="checkbox"
               checked={trust}
               onChange={(e) => setTrust(e.target.checked)}
-              style={{ accentColor: "var(--s1)", width: 16, height: 16 }}
+              className="size-4 accent-s1"
             />
             Trust this device for 30 days
           </label>
         )}
 
         {error && (
-          <div role="alert" style={{ margin: "12px 0 0", fontSize: 12, color: "var(--s1)" }}>
+          <div role="alert" className="mt-3 text-xs text-s1">
             {error}
           </div>
         )}
@@ -194,31 +177,29 @@ export function TwoFactorForm() {
         </Button>
       </form>
 
-      <div style={{ marginTop: 24, display: "flex", gap: 18, flexWrap: "wrap" }}>
+      <div className="mt-6 flex flex-wrap gap-[18px]">
         {!backup && (
-          <button
+          <Button
             type="button"
+            variant="brand"
+            size="touch"
             onClick={resend}
             disabled={cooldown > 0}
-            className="auth-link"
-            style={{
-              ...linkBtn,
-              cursor: cooldown > 0 ? "default" : "pointer",
-              opacity: cooldown > 0 ? 0.5 : 1,
-            }}
+            className={LINK_BTN}
           >
             {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
-          </button>
+          </Button>
         )}
-        <button
+        <Button
           type="button"
+          variant="brand"
+          size="touch"
           onClick={() => {
             setBackup((v) => !v);
             setCode("");
             setError(null);
           }}
-          className="auth-link"
-          style={linkBtn}
+          className={LINK_BTN}
         >
           {backup ? (
             <>
@@ -228,18 +209,9 @@ export function TwoFactorForm() {
           ) : (
             "Use a backup code instead"
           )}
-        </button>
+        </Button>
       </div>
     </div>
   );
 }
 
-const linkBtn: React.CSSProperties = {
-  background: "transparent",
-  border: "none",
-  padding: 0,
-  cursor: "pointer",
-  fontFamily: "'Space Mono',monospace",
-  fontSize: 12.5,
-  color: "var(--muted)",
-};

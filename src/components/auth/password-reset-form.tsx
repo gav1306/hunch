@@ -19,15 +19,18 @@ const SUBMIT_CLASS =
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontSize: 11, letterSpacing: "0.24em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 14 }}>
-      <span aria-hidden style={{ color: "var(--s1)" }}>✦</span> {children}
-    </div>
+    <p className="mt-0 mb-3.5 text-xs tracking-[0.24em] text-muted-foreground uppercase">
+      <span aria-hidden className="text-s1">
+        ✦
+      </span>{" "}
+      {children}
+    </p>
   );
 }
 
 function Heading({ children }: { children: React.ReactNode }) {
   return (
-    <h1 style={{ margin: "0 0 10px", fontFamily: "'Clash Display',sans-serif", fontWeight: 700, fontSize: "clamp(28px,3.6vw,40px)", lineHeight: 1.04, letterSpacing: "-0.02em" }}>
+    <h1 className="mt-0 mb-2.5 font-heading text-[clamp(28px,3.6vw,40px)] leading-none font-bold tracking-[-0.02em] text-ink">
       {children}
     </h1>
   );
@@ -35,13 +38,13 @@ function Heading({ children }: { children: React.ReactNode }) {
 
 function Blurb({ children }: { children: React.ReactNode }) {
   return (
-    <p style={{ margin: "0 0 28px", fontSize: 13, lineHeight: 1.6, color: "var(--muted)" }}>{children}</p>
+    <p className="mt-0 mb-7 text-sm leading-relaxed text-muted-foreground">{children}</p>
   );
 }
 
 function ErrorNote({ children }: { children: React.ReactNode }) {
   return (
-    <div role="alert" style={{ margin: "6px 0 4px", fontSize: 12, lineHeight: 1.5, color: "var(--s1)" }}>
+    <div role="alert" className="mt-1.5 mb-1 text-xs leading-normal text-s1">
       {children}
     </div>
   );
@@ -102,7 +105,7 @@ export function ForgotPasswordForm() {
           If {email.trim()} has a Hunch account, a reset link is on its way. It works once
           and expires in an hour.
         </Blurb>
-        <Link href="/signin" className="auth-link" style={{ fontSize: 12.5, color: "var(--ink)", textDecoration: "none" }}>
+        <Link href="/signin" className="auth-link text-xs text-ink no-underline">
           <ArrowLeftIcon aria-hidden className="mr-1 inline-block size-(--icon) align-[-0.15em]" />
           Back to sign in
         </Link>
@@ -149,9 +152,9 @@ export function ForgotPasswordForm() {
         </Button>
       </form>
 
-      <div style={{ marginTop: 24, fontSize: 12.5, color: "var(--muted)" }}>
+      <div className="mt-6 text-xs text-muted-foreground">
         Remembered it?{" "}
-        <Link href="/signin" className="auth-link" style={{ color: "var(--ink)", textDecoration: "none" }}>
+        <Link href="/signin" className="auth-link text-ink no-underline">
           Sign in
         </Link>
       </div>
@@ -205,7 +208,7 @@ export function ResetPasswordForm({ token }: { token: string | null }) {
           Reset links work once and expire after an hour. Ask for a fresh one and it&apos;ll
           be in your inbox in a moment.
         </Blurb>
-        <Link href="/forgot-password" className="auth-link" style={{ fontSize: 12.5, color: "var(--ink)", textDecoration: "none" }}>
+        <Link href="/forgot-password" className="auth-link text-xs text-ink no-underline">
           Send a new link
           <ArrowRightIcon aria-hidden className="ml-1 inline-block size-(--icon) align-[-0.15em]" />
         </Link>
