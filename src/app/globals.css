@@ -143,6 +143,10 @@
   /* Brand and semantics, addressable as utilities (text-s1, bg-good, …). */
   --color-paper: var(--paper);
   --color-ink: var(--ink);
+  /* The lifted surfaces, addressable directly. `--color-muted` already points
+     at --surface-2; these two have no shadcn name to borrow. */
+  --color-surface-1: var(--surface-1);
+  --color-surface-3: var(--surface-3);
   --color-rule: var(--rule);
   --color-s1: var(--s1);
   --color-s2: var(--s2);

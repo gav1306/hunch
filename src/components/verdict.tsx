@@ -3,15 +3,9 @@
 import { BeliefMeter } from "@/components/belief-meter";
 import { CheckIcon, XIcon } from "lucide-react";
 import { useVerdict } from "@/hooks/use-verdict";
+import { cn } from "@/lib/utils";
 import type { Belief } from "@/lib/schemas/belief";
 import type { Verdict } from "@/lib/schemas/verdict";
-
-const label: React.CSSProperties = {
-  fontSize: 10.5,
-  letterSpacing: "0.16em",
-  textTransform: "uppercase",
-  color: "var(--muted)",
-};
 
 /**
  * Headline copy + result token per verdict category. The tone comes from the
@@ -23,10 +17,10 @@ const HEADLINE: Record<
   Verdict["category"],
   { title: string; tone: string; Icon?: typeof CheckIcon }
 > = {
-  helped: { title: "It helped", tone: "var(--good)", Icon: CheckIcon },
-  hurt: { title: "It hurt", tone: "var(--bad)", Icon: XIcon },
-  inconclusive_no_effect: { title: "No detectable effect", tone: "var(--neutral)" },
-  inconclusive_insufficient: { title: "Not enough data", tone: "var(--neutral)" },
+  helped: { title: "It helped", tone: "text-good", Icon: CheckIcon },
+  hurt: { title: "It hurt", tone: "text-bad", Icon: XIcon },
+  inconclusive_no_effect: { title: "No detectable effect", tone: "text-neutral" },
+  inconclusive_insufficient: { title: "Not enough data", tone: "text-neutral" },
 };
 
 /** Reconstruct a live Belief from the frozen snapshot so we can reuse the meter. */
@@ -46,10 +40,12 @@ export function VerdictView({ hunchId }: { hunchId: string }) {
   const query = useVerdict(hunchId);
 
   if (query.isPending) {
-    return <p style={{ ...label, textTransform: "none", letterSpacing: "0.04em" }}>Writing your verdict…</p>;
+    return (
+      <p className="text-xs tracking-[0.04em] text-muted-foreground">Writing your verdict…</p>
+    );
   }
   if (query.isError) {
-    return <p style={{ fontSize: 13, color: "var(--s1)" }}>{query.error.message}</p>;
+    return <p className="text-sm text-s1">{query.error.message}</p>;
   }
 
   const v = query.data.verdict;
@@ -57,25 +53,22 @@ export function VerdictView({ hunchId }: { hunchId: string }) {
   const hasStats = v.category !== "inconclusive_insufficient";
 
   return (
-    <section
-      style={{
-        display: "grid",
-        gap: 18,
-        background: "color-mix(in srgb,var(--paper) 90%,var(--ink))",
-        border: "1px solid var(--rule)",
-        padding: "clamp(20px,2.4vw,28px)",
-        minWidth: 0,
-        maxWidth: "100%",
-      }}
-    >
+    <section className="grid max-w-full min-w-0 gap-[18px] rounded-lg border border-rule bg-card p-[clamp(20px,2.4vw,28px)]">
       <div>
-        <p style={label}>Verdict</p>
-        <h2 style={{ margin: "8px 0 0", display: "flex", alignItems: "center", gap: 10, fontFamily: "'Clash Display',sans-serif", fontWeight: 700, fontSize: "clamp(26px,4vw,36px)", letterSpacing: "-0.02em", color: head.tone }}>
+        <p className="m-0 text-xs tracking-[0.16em] text-muted-foreground uppercase">Verdict</p>
+        <h2
+          className={cn(
+            "mt-2 mb-0 flex items-center gap-2.5 font-heading text-[clamp(26px,4vw,36px)] font-bold tracking-[-0.02em]",
+            head.tone,
+          )}
+        >
           {head.title}
           {head.Icon && <head.Icon aria-hidden className="size-[0.8em]" strokeWidth={2.5} />}
         </h2>
       </div>
-      <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, color: "var(--ink)", overflowWrap: "anywhere" }}>{v.narrative}</p>
+      <p className="m-0 text-sm leading-relaxed text-ink [overflow-wrap:anywhere]">
+        {v.narrative}
+      </p>
       {hasStats && <BeliefMeter belief={beliefFrom(v)} />}
     </section>
   );

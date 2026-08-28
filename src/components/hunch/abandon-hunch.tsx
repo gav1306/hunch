@@ -3,13 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useDeleteHunch } from "@/hooks/use-delete-hunch";
-
-const label: React.CSSProperties = {
-  fontFamily: "'Space Mono',monospace",
-  fontSize: 11.5,
-  letterSpacing: "0.12em",
-  textTransform: "uppercase",
-};
+import { Button } from "@/components/ui/button";
 
 /**
  * Give up on a hunch and remove it.
@@ -34,73 +28,51 @@ export function AbandonHunch({
 
   if (!confirming) {
     return (
-      <button
+      <Button
         type="button"
+        variant="brand"
+        size="touch"
         onClick={() => setConfirming(true)}
-        style={{
-          ...label,
-          background: "none",
-          border: "none",
-          padding: "12px 2px",
-          color: "var(--muted)",
-          cursor: "pointer",
-          textDecoration: "underline",
-          textUnderlineOffset: 4,
-        }}
+        className="border-transparent px-0.5 text-muted-foreground underline underline-offset-4 hover:border-transparent hover:bg-transparent hover:text-ink"
       >
         Abandon this hunch
-      </button>
+      </Button>
     );
   }
 
   return (
-    <div style={{ display: "grid", gap: 10, paddingTop: 12 }}>
-      <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "var(--ink)" }}>
+    <div className="grid gap-2.5 pt-3">
+      <p className="m-0 text-sm leading-relaxed text-ink">
         {loggedDays > 0
           ? `This deletes the hunch and the ${loggedDays} ${loggedDays === 1 ? "day" : "days"} you've logged against it. It can't be undone.`
           : "This deletes the hunch and its plan. It can't be undone."}
       </p>
       {remove.isError && (
-        <p role="alert" style={{ margin: 0, fontSize: 13, color: "var(--s1)" }}>
+        <p role="alert" className="m-0 text-sm text-s1">
           {remove.error.message}
         </p>
       )}
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <button
+      <div className="flex flex-wrap gap-2.5">
+        <Button
           type="button"
+          variant="brand"
+          size="touch"
           disabled={remove.isPending}
           onClick={() => remove.mutate(undefined, { onSuccess: () => router.push("/home") })}
-          style={{
-            ...label,
-            fontWeight: 700,
-            padding: "12px 18px",
-            borderRadius: 11,
-            border: "1px solid var(--s1)",
-            background: "var(--s1)",
-            color: "var(--paper)",
-            cursor: remove.isPending ? "wait" : "pointer",
-            opacity: remove.isPending ? 0.6 : 1,
-          }}
+          className="border-s1 bg-s1 font-bold text-paper hover:bg-s1"
         >
           {remove.isPending ? "Deleting…" : "Yes, delete it"}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="brand"
+          size="touch"
           disabled={remove.isPending}
           onClick={() => setConfirming(false)}
-          style={{
-            ...label,
-            fontWeight: 700,
-            padding: "12px 18px",
-            borderRadius: 11,
-            border: "1px solid var(--rule)",
-            background: "transparent",
-            color: "var(--ink)",
-            cursor: "pointer",
-          }}
+          className="border-rule font-bold"
         >
           Keep it
-        </button>
+        </Button>
       </div>
     </div>
   );
