@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowRightIcon, RotateCcwIcon } from "lucide-react";
 import { useMemo, useState, use } from "react";
 import { ProtocolStepper } from "@/components/protocol-stepper";
 import { AbandonHunch } from "@/components/hunch/abandon-hunch";
@@ -114,7 +115,8 @@ export default function ProtocolPage({
                 the raw text and the clarifying answers and left the old
                 hunch stranded in "Finish setting up" with no way to remove it. */}
             <Link href={`/hunch/new?resume=${id}`} style={{ ...gateBtn, flex: 1, border: "1px solid var(--ink)", background: "transparent", color: "var(--ink)", textDecoration: "none" }}>
-              ↻ redo
+              <RotateCcwIcon aria-hidden className="mr-1.5 inline-block size-(--icon) align-[-0.15em]" />
+              redo
             </Link>
             <button
               type="button"
@@ -129,7 +131,8 @@ export default function ProtocolPage({
                 cursor: canDesign ? "pointer" : "not-allowed",
               }}
             >
-              Looks right — design it →
+              Looks right — design it
+              <ArrowRightIcon aria-hidden className="ml-1.5 inline-block size-(--icon) align-[-0.15em]" />
             </button>
           </div>
         </div>
@@ -159,7 +162,8 @@ export default function ProtocolPage({
             onClick={() => design.mutate(cleaned)}
             style={{ margin: "12px 0 0 20px", background: "none", border: "none", cursor: "pointer", fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--s1)" }}
           >
-            ↻ try again
+            <RotateCcwIcon aria-hidden className="mr-1.5 inline-block size-(--icon) align-[-0.15em]" />
+            try again
           </button>
         </div>
       )}

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useCheckIn, type CheckInValueInput } from "@/hooks/use-checkin";
 import type { PhaseStatus } from "@/lib/schedule";
 import { validateParameterValue, type ParameterType } from "@/lib/schemas/parameter";
+import { ArrowRightIcon, CheckIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -164,8 +165,18 @@ export function CheckIn({
         </p>
       )}
       {checkIn.isSuccess && !problem && (
-        <p style={{ margin: "14px 0 0", fontSize: 13, color: "var(--good)" }}>
-          Logged ✓ — log again to change today&apos;s entry.
+        <p
+          style={{
+            margin: "14px 0 0",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 13,
+            color: "var(--good)",
+          }}
+        >
+          <CheckIcon aria-hidden className="size-(--icon)" />
+          Logged — log again to change today&apos;s entry.
         </p>
       )}
       {checkIn.isError && (
@@ -402,7 +413,8 @@ function NotStartedYet({
         }
         render={<Link href={`/hunch/${hunchId}/protocol`} />}
       >
-        {scheduled ? "See the full plan →" : hasPlan ? "Start it →" : "Design your plan →"}
+        {scheduled ? "See the full plan" : hasPlan ? "Start it" : "Design your plan"}
+        <ArrowRightIcon data-icon="inline-end" aria-hidden />
       </Button>
     </section>
   );

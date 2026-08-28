@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuthGaze } from "@/components/auth/auth-gaze";
 import { authClient } from "@/lib/auth-client";
+import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -19,7 +20,7 @@ const SUBMIT_CLASS =
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ fontSize: 11, letterSpacing: "0.24em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 14 }}>
-      <span style={{ color: "var(--s1)" }}>✦</span> {children}
+      <span aria-hidden style={{ color: "var(--s1)" }}>✦</span> {children}
     </div>
   );
 }
@@ -102,7 +103,8 @@ export function ForgotPasswordForm() {
           and expires in an hour.
         </Blurb>
         <Link href="/signin" className="auth-link" style={{ fontSize: 12.5, color: "var(--ink)", textDecoration: "none" }}>
-          ← Back to sign in
+          <ArrowLeftIcon aria-hidden className="mr-1 inline-block size-(--icon) align-[-0.15em]" />
+          Back to sign in
         </Link>
       </div>
     );
@@ -142,7 +144,8 @@ export function ForgotPasswordForm() {
         {error && <ErrorNote>{error}</ErrorNote>}
 
         <Button type="submit" variant="brand" size="touch" disabled={loading} className={SUBMIT_CLASS}>
-          {loading ? "Sending…" : "Email me a link →"}
+          {loading ? "Sending…" : "Email me a link"}
+          {!loading && <ArrowRightIcon data-icon="inline-end" aria-hidden />}
         </Button>
       </form>
 
@@ -203,7 +206,8 @@ export function ResetPasswordForm({ token }: { token: string | null }) {
           be in your inbox in a moment.
         </Blurb>
         <Link href="/forgot-password" className="auth-link" style={{ fontSize: 12.5, color: "var(--ink)", textDecoration: "none" }}>
-          Send a new link →
+          Send a new link
+          <ArrowRightIcon aria-hidden className="ml-1 inline-block size-(--icon) align-[-0.15em]" />
         </Link>
       </div>
     );
@@ -295,7 +299,8 @@ export function ResetPasswordForm({ token }: { token: string | null }) {
         {error && <ErrorNote>{error}</ErrorNote>}
 
         <Button type="submit" variant="brand" size="touch" disabled={loading} className={SUBMIT_CLASS}>
-          {loading ? "Saving…" : "Set new password →"}
+          {loading ? "Saving…" : "Set new password"}
+          {!loading && <ArrowRightIcon data-icon="inline-end" aria-hidden />}
         </Button>
       </form>
     </div>

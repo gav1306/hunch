@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
+import { ArrowRightIcon, CheckIcon } from "lucide-react";
 import { CheckIn } from "@/components/check-in";
 import type { HomeData, HomeHunch } from "@/lib/home";
 
@@ -34,15 +35,15 @@ const SETUP_CTA: Record<
   { text: string; href: (id: string) => string }
 > = {
   "needs-sharpening": {
-    text: "Draft · pick up where you left off →",
+    text: "Draft · pick up where you left off",
     href: (id) => `/hunch/new?resume=${id}`,
   },
   "needs-plan": {
-    text: "Sharpened · needs a plan →",
+    text: "Sharpened · needs a plan",
     href: (id) => `/hunch/${id}/protocol`,
   },
   "ready-to-start": {
-    text: "Plan ready · start it →",
+    text: "Plan ready · start it",
     href: (id) => `/hunch/${id}/protocol`,
   },
 };
@@ -78,7 +79,7 @@ function eyebrow(text: string) {
         marginBottom: 18,
       }}
     >
-      <span style={{ color: "var(--s1)" }}>✦</span> {text}
+      <span aria-hidden style={{ color: "var(--s1)" }}>✦</span> {text}
     </div>
   );
 }
@@ -228,9 +229,14 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
               </div>
             ) : (
               <div style={{ ...cardBase, color: "var(--muted)", fontSize: 14 }}>
-                {data.running.length > 0
-                  ? "All caught up ✓ — nothing to log today."
-                  : "No experiments running yet. Drop a hunch to start one."}
+                {data.running.length > 0 ? (
+                  <>
+                    <CheckIcon aria-hidden className="mr-1.5 inline-block size-(--icon) align-[-0.15em]" />
+                    All caught up — nothing to log today.
+                  </>
+                ) : (
+                  "No experiments running yet. Drop a hunch to start one."
+                )}
               </div>
             )}
           </section>
@@ -248,7 +254,8 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
                   return (
                     <Link key={h.id} href={`/hunch/${h.id}`} className="app-card" style={{ ...cardBase }}>
                       <div style={{ fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 10 }}>
-                        The reveal →
+                        The reveal
+                        <ArrowRightIcon aria-hidden className="ml-1 inline-block size-(--icon) align-[-0.15em]" />
                       </div>
                       {statement(h)}
                       <div
@@ -285,11 +292,16 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
                       {/* Anchored but not yet begun — a start the user scheduled
                           for tomorrow, which has no day and nothing to log. It is
                           not a confirmation, so it stays muted rather than green. */}
-                      {h.startsOn
-                        ? startsCopy(h.startsOn)
-                        : h.loggedToday
-                          ? "Logged today ✓"
-                          : "Running"}
+                      {h.startsOn ? (
+                        startsCopy(h.startsOn)
+                      ) : h.loggedToday ? (
+                        <>
+                          <CheckIcon aria-hidden className="mr-1 inline-block size-(--icon) align-[-0.15em]" />
+                          Logged today
+                        </>
+                      ) : (
+                        "Running"
+                      )}
                       {!h.startsOn && h.phaseLabel ? ` · ${h.phaseLabel}` : ""}
                     </div>
                     {statement(h)}
@@ -311,6 +323,7 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
                     <Link key={h.id} href={cta.href(h.id)} className="app-card" style={{ ...cardBase }}>
                       <div style={{ fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 10 }}>
                         {cta.text}
+                        <ArrowRightIcon aria-hidden className="ml-1 inline-block size-(--icon) align-[-0.15em]" />
                       </div>
                       {statement(h)}
                     </Link>
@@ -365,7 +378,8 @@ function EmptyState() {
           className="app-newhunch"
           style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "15px 26px", border: "1px solid var(--ink)", background: "var(--ink)", color: "var(--paper)", fontFamily: "'Space Mono',monospace", fontWeight: 700, fontSize: 13, letterSpacing: "0.14em", textTransform: "uppercase", textDecoration: "none" }}
         >
-          Drop your first hunch →
+          Drop your first hunch
+          <ArrowRightIcon aria-hidden className="size-(--icon)" />
         </Link>
       </motion.div>
 
@@ -381,7 +395,7 @@ function EmptyState() {
               className="app-card"
               style={{ ...cardBase, display: "flex", alignItems: "center", gap: 12, fontSize: 13.5 }}
             >
-              <span style={{ color: "var(--s1)" }}>✦</span>
+              <span aria-hidden style={{ color: "var(--s1)" }}>✦</span>
               {q}
             </Link>
           ))}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CheckIcon } from "lucide-react";
 import { twoFactor, useSession } from "@/lib/auth-client";
 
 /**
@@ -72,7 +73,14 @@ function BackupCodes({ codes, onDone }: { codes: string[]; onDone: () => void })
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 18 }}>
         <button type="button" onClick={copyAll} style={secondaryBtn}>
-          {copied ? "Copied ✓" : "Copy all"}
+          {copied ? (
+            <>
+              <CheckIcon aria-hidden className="mr-1.5 inline-block size-(--icon) align-[-0.15em]" />
+              Copied
+            </>
+          ) : (
+            "Copy all"
+          )}
         </button>
         <button type="button" onClick={download} style={secondaryBtn}>
           Download .txt

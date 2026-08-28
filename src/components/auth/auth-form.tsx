@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuthGaze } from "@/components/auth/auth-gaze";
 import { signIn, signUp } from "@/lib/auth-client";
+import { ArrowRightIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -111,7 +112,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           marginBottom: 14,
         }}
       >
-        <span style={{ color: "var(--s1)" }}>✦</span>{" "}
+        <span aria-hidden style={{ color: "var(--s1)" }}>✦</span>{" "}
         {isSignup ? "Start your first test" : "Welcome back"}
       </div>
 
@@ -245,7 +246,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
           disabled={loading}
           className="auth-submit mt-[18px] w-full border-none bg-ink py-4 text-[13px] tracking-[0.14em] text-paper"
         >
-          {loading ? "One moment…" : isSignup ? "Create account →" : "Sign in →"}
+          {loading ? "One moment…" : isSignup ? "Create account" : "Sign in"}
+          {!loading && <ArrowRightIcon data-icon="inline-end" aria-hidden />}
         </Button>
       </form>
 

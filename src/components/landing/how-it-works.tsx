@@ -150,7 +150,7 @@ export function HowItWorks() {
             marginBottom: "clamp(28px,4vh,48px)",
           }}
         >
-          <span style={{ color: "var(--s1)" }}>✦</span> How it works
+          <span aria-hidden style={{ color: "var(--s1)" }}>✦</span> How it works
         </Reveal>
 
         {/* cards */}

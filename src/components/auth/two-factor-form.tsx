@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { twoFactor } from "@/lib/auth-client";
+import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -106,7 +107,7 @@ export function TwoFactorForm() {
           marginBottom: 14,
         }}
       >
-        <span style={{ color: "var(--s1)" }}>✦</span> Security check
+        <span aria-hidden style={{ color: "var(--s1)" }}>✦</span> Security check
       </div>
 
       <h1
@@ -188,7 +189,8 @@ export function TwoFactorForm() {
           disabled={loading}
           className="auth-submit mt-5 w-full border-none bg-ink py-4 text-[13px] tracking-[0.14em] text-paper"
         >
-          {loading ? "Verifying…" : "Verify →"}
+          {loading ? "Verifying…" : "Verify"}
+          {!loading && <ArrowRightIcon data-icon="inline-end" aria-hidden />}
         </Button>
       </form>
 
@@ -218,7 +220,14 @@ export function TwoFactorForm() {
           className="auth-link"
           style={linkBtn}
         >
-          {backup ? "← Use email code" : "Use a backup code instead"}
+          {backup ? (
+            <>
+              <ArrowLeftIcon aria-hidden className="mr-1 inline-block size-(--icon) align-[-0.15em]" />
+              Use email code
+            </>
+          ) : (
+            "Use a backup code instead"
+          )}
         </button>
       </div>
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
 import { useState } from "react";
 import { useStartTrial } from "@/hooks/use-start-trial";
 import type { StartOn } from "@/lib/schedule";
@@ -178,18 +179,21 @@ export function ProtocolStepper({
           disabled={idx === 0}
           style={{ ...navBtn, background: "transparent", color: "var(--ink)", opacity: idx === 0 ? 0.3 : 1, cursor: idx === 0 ? "not-allowed" : "pointer" }}
         >
-          ← back
+          <ArrowLeftIcon aria-hidden className="mr-1.5 inline-block size-(--icon) align-[-0.15em]" />
+          back
         </button>
         <span style={{ fontFamily: mono, fontSize: 11, color: "var(--muted)" }}>
           phase {idx + 1} / {phases.length}
         </span>
         {last ? (
           <span aria-hidden style={{ ...navBtn, border: "1px solid transparent", visibility: "hidden" }}>
-            next →
+            next
+            <ArrowRightIcon aria-hidden className="ml-1.5 inline-block size-(--icon) align-[-0.15em]" />
           </span>
         ) : (
           <button type="button" onClick={() => go(idx + 1)} style={{ ...navBtn, border: "1px solid var(--ink)", background: "var(--ink)", color: "var(--paper)" }}>
-            next →
+            next
+            <ArrowRightIcon aria-hidden className="ml-1.5 inline-block size-(--icon) align-[-0.15em]" />
           </button>
         )}
       </div>
@@ -295,7 +299,14 @@ function StartBlock({
             opacity: pending ? 0.6 : 1,
           }}
         >
-          {pending ? "Starting…" : "Start today →"}
+          {pending ? (
+            "Starting…"
+          ) : (
+            <>
+              Start today
+              <ArrowRightIcon aria-hidden className="ml-1.5 inline-block size-(--icon) align-[-0.15em]" />
+            </>
+          )}
         </button>
         <button
           type="button"

@@ -36,7 +36,7 @@ export function MethodSection() {
           marginBottom: "clamp(22px,3vh,34px)",
         }}
       >
-        <span style={{ color: "var(--s1)" }}>✦</span> The method
+        <span aria-hidden style={{ color: "var(--s1)" }}>✦</span> The method
       </Reveal>
 
       {/* statement */}

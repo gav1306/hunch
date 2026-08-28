@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { MinusIcon, PlusIcon } from "lucide-react";
 import type { ParameterDraft } from "@/lib/schemas/parameter";
 
 const label: React.CSSProperties = {
@@ -168,7 +169,17 @@ export function ParameterEditor({
         onClick={() => setOpen((o) => !o)}
         style={{ ...ghostBtn, justifySelf: "start", color: "var(--s1)" }}
       >
-        {open ? "− things to track" : `＋ things to track${trackers.length ? ` (${trackers.length})` : ""}`}
+        {open ? (
+          <>
+            <MinusIcon aria-hidden className="mr-1.5 inline-block size-(--icon) align-[-0.15em]" />
+            things to track
+          </>
+        ) : (
+          <>
+            <PlusIcon aria-hidden className="mr-1.5 inline-block size-(--icon) align-[-0.15em]" />
+            things to track{trackers.length ? ` (${trackers.length})` : ""}
+          </>
+        )}
       </button>
 
       {open && (
@@ -199,7 +210,8 @@ export function ParameterEditor({
               }
               style={{ ...ghostBtn, justifySelf: "start" }}
             >
-              ＋ add another
+              <PlusIcon aria-hidden className="mr-1.5 inline-block size-(--icon) align-[-0.15em]" />
+              add another
             </button>
           )}
         </div>
