@@ -29,7 +29,7 @@ export async function GET(
       protocol: true,
       parameters: { orderBy: { sortOrder: "asc" } },
       checkIns: {
-        orderBy: { loggedAt: "asc" },
+        orderBy: { loggedOn: "asc" },
         include: { values: { select: { parameterId: true, value: true } } },
       },
     },
@@ -54,6 +54,10 @@ export async function GET(
     checkIns: hunch.checkIns.map((c) => ({
       phase: c.phase,
       loggedAt: c.loggedAt,
+      // The calendar day the entry belongs to — what the adherence strip keys
+      // on. `loggedAt` is the wall clock it was typed at, which is a different
+      // day either side of midnight.
+      loggedOn: c.loggedOn.toISOString(),
       values: c.values.map((v) => ({ parameterId: v.parameterId, value: v.value })),
     })),
     schedule,

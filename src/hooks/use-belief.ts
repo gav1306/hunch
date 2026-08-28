@@ -9,7 +9,13 @@ export type BeliefResponse = {
   belief: Belief;
   /** Everything logged daily; exactly one is primary. */
   parameters: Parameter[];
-  checkIns: { phase: string; loggedAt: string; values: { parameterId: string; value: number }[] }[];
+  checkIns: {
+    phase: string;
+    loggedAt: string;
+    /** UTC midnight of the day the entry is filed under. */
+    loggedOn: string;
+    values: { parameterId: string; value: number }[];
+  }[];
   schedule: PhaseStatus | null;
   /** The trial's anchor, or null if it has never been started. */
   startsOn: string | null;

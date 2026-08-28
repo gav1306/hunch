@@ -1,6 +1,7 @@
 "use client";
 
 import { use } from "react";
+import { AdherenceStrip } from "@/components/adherence-strip";
 import { BeliefMeter } from "@/components/belief-meter";
 import { CheckIn } from "@/components/check-in";
 import { AbandonHunch } from "@/components/hunch/abandon-hunch";
@@ -50,6 +51,16 @@ export default function HunchDashboard({ params }: { params: Promise<{ id: strin
     ) : (
       <div style={{ display: "grid", gap: 20 }}>
         <BeliefMeter belief={belief} />
+        {/* The days behind the meter. Without it, a five-day gap and a perfect
+            week look identical on every screen the app has. */}
+        {schedule?.started && startsOn && info.data?.protocol && (
+          <AdherenceStrip
+            startedAt={new Date(startsOn)}
+            design={info.data.protocol.design}
+            checkIns={query.data.checkIns}
+            parameters={parameters}
+          />
+        )}
         <CheckIn
           hunchId={id}
           schedule={schedule}

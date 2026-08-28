@@ -7,7 +7,12 @@ import { startDateFor } from "@/lib/schedule";
 
 const startInputSchema = z.object({
   startOn: z.enum(["today", "tomorrow"]).default("today"),
+  /** The browser's IANA zone, so reminders land at the user's own evening. */
+  timeZone: z.string().trim().min(1).max(64).optional(),
 });
+
+/** The hour a first trial switches reminders on at, in the user's own zone. */
+const DEFAULT_REMINDER_HOUR = 20;
 
 /**
  * Start a designed trial.
@@ -71,12 +76,50 @@ export async function POST(
 
   const startedAt = startDateFor(parsed.data.startOn);
 
+  // Starting a trial is agreeing to log every day for a fortnight or more, so
+  // it is also where daily reminders switch on — at 8pm in the user's own zone,
+  // changeable in security, with an unsubscribe in every email. Never for a
+  // user who has turned them off: `remindersOptOut` is the difference between
+  // "hasn't been asked" and "said no".
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { reminderHour: true, remindersOptOut: true },
+  });
+  const zone = parsed.data.timeZone;
+  const switchOnReminders = user !== null && user.reminderHour === null && !user.remindersOptOut;
+
   // One transaction: a hunch is never "running" without an anchor, and never
   // anchored without being "running".
   await db.$transaction([
     db.protocol.update({ where: { hunchId: hunch.id }, data: { startedAt } }),
     db.hunch.update({ where: { id: hunch.id }, data: { status: "running" } }),
+    db.user.update({
+      where: { id: session.user.id },
+      data: {
+        ...(switchOnReminders ? { reminderHour: DEFAULT_REMINDER_HOUR } : {}),
+        // The zone is worth recording either way — it is how the app knows
+        // which midnight a logged day belongs to.
+        ...(zone && isKnownZone(zone) ? { timeZone: zone } : {}),
+      },
+    }),
   ]);
 
-  return NextResponse.json({ startedAt, status: "running" }, { status: 200 });
+  return NextResponse.json(
+    {
+      startedAt,
+      status: "running",
+      remindersOn: switchOnReminders ? DEFAULT_REMINDER_HOUR : (user?.reminderHour ?? null),
+    },
+    { status: 200 },
+  );
+}
+
+/** Does this runtime recognise the zone? Anything else is not worth storing. */
+function isKnownZone(zone: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-GB", { timeZone: zone });
+    return true;
+  } catch {
+    return false;
+  }
 }
