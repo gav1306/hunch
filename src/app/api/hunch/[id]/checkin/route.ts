@@ -4,24 +4,24 @@ import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { computeBelief } from "@/lib/bayes";
 import { pickPrimary, primaryBeliefRows } from "@/lib/parameters";
-import { currentPhase } from "@/lib/schedule";
+import { currentPhase, utcMidnight, utcToday as utcTodayFrom } from "@/lib/schedule";
 import { checkInValuesInputSchema, validateParameterValue } from "@/lib/schemas/parameter";
 import type { ParameterType } from "@/lib/schemas/parameter";
 import { parseStoredDesign } from "@/lib/schemas/protocol";
 
-/** UTC calendar date (midnight) for today — the per-day check-in bucket. */
-function utcToday(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-}
-
 /**
- * Phase 4: log today's readings. The server derives the phase from the schedule
+ * Phase 4: log a day's readings. The server derives the phase from the schedule
  * (never trusts the client), refuses washout / pre-start / post-end days, and
  * upserts one CheckIn bucket per UTC day with one CheckInValue per parameter the
  * client sent. Partial payloads are fine; every value is validated against its
  * own parameter before anything is written. Returns the recomputed belief (from
  * the primary parameter only) so the meter narrows immediately.
+ *
+ * `loggedOn` names an earlier day, for the corrections the adherence strip
+ * offers: a reading typed wrong, or a day filled in the morning after. It
+ * changes which day is written, never whether the day is loggable — a rest day
+ * and a day before the trial began are still refused, and the phase is still
+ * the one the schedule puts that date in rather than today's.
  */
 export async function POST(
   request: Request,
@@ -65,16 +65,41 @@ export async function POST(
     }
   }
 
+  const today = utcTodayFrom();
+  let loggedOn = today;
+  if (parsed.data.loggedOn !== undefined) {
+    const asked = new Date(parsed.data.loggedOn);
+    if (Number.isNaN(asked.getTime())) {
+      return NextResponse.json({ error: "That isn't a date we can read." }, { status: 400 });
+    }
+    loggedOn = utcMidnight(asked);
+    if (loggedOn.getTime() > today.getTime()) {
+      return NextResponse.json(
+        { error: "That day hasn't happened yet." },
+        { status: 409 },
+      );
+    }
+    if (loggedOn.getTime() < utcMidnight(hunch.protocol.startedAt).getTime()) {
+      return NextResponse.json(
+        { error: "That day is before this trial started." },
+        { status: 409 },
+      );
+    }
+  }
+
   const design = parseStoredDesign(hunch.protocol.design, hunch.hypothesis.outcomeMetric);
-  const status = currentPhase(hunch.protocol.startedAt, design, new Date());
+  const status = currentPhase(hunch.protocol.startedAt, design, loggedOn);
   if (status.done) {
     return NextResponse.json({ error: "This trial is complete." }, { status: 409 });
   }
   if (status.washout || status.phase === null) {
-    return NextResponse.json({ error: "Today is a rest day — nothing to log." }, { status: 409 });
+    const which = loggedOn.getTime() === today.getTime() ? "Today is" : "That was";
+    return NextResponse.json(
+      { error: `${which} a rest day — nothing to log.` },
+      { status: 409 },
+    );
   }
 
-  const loggedOn = utcToday();
   const checkIn = await db.checkIn.upsert({
     where: { hunchId_loggedOn: { hunchId: hunch.id, loggedOn } },
     create: { hunchId: hunch.id, phase: status.phase, loggedOn },

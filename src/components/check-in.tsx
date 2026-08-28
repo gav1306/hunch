@@ -58,6 +58,9 @@ const rest: React.CSSProperties = {
  *   trial can be in that aren't "log today" (not started, rest day, finished).
  * - `compact` — the primary parameter alone, inline in a home card. Home has
  *   already decided the hunch is loggable, so this shape renders no gates.
+ * - `correction` — every parameter for a day that isn't today, from the
+ *   adherence strip. The server decides whether that day can be written to; the
+ *   shape only names which one is meant.
  *
  * Same validation, same copy, same promise in both.
  */
@@ -65,6 +68,7 @@ export function CheckIn({
   hunchId,
   parameters,
   variant = "full",
+  loggedOn,
   schedule,
   phaseAction,
   startsOn,
@@ -75,7 +79,9 @@ export function CheckIn({
   hunchId: string;
   /** Everything this hunch tracks; exactly one is primary. */
   parameters: LoggableParameter[];
-  variant?: "full" | "compact";
+  variant?: "full" | "compact" | "correction";
+  /** ISO day being corrected. `correction` only; today is the default. */
+  loggedOn?: string;
   /** Required by `full`, which gates on it. `compact` never reads it. */
   schedule?: PhaseStatus | null;
   /** Today's phase instruction from the protocol, if available. */
@@ -94,8 +100,9 @@ export function CheckIn({
   const [problem, setProblem] = useState<string | null>(null);
 
   const compact = variant === "compact";
+  const correction = variant === "correction";
 
-  if (!compact) {
+  if (!compact && !correction) {
     if (!schedule || !schedule.started) {
       return (
         <NotStartedYet
@@ -115,7 +122,7 @@ export function CheckIn({
   }
 
   if (parameters.length === 0) {
-    return compact ? null : (
+    return compact || correction ? null : (
       <p style={rest}>Nothing to log — this hunch has no measures yet.</p>
     );
   }
@@ -154,7 +161,7 @@ export function CheckIn({
       return;
     }
     setProblem(null);
-    checkIn.mutate(values, { onSuccess: () => onLogged?.() });
+    checkIn.mutate({ values, loggedOn }, { onSuccess: () => onLogged?.() });
   }
 
   const notices = (
@@ -176,7 +183,7 @@ export function CheckIn({
           }}
         >
           <CheckIcon aria-hidden className="size-(--icon)" />
-          Logged — log again to change today&apos;s entry.
+          {correction ? "Saved." : "Logged — log again to change today\u2019s entry."}
         </p>
       )}
       {checkIn.isError && (
@@ -278,13 +285,13 @@ export function CheckIn({
           disabled={disabled}
           className="justify-self-start border-ink bg-ink text-paper"
         >
-          {compact ? "Log" : "Log today"}
+          {compact ? "Log" : correction ? "Save this day" : "Log today"}
         </Button>
       )}
     </form>
   );
 
-  if (compact) {
+  if (compact || correction) {
     return (
       <div>
         {form}

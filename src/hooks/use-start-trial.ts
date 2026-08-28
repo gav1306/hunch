@@ -3,13 +3,29 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { StartOn } from "@/lib/schedule";
 
-export type StartTrialResponse = { startedAt: string; status: "running" };
+export type StartTrialResponse = {
+  startedAt: string;
+  status: "running";
+  /** The hour reminders now go out at, or null if the user has them off. */
+  remindersOn: number | null;
+};
+
+/** The browser's own zone, when it will tell us. */
+function browserZone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 async function postStart(hunchId: string, startOn: StartOn): Promise<StartTrialResponse> {
   const res = await fetch(`/api/hunch/${hunchId}/start`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ startOn }),
+    // The zone rides along with the start: the user chose "8pm", and which 8pm
+    // that is should not be a question they have to answer.
+    body: JSON.stringify({ startOn, timeZone: browserZone() }),
   });
   const body = await res.json();
   if (!res.ok) {

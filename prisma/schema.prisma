@@ -142,6 +142,20 @@ model User {
   twoFactorEnabled Boolean?    @default(false)
   twofactors       TwoFactor[]
 
+  /// Local hour (0-23) the daily reminder goes out. Null means reminders off,
+  /// which is every account's state until it starts its first trial.
+  reminderHour   Int?
+  /// The IANA zone `reminderHour` is read in. Captured from the browser when
+  /// the user starts a trial or edits the setting; UTC until then.
+  timeZone       String    @default("UTC")
+  /// The user's local calendar date the last reminder went out for. The hourly
+  /// sweep is at-least-once, so this is what stops a second copy.
+  lastReminderOn DateTime? @db.Date
+  /// Set when the user turns reminders off themselves. Distinguishes "never
+  /// had them" — which starting a trial switches on — from "said no", which
+  /// nothing may switch back on.
+  remindersOptOut Boolean  @default(false)
+
   @@unique([email])
   @@map("user")
 }

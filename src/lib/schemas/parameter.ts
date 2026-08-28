@@ -56,6 +56,13 @@ export const checkInValuesInputSchema = z.object({
   values: z
     .array(z.object({ parameterId: z.string().min(1), value: z.number() }))
     .min(1),
+  /**
+   * The day being logged, when it isn't today. Sent as an ISO date by the
+   * adherence strip when the user corrects an entry they got wrong or filled in
+   * a day they missed. The server still decides whether that day is loggable —
+   * this only says which one is meant.
+   */
+  loggedOn: z.iso.datetime().optional(),
 });
 export type CheckInValuesInput = z.infer<typeof checkInValuesInputSchema>;
 

@@ -6,6 +6,7 @@ vi.mock("@/lib/db", () => ({
   db: {
     hunch: { findFirst: vi.fn(), update: vi.fn(() => "hunch-update") },
     protocol: { update: vi.fn(() => "protocol-update") },
+    user: { findUnique: vi.fn(), update: vi.fn(() => "user-update") },
     $transaction: vi.fn(async () => []),
   },
 }));
@@ -33,6 +34,11 @@ describe("POST /api/hunch/[id]/start", () => {
     vi.clearAllMocks();
     vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "u1" } } as never);
     vi.mocked(db.hunch.findFirst).mockResolvedValue(designed as never);
+    // A user who has never been offered reminders — the first-trial case.
+    vi.mocked(db.user.findUnique).mockResolvedValue({
+      reminderHour: null,
+      remindersOptOut: false,
+    } as never);
   });
 
   it("rejects a signed-out caller", async () => {
@@ -96,8 +102,50 @@ describe("POST /api/hunch/[id]/start", () => {
       where: { id: "h1" },
       data: { status: "running" },
     });
-    // Anchor and status move together or not at all.
-    expect(db.$transaction).toHaveBeenCalledWith(["protocol-update", "hunch-update"]);
+    // Anchor, status and the reminder switch move together or not at all.
+    expect(db.$transaction).toHaveBeenCalledWith([
+      "protocol-update",
+      "hunch-update",
+      "user-update",
+    ]);
+  });
+
+  it("switches daily reminders on for a user who has never had them", async () => {
+    const res = await POST(req({ startOn: "today", timeZone: "Asia/Kolkata" }), params);
+    expect((await res.json()).remindersOn).toBe(20);
+    expect(db.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { reminderHour: 20, timeZone: "Asia/Kolkata" },
+      }),
+    );
+  });
+
+  it("leaves reminders alone for a user who turned them off", async () => {
+    vi.mocked(db.user.findUnique).mockResolvedValue({
+      reminderHour: null,
+      remindersOptOut: true,
+    } as never);
+    const res = await POST(req({ startOn: "today" }), params);
+    expect((await res.json()).remindersOn).toBeNull();
+    expect(db.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: {} }),
+    );
+  });
+
+  it("keeps an hour the user already chose", async () => {
+    vi.mocked(db.user.findUnique).mockResolvedValue({
+      reminderHour: 7,
+      remindersOptOut: false,
+    } as never);
+    const res = await POST(req({ startOn: "today" }), params);
+    expect((await res.json()).remindersOn).toBe(7);
+  });
+
+  it("ignores a timezone the runtime doesn't recognise", async () => {
+    await POST(req({ startOn: "today", timeZone: "Not/AZone" }), params);
+    expect(db.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { reminderHour: 20 } }),
+    );
   });
 
   it("anchors a 'tomorrow' start one day ahead", async () => {
