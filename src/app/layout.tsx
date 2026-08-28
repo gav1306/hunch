@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
+import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
   title: "Hunch",
@@ -25,6 +26,9 @@ export default function RootLayout({
     <html lang="en" className="dark h-full antialiased">
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
+        {/* One toaster for the app, mounted once at the root: a security
+            change or a saved draft says so wherever it happens. */}
+        <Toaster position="bottom-center" />
       </body>
     </html>
   );

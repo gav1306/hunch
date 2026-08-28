@@ -66,7 +66,7 @@ function RotatingHunch() {
           marginBottom: 16,
         }}
       >
-        Testing right now <span style={{ color: "var(--s1)" }}>✦</span>
+        Testing right now <span aria-hidden style={{ color: "var(--s1)" }}>✦</span>
       </div>
       <div
         style={{

@@ -5,55 +5,22 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuthGaze } from "@/components/auth/auth-gaze";
 import { authClient } from "@/lib/auth-client";
+import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  marginBottom: 8,
-  fontSize: 10.5,
-  letterSpacing: "0.16em",
-  textTransform: "uppercase",
-  color: "var(--muted)",
-};
+/** Uppercase mono, at the 12px readable floor rather than the old 10.5px. */
+const LABEL_CLASS = "text-xs uppercase tracking-[0.16em] text-muted-foreground";
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "13px 15px",
-  background: "color-mix(in srgb, var(--paper) 90%, var(--ink))",
-  border: "1px solid var(--rule)",
-  color: "var(--ink)",
-  fontFamily: "'Space Mono',monospace",
-  fontSize: 14,
-};
-
-function submitStyle(enabled: boolean): React.CSSProperties {
-  return {
-    width: "100%",
-    marginTop: 18,
-    padding: "15px 24px",
-    border: "none",
-    cursor: enabled ? "pointer" : "not-allowed",
-    fontFamily: "'Space Mono',monospace",
-    fontWeight: 700,
-    fontSize: 13,
-    letterSpacing: "0.14em",
-    textTransform: "uppercase",
-    color: "var(--paper)",
-    background: "var(--ink)",
-    opacity: enabled ? 1 : 0.5,
-    transition: "opacity 200ms ease, filter 200ms ease",
-  };
-}
-
-/** The rest of the auth inputs set `outline: none` with no replacement, which
- *  leaves a keyboard user with nothing to follow. These new ones don't. */
-const focusRing = `
-  .reset-field:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
-`;
+/** The full-width filled submit these three forms share. */
+const SUBMIT_CLASS =
+  "auth-submit mt-[18px] w-full border-none bg-ink py-4 text-[13px] tracking-[0.14em] text-paper";
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ fontSize: 11, letterSpacing: "0.24em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 14 }}>
-      <span style={{ color: "var(--s1)" }}>✦</span> {children}
+      <span aria-hidden style={{ color: "var(--s1)" }}>✦</span> {children}
     </div>
   );
 }
@@ -92,12 +59,24 @@ export function ForgotPasswordForm() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [touched, setTouched] = useState(false);
 
-  const valid = email.includes("@");
+  const problem =
+    email.trim() === ""
+      ? "Your email address, so we know where to send it."
+      : email.includes("@")
+        ? null
+        : "That doesn't look like an email address.";
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!valid || loading) return;
+    if (loading) return;
+    // Enabled while incomplete, so pressing it explains rather than refuses.
+    if (problem) {
+      setTouched(true);
+      document.getElementById("email")?.focus();
+      return;
+    }
     setError(null);
     setLoading(true);
 
@@ -124,7 +103,8 @@ export function ForgotPasswordForm() {
           and expires in an hour.
         </Blurb>
         <Link href="/signin" className="auth-link" style={{ fontSize: 12.5, color: "var(--ink)", textDecoration: "none" }}>
-          ← Back to sign in
+          <ArrowLeftIcon aria-hidden className="mr-1 inline-block size-(--icon) align-[-0.15em]" />
+          Back to sign in
         </Link>
       </div>
     );
@@ -132,32 +112,41 @@ export function ForgotPasswordForm() {
 
   return (
     <div>
-      <style>{focusRing}</style>
       <Eyebrow>Locked out</Eyebrow>
       <Heading>Reset your password</Heading>
       <Blurb>Tell us the address on the account and we&apos;ll email you a link.</Blurb>
 
       <form onSubmit={onSubmit} noValidate>
-        <div style={{ marginBottom: 10 }}>
-          <label htmlFor="email" style={labelStyle}>Email</label>
-          <input
-            id="email"
-            className="reset-field"
-            type="email"
-            autoComplete="email"
-            autoFocus
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@email.com"
-            style={inputStyle}
-          />
-        </div>
+        <FieldGroup className="gap-4">
+          <Field data-invalid={touched && problem ? true : undefined}>
+            <FieldLabel htmlFor="email" className={LABEL_CLASS}>
+              Email
+            </FieldLabel>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              autoFocus
+              value={email}
+              aria-invalid={touched && problem ? true : undefined}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setTouched(false);
+              }}
+              onBlur={() => setTouched(true)}
+              placeholder="you@email.com"
+              className="font-mono"
+            />
+            <FieldError className="text-xs">{touched ? problem : null}</FieldError>
+          </Field>
+        </FieldGroup>
 
         {error && <ErrorNote>{error}</ErrorNote>}
 
-        <button type="submit" disabled={!valid || loading} className="auth-submit" style={submitStyle(valid && !loading)}>
-          {loading ? "Sending…" : "Email me a link →"}
-        </button>
+        <Button type="submit" variant="brand" size="touch" disabled={loading} className={SUBMIT_CLASS}>
+          {loading ? "Sending…" : "Email me a link"}
+          {!loading && <ArrowRightIcon data-icon="inline-end" aria-hidden />}
+        </Button>
       </form>
 
       <div style={{ marginTop: 24, fontSize: 12.5, color: "var(--muted)" }}>
@@ -184,9 +173,28 @@ export function ResetPasswordForm({ token }: { token: string | null }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const tooShort = password.length > 0 && password.length < 8;
-  const mismatch = confirm.length > 0 && confirm !== password;
-  const valid = password.length >= 8 && confirm === password;
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const problems = {
+    password:
+      password.length === 0
+        ? "A new password, at least 8 characters."
+        : password.length < 8
+          ? `That's ${8 - password.length} characters short.`
+          : null,
+    confirm:
+      confirm.length === 0
+        ? "Type it a second time so a typo can't lock you out."
+        : confirm !== password
+          ? "These two don't match yet."
+          : null,
+  };
+  // The short-password count is worth seeing as it's typed; the rest waits for
+  // the user to leave the field.
+  const shown = (field: keyof typeof problems) =>
+    touched[field] || (field === "password" && password.length > 0)
+      ? problems[field]
+      : null;
 
   if (!token) {
     return (
@@ -198,7 +206,8 @@ export function ResetPasswordForm({ token }: { token: string | null }) {
           be in your inbox in a moment.
         </Blurb>
         <Link href="/forgot-password" className="auth-link" style={{ fontSize: 12.5, color: "var(--ink)", textDecoration: "none" }}>
-          Send a new link →
+          Send a new link
+          <ArrowRightIcon aria-hidden className="ml-1 inline-block size-(--icon) align-[-0.15em]" />
         </Link>
       </div>
     );
@@ -206,7 +215,13 @@ export function ResetPasswordForm({ token }: { token: string | null }) {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!valid || loading) return;
+    if (loading) return;
+    const firstBad = (["password", "confirm"] as const).find((f) => problems[f]);
+    if (firstBad) {
+      setTouched({ password: true, confirm: true });
+      document.getElementById(firstBad)?.focus();
+      return;
+    }
     setError(null);
     setLoading(true);
 
@@ -223,7 +238,6 @@ export function ResetPasswordForm({ token }: { token: string | null }) {
 
   return (
     <div>
-      <style>{focusRing}</style>
       <Eyebrow>Almost there</Eyebrow>
       <Heading>Pick a new password</Heading>
       <Blurb>
@@ -232,46 +246,62 @@ export function ResetPasswordForm({ token }: { token: string | null }) {
       </Blurb>
 
       <form onSubmit={onSubmit} noValidate>
-        <div style={{ marginBottom: 16 }}>
-          <label htmlFor="password" style={labelStyle}>New password</label>
-          <input
-            id="password"
-            className="reset-field"
-            type="password"
-            autoComplete="new-password"
-            autoFocus
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onFocus={() => setPasswordFocused(true)}
-            onBlur={() => setPasswordFocused(false)}
-            placeholder="At least 8 characters"
-            style={inputStyle}
-          />
-          {tooShort && <ErrorNote>That&apos;s {8 - password.length} characters short.</ErrorNote>}
-        </div>
+        <FieldGroup className="gap-4">
+          <Field data-invalid={shown("password") ? true : undefined}>
+            <FieldLabel htmlFor="password" className={LABEL_CLASS}>
+              New password
+            </FieldLabel>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="new-password"
+              autoFocus
+              value={password}
+              aria-invalid={shown("password") ? true : undefined}
+              onChange={(e) => setPassword(e.target.value)}
+              onFocus={() => setPasswordFocused(true)}
+              onBlur={() => {
+                setPasswordFocused(false);
+                setTouched((t) => ({ ...t, password: true }));
+              }}
+              placeholder="At least 8 characters"
+              className="font-mono"
+            />
+            <FieldError className="text-xs">{shown("password")}</FieldError>
+          </Field>
 
-        <div style={{ marginBottom: 10 }}>
-          <label htmlFor="confirm" style={labelStyle}>Again</label>
-          <input
-            id="confirm"
-            className="reset-field"
-            type="password"
-            autoComplete="new-password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            onFocus={() => setPasswordFocused(true)}
-            onBlur={() => setPasswordFocused(false)}
-            placeholder="The same one"
-            style={inputStyle}
-          />
-          {mismatch && <ErrorNote>These two don&apos;t match yet.</ErrorNote>}
-        </div>
+          <Field data-invalid={shown("confirm") ? true : undefined}>
+            <FieldLabel htmlFor="confirm" className={LABEL_CLASS}>
+              Again
+            </FieldLabel>
+            <Input
+              id="confirm"
+              type="password"
+              autoComplete="new-password"
+              value={confirm}
+              aria-invalid={shown("confirm") ? true : undefined}
+              onChange={(e) => {
+                setConfirm(e.target.value);
+                setTouched((t) => ({ ...t, confirm: false }));
+              }}
+              onFocus={() => setPasswordFocused(true)}
+              onBlur={() => {
+                setPasswordFocused(false);
+                setTouched((t) => ({ ...t, confirm: true }));
+              }}
+              placeholder="The same one"
+              className="font-mono"
+            />
+            <FieldError className="text-xs">{shown("confirm")}</FieldError>
+          </Field>
+        </FieldGroup>
 
         {error && <ErrorNote>{error}</ErrorNote>}
 
-        <button type="submit" disabled={!valid || loading} className="auth-submit" style={submitStyle(valid && !loading)}>
-          {loading ? "Saving…" : "Set new password →"}
-        </button>
+        <Button type="submit" variant="brand" size="touch" disabled={loading} className={SUBMIT_CLASS}>
+          {loading ? "Saving…" : "Set new password"}
+          {!loading && <ArrowRightIcon data-icon="inline-end" aria-hidden />}
+        </Button>
       </form>
     </div>
   );

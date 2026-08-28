@@ -37,7 +37,7 @@ function Chip({ q, tag }: { q: string; tag: string }) {
         whiteSpace: "nowrap",
       }}
     >
-      <span style={{ color: "var(--s1)" }}>✦</span>
+      <span aria-hidden style={{ color: "var(--s1)" }}>✦</span>
       {q}
       <span
         style={{
@@ -100,7 +100,7 @@ export function HunchTicker() {
             color: "var(--muted)",
           }}
         >
-          <span style={{ color: "var(--s1)" }}>✦</span> What people are testing
+          <span aria-hidden style={{ color: "var(--s1)" }}>✦</span> What people are testing
           right now
         </div>
 

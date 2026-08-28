@@ -200,7 +200,7 @@ export function HeroSection({
         ...reveal(0),
       }}
     >
-      <span style={{ color: "var(--s1)" }}>✦</span> Field Log · A test of one
+      <span aria-hidden style={{ color: "var(--s1)" }}>✦</span> Field Log · A test of one
     </div>
   );
 

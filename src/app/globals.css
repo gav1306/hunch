@@ -89,6 +89,10 @@
   --radius-sheet: 20px;
   --radius: var(--radius-card);
 
+  /* One icon size for the app's inline icons. The glyphs they replace were
+     sized by whatever font-size they happened to inherit. */
+  --icon: 14px;
+
   /* shadcn component tokens, pointed at the brand. */
   --background: var(--paper);
   --foreground: var(--ink);

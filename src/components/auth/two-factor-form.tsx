@@ -3,27 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { twoFactor } from "@/lib/auth-client";
+import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  marginBottom: 8,
-  fontSize: 10.5,
-  letterSpacing: "0.16em",
-  textTransform: "uppercase",
-  color: "var(--muted)",
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "13px 15px",
-  background: "color-mix(in srgb, var(--paper) 90%, var(--ink))",
-  border: "1px solid var(--rule)",
-  color: "var(--ink)",
-  fontFamily: "'Space Mono',monospace",
-  fontSize: 18,
-  letterSpacing: "0.3em",
-  outline: "none",
-};
+/** Uppercase mono, at the 12px readable floor rather than the old 10.5px. */
+const LABEL_CLASS = "text-xs uppercase tracking-[0.16em] text-muted-foreground";
 
 export function TwoFactorForm() {
   const router = useRouter();
@@ -75,11 +61,25 @@ export function TwoFactorForm() {
     setCooldown(30);
   }
 
-  const valid = backup ? code.trim().length > 0 : code.trim().length === 6;
+  const [touched, setTouched] = useState(false);
+  const problem = backup
+    ? code.trim().length > 0
+      ? null
+      : "Enter one of the backup codes you saved."
+    : code.trim().length === 6
+      ? null
+      : "The emailed code is 6 digits.";
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!valid || loading) return;
+    if (loading) return;
+    // Enabled while the code is short: pressing it says what's missing rather
+    // than sitting there greyed out.
+    if (problem) {
+      setTouched(true);
+      document.getElementById("code")?.focus();
+      return;
+    }
     setError(null);
     setLoading(true);
 
@@ -107,7 +107,7 @@ export function TwoFactorForm() {
           marginBottom: 14,
         }}
       >
-        <span style={{ color: "var(--s1)" }}>✦</span> Security check
+        <span aria-hidden style={{ color: "var(--s1)" }}>✦</span> Security check
       </div>
 
       <h1
@@ -131,22 +131,28 @@ export function TwoFactorForm() {
       </p>
 
       <form onSubmit={onSubmit} noValidate>
-        <label htmlFor="code" style={labelStyle}>
-          {backup ? "Backup code" : "Email code"}
-        </label>
-        <input
-          id="code"
-          type="text"
-          inputMode={backup ? "text" : "numeric"}
-          autoComplete="one-time-code"
-          value={code}
-          onChange={(e) =>
-            setCode(backup ? e.target.value : e.target.value.replace(/\D/g, "").slice(0, 6))
-          }
-          placeholder={backup ? "xxxxxxxxxx" : "000000"}
-          autoFocus
-          style={inputStyle}
-        />
+        <Field data-invalid={touched && problem ? true : undefined}>
+          <FieldLabel htmlFor="code" className={LABEL_CLASS}>
+            {backup ? "Backup code" : "Email code"}
+          </FieldLabel>
+          <Input
+            id="code"
+            type="text"
+            inputMode={backup ? "text" : "numeric"}
+            autoComplete="one-time-code"
+            value={code}
+            aria-invalid={touched && problem ? true : undefined}
+            onChange={(e) => {
+              setCode(backup ? e.target.value : e.target.value.replace(/\D/g, "").slice(0, 6));
+              setTouched(false);
+            }}
+            onBlur={() => setTouched(true)}
+            placeholder={backup ? "xxxxxxxxxx" : "000000"}
+            autoFocus
+            className="font-mono text-lg tracking-[0.3em]"
+          />
+          <FieldError className="text-xs">{touched ? problem : null}</FieldError>
+        </Field>
 
         {!backup && (
           <label
@@ -176,29 +182,16 @@ export function TwoFactorForm() {
           </div>
         )}
 
-        <button
+        <Button
           type="submit"
-          disabled={!valid || loading}
-          className="auth-submit"
-          style={{
-            width: "100%",
-            marginTop: 20,
-            padding: "15px 24px",
-            border: "none",
-            cursor: valid && !loading ? "pointer" : "not-allowed",
-            fontFamily: "'Space Mono',monospace",
-            fontWeight: 700,
-            fontSize: 13,
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-            color: "var(--paper)",
-            background: "var(--ink)",
-            opacity: valid && !loading ? 1 : 0.5,
-            transition: "opacity 200ms ease, filter 200ms ease",
-          }}
+          variant="brand"
+          size="touch"
+          disabled={loading}
+          className="auth-submit mt-5 w-full border-none bg-ink py-4 text-[13px] tracking-[0.14em] text-paper"
         >
-          {loading ? "Verifying…" : "Verify →"}
-        </button>
+          {loading ? "Verifying…" : "Verify"}
+          {!loading && <ArrowRightIcon data-icon="inline-end" aria-hidden />}
+        </Button>
       </form>
 
       <div style={{ marginTop: 24, display: "flex", gap: 18, flexWrap: "wrap" }}>
@@ -227,7 +220,14 @@ export function TwoFactorForm() {
           className="auth-link"
           style={linkBtn}
         >
-          {backup ? "← Use email code" : "Use a backup code instead"}
+          {backup ? (
+            <>
+              <ArrowLeftIcon aria-hidden className="mr-1 inline-block size-(--icon) align-[-0.15em]" />
+              Use email code
+            </>
+          ) : (
+            "Use a backup code instead"
+          )}
         </button>
       </div>
     </div>

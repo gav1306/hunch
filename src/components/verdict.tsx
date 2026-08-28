@@ -1,6 +1,7 @@
 "use client";
 
 import { BeliefMeter } from "@/components/belief-meter";
+import { CheckIcon, XIcon } from "lucide-react";
 import { useVerdict } from "@/hooks/use-verdict";
 import type { Belief } from "@/lib/schemas/belief";
 import type { Verdict } from "@/lib/schemas/verdict";
@@ -18,9 +19,12 @@ const label: React.CSSProperties = {
  * here but both --s1 on home, so the same result read two ways depending on the
  * screen. The word carries the meaning; the colour only agrees with it.
  */
-const HEADLINE: Record<Verdict["category"], { title: string; tone: string }> = {
-  helped: { title: "It helped ✓", tone: "var(--good)" },
-  hurt: { title: "It hurt ✗", tone: "var(--bad)" },
+const HEADLINE: Record<
+  Verdict["category"],
+  { title: string; tone: string; Icon?: typeof CheckIcon }
+> = {
+  helped: { title: "It helped", tone: "var(--good)", Icon: CheckIcon },
+  hurt: { title: "It hurt", tone: "var(--bad)", Icon: XIcon },
   inconclusive_no_effect: { title: "No detectable effect", tone: "var(--neutral)" },
   inconclusive_insufficient: { title: "Not enough data", tone: "var(--neutral)" },
 };
@@ -66,8 +70,9 @@ export function VerdictView({ hunchId }: { hunchId: string }) {
     >
       <div>
         <p style={label}>Verdict</p>
-        <h2 style={{ margin: "8px 0 0", fontFamily: "'Clash Display',sans-serif", fontWeight: 700, fontSize: "clamp(26px,4vw,36px)", letterSpacing: "-0.02em", color: head.tone }}>
+        <h2 style={{ margin: "8px 0 0", display: "flex", alignItems: "center", gap: 10, fontFamily: "'Clash Display',sans-serif", fontWeight: 700, fontSize: "clamp(26px,4vw,36px)", letterSpacing: "-0.02em", color: head.tone }}>
           {head.title}
+          {head.Icon && <head.Icon aria-hidden className="size-[0.8em]" strokeWidth={2.5} />}
         </h2>
       </div>
       <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, color: "var(--ink)", overflowWrap: "anywhere" }}>{v.narrative}</p>

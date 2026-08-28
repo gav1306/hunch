@@ -338,7 +338,7 @@ function Card({ belief, shown }: { belief: number; shown: boolean }) {
             "opacity 600ms ease 1000ms, transform 700ms cubic-bezier(.16,.9,.24,1) 1000ms",
         }}
       >
-        <span style={{ color: "var(--s1)" }}>✦</span> Verified · One hunch down,
+        <span aria-hidden style={{ color: "var(--s1)" }}>✦</span> Verified · One hunch down,
         the next one’s waiting
       </div>
     </div>

@@ -18,6 +18,12 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
+        // Hunch's own button: mono, uppercase, letterspaced, filling with --s1
+        // on hover. Every screen already draws this shape by hand in inline
+        // styles; it lives here so the screen migration is a swap, not a
+        // redesign.
+        brand:
+          "border-ink bg-transparent font-mono text-ink uppercase tracking-[0.12em] hover:border-primary hover:bg-primary hover:text-primary-foreground",
       },
       size: {
         default:
@@ -31,6 +37,11 @@ const buttonVariants = cva(
         "icon-sm":
           "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
         "icon-lg": "size-9",
+        // 44px: the floor for anything a thumb aims at. The registry sizes top
+        // out at 36px, which is what the audit found under every primary
+        // action in the app.
+        touch: "h-11 gap-2 rounded-[var(--radius-control)] px-4 text-xs",
+        "icon-touch": "size-11 rounded-[var(--radius-control)]",
       },
     },
     defaultVariants: {

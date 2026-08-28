@@ -5,30 +5,41 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuthGaze } from "@/components/auth/auth-gaze";
 import { signIn, signUp } from "@/lib/auth-client";
+import { ArrowRightIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 
 const REDIRECT = "/home";
 
 type Mode = "signin" | "signup";
 
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  marginBottom: 8,
-  fontSize: 10.5,
-  letterSpacing: "0.16em",
-  textTransform: "uppercase",
-  color: "var(--muted)",
-};
+/** Uppercase mono, at the 12px readable floor rather than the old 10.5px. */
+const LABEL_CLASS = "text-xs uppercase tracking-[0.16em] text-muted-foreground";
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "13px 15px",
-  background: "color-mix(in srgb, var(--paper) 90%, var(--ink))",
-  border: "1px solid var(--rule)",
-  color: "var(--ink)",
-  fontFamily: "'Space Mono',monospace",
-  fontSize: 14,
-  outline: "none",
-};
+/**
+ * What's wrong with one field, in the words the user needs — or null.
+ *
+ * Checked per field rather than as one `valid` boolean so the form can say
+ * which field is the problem instead of greying out the submit and leaving the
+ * user to guess.
+ */
+function problemWith(field: "name" | "email" | "password", value: string): string | null {
+  if (field === "name") {
+    return value.trim().length > 0 ? null : "Tell us what to call you.";
+  }
+  if (field === "email") {
+    if (value.trim() === "") return "Your email address, so we know it's you.";
+    return value.includes("@") ? null : "That doesn't look like an email address.";
+  }
+  if (value === "") return "A password, at least 8 characters.";
+  return value.length >= 8 ? null : "Passwords need at least 8 characters.";
+}
 
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
@@ -40,15 +51,32 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // A field's problem is shown once the user has left it, or once they have
+  // tried to submit. Typing into a field clears its complaint immediately.
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
-  const valid =
-    email.includes("@") &&
-    password.length >= 8 &&
-    (!isSignup || name.trim().length > 0);
+  const problems = {
+    name: isSignup ? problemWith("name", name) : null,
+    email: problemWith("email", email),
+    password: problemWith("password", password),
+  };
+  const shown = (field: keyof typeof problems) =>
+    touched[field] ? problems[field] : null;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!valid || loading) return;
+    if (loading) return;
+
+    // The submit button stays enabled when the form is incomplete: a disabled
+    // button is a refusal with no reason attached. Pressing it names every
+    // problem at once and moves focus to the first one.
+    const firstBad = (["name", "email", "password"] as const).find((f) => problems[f]);
+    if (firstBad) {
+      setTouched({ name: true, email: true, password: true });
+      document.getElementById(firstBad)?.focus();
+      return;
+    }
+
     setError(null);
     setLoading(true);
 
@@ -84,7 +112,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           marginBottom: 14,
         }}
       >
-        <span style={{ color: "var(--s1)" }}>✦</span>{" "}
+        <span aria-hidden style={{ color: "var(--s1)" }}>✦</span>{" "}
         {isSignup ? "Start your first test" : "Welcome back"}
       </div>
 
@@ -114,57 +142,79 @@ export function AuthForm({ mode }: { mode: Mode }) {
       </p>
 
       <form onSubmit={onSubmit} noValidate>
-        {isSignup && (
-          <div style={{ marginBottom: 16 }}>
-            <label htmlFor="name" style={labelStyle}>
-              Name
-            </label>
-            <input
-              id="name"
-              type="text"
-              autoComplete="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Ada"
-              style={inputStyle}
+        <FieldGroup className="gap-4">
+          {isSignup && (
+            <Field data-invalid={shown("name") ? true : undefined}>
+              <FieldLabel htmlFor="name" className={LABEL_CLASS}>
+                Name
+              </FieldLabel>
+              <Input
+                id="name"
+                type="text"
+                autoComplete="name"
+                value={name}
+                aria-invalid={shown("name") ? true : undefined}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setTouched((t) => ({ ...t, name: false }));
+                }}
+                onBlur={() => setTouched((t) => ({ ...t, name: true }))}
+                placeholder="Ada"
+                className="font-mono"
+              />
+              <FieldError className="text-xs">{shown("name")}</FieldError>
+            </Field>
+          )}
+
+          <Field data-invalid={shown("email") ? true : undefined}>
+            <FieldLabel htmlFor="email" className={LABEL_CLASS}>
+              Email
+            </FieldLabel>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              aria-invalid={shown("email") ? true : undefined}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setTouched((t) => ({ ...t, email: false }));
+              }}
+              onBlur={() => setTouched((t) => ({ ...t, email: true }))}
+              placeholder="you@email.com"
+              className="font-mono"
             />
-          </div>
-        )}
+            <FieldError className="text-xs">{shown("email")}</FieldError>
+          </Field>
 
-        <div style={{ marginBottom: 16 }}>
-          <label htmlFor="email" style={labelStyle}>
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@email.com"
-            style={inputStyle}
-          />
-        </div>
-
-        <div style={{ marginBottom: 10 }}>
-          <label htmlFor="password" style={labelStyle}>
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            autoComplete={isSignup ? "new-password" : "current-password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onFocus={() => setPasswordFocused(true)}
-            onBlur={() => setPasswordFocused(false)}
-            placeholder="At least 8 characters"
-            style={inputStyle}
-          />
-        </div>
+          <Field data-invalid={shown("password") ? true : undefined}>
+            <FieldLabel htmlFor="password" className={LABEL_CLASS}>
+              Password
+            </FieldLabel>
+            <Input
+              id="password"
+              type="password"
+              autoComplete={isSignup ? "new-password" : "current-password"}
+              value={password}
+              aria-invalid={shown("password") ? true : undefined}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setTouched((t) => ({ ...t, password: false }));
+              }}
+              onFocus={() => setPasswordFocused(true)}
+              onBlur={() => {
+                setPasswordFocused(false);
+                setTouched((t) => ({ ...t, password: true }));
+              }}
+              placeholder="At least 8 characters"
+              className="font-mono"
+            />
+            <FieldError className="text-xs">{shown("password")}</FieldError>
+          </Field>
+        </FieldGroup>
 
         {!isSignup && (
-          <div style={{ marginBottom: 10, textAlign: "right" }}>
+          <div style={{ marginTop: 10, textAlign: "right" }}>
             <Link
               href="/forgot-password"
               className="auth-link"
@@ -179,7 +229,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           <div
             role="alert"
             style={{
-              margin: "6px 0 4px",
+              margin: "10px 0 4px",
               fontSize: 12,
               lineHeight: 1.5,
               color: "var(--s1)",
@@ -189,33 +239,16 @@ export function AuthForm({ mode }: { mode: Mode }) {
           </div>
         )}
 
-        <button
+        <Button
           type="submit"
-          disabled={!valid || loading}
-          className="auth-submit"
-          style={{
-            width: "100%",
-            marginTop: 18,
-            padding: "15px 24px",
-            border: "none",
-            cursor: valid && !loading ? "pointer" : "not-allowed",
-            fontFamily: "'Space Mono',monospace",
-            fontWeight: 700,
-            fontSize: 13,
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-            color: "var(--paper)",
-            background: "var(--ink)",
-            opacity: valid && !loading ? 1 : 0.5,
-            transition: "opacity 200ms ease, filter 200ms ease",
-          }}
+          variant="brand"
+          size="touch"
+          disabled={loading}
+          className="auth-submit mt-[18px] w-full border-none bg-ink py-4 text-[13px] tracking-[0.14em] text-paper"
         >
-          {loading
-            ? "One moment…"
-            : isSignup
-              ? "Create account →"
-              : "Sign in →"}
-        </button>
+          {loading ? "One moment…" : isSignup ? "Create account" : "Sign in"}
+          {!loading && <ArrowRightIcon data-icon="inline-end" aria-hidden />}
+        </Button>
       </form>
 
       <div
