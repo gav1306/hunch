@@ -10,29 +10,48 @@ import { useDesignProtocol } from "@/hooks/use-design-protocol";
 import { useHunchInfo } from "@/hooks/use-hunch-info";
 import { draftsFromSharpened } from "@/lib/parameters";
 import { parameterListSchema, type ParameterDraft } from "@/lib/schemas/parameter";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
-const label: React.CSSProperties = {
-  fontSize: 10.5,
-  letterSpacing: "0.16em",
-  textTransform: "uppercase",
-  color: "var(--muted)",
-};
+const LABEL = "text-xs tracking-[0.16em] text-muted-foreground uppercase";
 
-const mono = "'Space Mono',monospace";
-
-const gateBtn: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 8,
-  padding: "12px 18px",
-  borderRadius: 11,
-  fontFamily: mono,
-  fontWeight: 700,
-  fontSize: 12,
-  letterSpacing: "0.1em",
-  textTransform: "uppercase",
-};
+/**
+ * What the design step is about to produce, in the shape it will arrive in.
+ *
+ * It used to be one centred line of text for a wait that runs ten to twenty
+ * seconds, so the page looked stalled rather than busy and the layout jumped
+ * when the plan landed. This is the stepper's own frame — hypothesis card,
+ * timeline, phase card — held empty.
+ */
+function DesignSkeleton() {
+  return (
+    <div className="grid gap-5" aria-hidden>
+      <div className="rounded-lg border border-rule border-l-2 border-l-s1 bg-card p-[clamp(16px,2vw,20px)]">
+        <Skeleton className="h-3 w-32" />
+        <Skeleton className="mt-3 h-6 w-full" />
+        <Skeleton className="mt-2 h-6 w-3/5" />
+      </div>
+      <div className="flex items-center px-0.5">
+        <Skeleton className="size-11 flex-none rounded-full" />
+        <Skeleton className="h-px flex-auto rounded-none" />
+        <Skeleton className="size-11 flex-none rounded-full" />
+        <Skeleton className="h-px flex-auto rounded-none" />
+        <Skeleton className="size-11 flex-none rounded-full" />
+      </div>
+      <div className="rounded-xl border border-rule bg-card p-[clamp(18px,2.2vw,24px)]">
+        <div className="flex items-center gap-2.5">
+          <Skeleton className="size-[26px]" />
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="ml-auto h-3 w-14" />
+        </div>
+        <Skeleton className="mt-4 h-7 w-2/3" />
+        <Skeleton className="mt-3 h-4 w-full" />
+        <Skeleton className="mt-2 h-4 w-4/5" />
+      </div>
+    </div>
+  );
+}
 
 /**
  * Phase 3 UI — Variation B: confirm the sharpened hypothesis, then design the
@@ -87,84 +106,98 @@ export default function ProtocolPage({
   return (
     <div>
       {info.isPending && (
-        <p aria-live="polite" style={{ ...label, textTransform: "none", letterSpacing: "0.04em" }}>Loading…</p>
+        <p aria-live="polite" className="text-xs tracking-[0.04em] text-muted-foreground">
+          Loading…
+        </p>
       )}
 
       {info.isError && (
-        <p role="alert" style={{ fontSize: 13, color: "var(--s1)", overflowWrap: "anywhere" }}>{info.error.message}</p>
+        <p role="alert" className="text-sm text-s1 [overflow-wrap:anywhere]">
+          {info.error.message}
+        </p>
       )}
 
       {/* Confirm gate — no protocol yet, hypothesis in hand, not mid-design */}
       {hypothesis && !approved && !refused && !design.isPending && (
         <div>
-          <div style={{ background: "color-mix(in srgb,var(--paper) 90%,var(--ink))", border: "1px solid var(--rule)", borderLeft: "2px solid var(--s1)", borderRadius: 14, padding: "clamp(16px,2vw,20px)", minWidth: 0 }}>
-            <div style={label}>What you&apos;re testing</div>
-            <h2 style={{ margin: "8px 0 0", fontFamily: "'Clash Display',sans-serif", fontWeight: 600, fontSize: "clamp(17px,2.4vw,22px)", lineHeight: 1.28, letterSpacing: "-0.01em", color: "var(--ink)", overflowWrap: "anywhere" }}>
+          <div className="min-w-0 rounded-lg border border-rule border-l-2 border-l-s1 bg-card p-[clamp(16px,2vw,20px)]">
+            <p className={cn(LABEL, "m-0")}>What you&apos;re testing</p>
+            <h2 className="mt-2 mb-0 font-heading text-[clamp(17px,2.4vw,22px)] leading-snug font-semibold tracking-[-0.01em] text-ink [overflow-wrap:anywhere]">
               {hypothesis.statement}
             </h2>
-            <p style={{ margin: "10px 0 0", fontFamily: mono, fontSize: 11.5, color: "var(--muted)", overflowWrap: "anywhere" }}>
+            <p className="mt-2.5 mb-0 font-mono text-xs text-muted-foreground [overflow-wrap:anywhere]">
               You&apos;ll log this daily — edit anything that&apos;s off.
             </p>
           </div>
 
           {drafts && <ParameterEditor value={drafts} onChange={setEdited} />}
 
-          <div style={{ marginTop: 16, display: "flex", gap: 10 }}>
+          <div className="mt-4 flex gap-2.5">
             {/* Re-sharpens this hunch, pre-filled with the words it started
                 as. This used to link to a blank /hunch/new, which discarded
                 the raw text and the clarifying answers and left the old
                 hunch stranded in "Finish setting up" with no way to remove it. */}
-            <Link href={`/hunch/new?resume=${id}`} style={{ ...gateBtn, flex: 1, border: "1px solid var(--ink)", background: "transparent", color: "var(--ink)", textDecoration: "none" }}>
-              <RotateCcwIcon aria-hidden className="mr-1.5 inline-block size-(--icon) align-[-0.15em]" />
+            <Button
+              variant="brand"
+              size="touch"
+              className="flex-1 border-ink font-bold"
+              render={<Link href={`/hunch/new?resume=${id}`} />}
+            >
+              <RotateCcwIcon data-icon="inline-start" aria-hidden />
               redo
-            </Link>
-            <button
+            </Button>
+            <Button
               type="button"
               disabled={!canDesign}
+              variant="brand"
+              size="touch"
               onClick={() => design.mutate(cleaned)}
-              style={{
-                ...gateBtn,
-                flex: 1,
-                border: "1px solid var(--s1)",
-                background: canDesign ? "var(--s1)" : "transparent",
-                color: canDesign ? "var(--paper)" : "var(--muted)",
-                cursor: canDesign ? "pointer" : "not-allowed",
-              }}
+              className={cn(
+                "flex-1 border-s1 font-bold",
+                canDesign ? "bg-s1 text-paper hover:bg-s1" : "text-muted-foreground",
+              )}
             >
               Looks right — design it
-              <ArrowRightIcon aria-hidden className="ml-1.5 inline-block size-(--icon) align-[-0.15em]" />
-            </button>
+              <ArrowRightIcon data-icon="inline-end" aria-hidden />
+            </Button>
           </div>
         </div>
       )}
 
       {design.isPending && (
-        <div style={{ textAlign: "center", padding: "40px 0" }}>
-          <p aria-live="polite" style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--muted)" }}>
-            Designing your experiment…
+        <div className="grid gap-5">
+          {/* The wait runs ten to twenty seconds. Saying so is the difference
+              between a page that is working and a page that is broken. */}
+          <p aria-live="polite" className={cn(LABEL, "m-0 font-mono")}>
+            Designing your experiment — about ten seconds…
           </p>
+          <DesignSkeleton />
         </div>
       )}
 
       {design.isError && (
-        <div role="alert" style={{ marginTop: 20, border: "1px solid var(--rule)", borderRadius: 14, background: "color-mix(in srgb,var(--paper) 86%,var(--ink))", padding: "16px 18px" }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
-            <span aria-hidden style={{ color: "var(--s1)" }}>✦</span>
-            <div style={{ fontFamily: "'Clash Display',sans-serif", fontWeight: 600, fontSize: 15.5, color: "var(--ink)" }}>
+        <div role="alert" className="mt-5 rounded-lg border border-rule bg-card px-[18px] py-4">
+          <div className="flex items-baseline gap-2.5">
+            <span aria-hidden className="text-s1">
+              ✦
+            </span>
+            <p className="m-0 font-heading text-base font-semibold text-ink">
               Couldn&apos;t design this one
-            </div>
+            </p>
           </div>
-          <p style={{ margin: "8px 0 0 20px", fontSize: 13, lineHeight: 1.6, color: "var(--muted)", overflowWrap: "anywhere" }}>
+          <p className="mt-2 mb-0 ml-5 text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
             {design.error.message}
           </p>
-          <button
+          <Button
             type="button"
+            variant="brand"
+            size="touch"
             onClick={() => design.mutate(cleaned)}
-            style={{ margin: "12px 0 0 20px", background: "none", border: "none", cursor: "pointer", fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--s1)" }}
+            className="mt-2 ml-[14px] border-transparent text-s1 hover:border-transparent hover:bg-transparent hover:text-s1"
           >
-            <RotateCcwIcon aria-hidden className="mr-1.5 inline-block size-(--icon) align-[-0.15em]" />
+            <RotateCcwIcon data-icon="inline-start" aria-hidden />
             try again
-          </button>
+          </Button>
         </div>
       )}
 
@@ -179,16 +212,16 @@ export default function ProtocolPage({
       )}
 
       {refused && !design.isPending && (
-        <section style={{ border: "1px solid var(--s1)", borderRadius: 16, background: "color-mix(in srgb,var(--paper) 88%,var(--ink))", padding: "clamp(20px,2.4vw,28px)" }}>
-          <h2 style={{ margin: 0, fontFamily: "'Clash Display',sans-serif", fontWeight: 600, fontSize: "clamp(18px,2.2vw,22px)", letterSpacing: "-0.01em", color: "var(--ink)" }}>
+        <section className="rounded-xl border border-s1 bg-card p-[clamp(20px,2.4vw,28px)]">
+          <h2 className="m-0 font-heading text-[clamp(18px,2.2vw,22px)] font-semibold tracking-[-0.01em] text-ink">
             Let&apos;s not run this one on your own
           </h2>
           {refusalReason && (
-            <p style={{ margin: "12px 0 0", fontSize: 14, lineHeight: 1.6, color: "var(--ink)", overflowWrap: "anywhere" }}>
+            <p className="mt-3 mb-0 text-sm leading-relaxed text-ink [overflow-wrap:anywhere]">
               {refusalReason}
             </p>
           )}
-          <p style={{ margin: "16px 0 0", ...label }}>
+          <p className={cn(LABEL, "mt-4 mb-0")}>
             Hunch is not medical advice — please talk to a doctor before trying this.
           </p>
         </section>
@@ -196,7 +229,7 @@ export default function ProtocolPage({
 
       {/* Reachable here too: home's setup cards point at this page, so a
           hunch the user gave up on mid-setup would otherwise have no exit. */}
-      <div style={{ marginTop: 40, borderTop: "1px solid var(--rule)", paddingTop: 8 }}>
+      <div className="mt-10 border-t border-rule pt-2">
         <AbandonHunch hunchId={id} />
       </div>
     </div>

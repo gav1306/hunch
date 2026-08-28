@@ -6,15 +6,10 @@ import { useState } from "react";
 import { useStartTrial } from "@/hooks/use-start-trial";
 import type { StartOn } from "@/lib/schedule";
 import type { Confounder, PowerInfo, ProtocolDesign } from "@/lib/schemas/protocol";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-const label: React.CSSProperties = {
-  fontSize: 10.5,
-  letterSpacing: "0.16em",
-  textTransform: "uppercase",
-  color: "var(--muted)",
-};
-
-const mono = "'Space Mono',monospace";
+const LABEL = "text-xs tracking-[0.16em] text-muted-foreground uppercase";
 
 /**
  * The approved protocol as a walk-through, not a wall. One phase fills the
@@ -58,7 +53,7 @@ export function ProtocolStepper({
   };
 
   return (
-    <section style={{ minWidth: 0, maxWidth: "100%", display: "grid", gap: 20 }}>
+    <section className="grid max-w-full min-w-0 gap-5">
       <style>{`
         @keyframes hunch-phase-in { from { opacity: 0; transform: translateX(var(--hx,14px)); } to { opacity: 1; transform: none; } }
         @keyframes hunch-seg-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
@@ -68,64 +63,45 @@ export function ProtocolStepper({
       `}</style>
 
       {/* What you're testing */}
-      <div
-        style={{
-          background: "color-mix(in srgb,var(--paper) 90%,var(--ink))",
-          border: "1px solid var(--rule)",
-          borderLeft: "2px solid var(--s1)",
-          borderRadius: 14,
-          padding: "clamp(16px,2vw,20px)",
-          minWidth: 0,
-        }}
-      >
-        <div style={label}>What you&apos;re testing</div>
-        <h2 style={{ margin: "8px 0 0", fontFamily: "'Clash Display',sans-serif", fontWeight: 600, fontSize: "clamp(17px,2.1vw,21px)", lineHeight: 1.28, letterSpacing: "-0.01em", color: "var(--ink)", overflowWrap: "anywhere" }}>
+      <div className="min-w-0 rounded-lg border border-rule border-l-2 border-l-s1 bg-card p-[clamp(16px,2vw,20px)]">
+        <p className={cn(LABEL, "m-0")}>What you&apos;re testing</p>
+        <h2 className="mt-2 mb-0 font-heading text-[clamp(17px,2.1vw,21px)] leading-snug font-semibold tracking-[-0.01em] text-ink [overflow-wrap:anywhere]">
           {hypothesis.statement}
         </h2>
-        <p style={{ margin: "10px 0 0", fontFamily: mono, fontSize: 11.5, color: "var(--muted)", overflowWrap: "anywhere" }}>
+        <p className="mt-2.5 mb-0 font-mono text-xs text-muted-foreground [overflow-wrap:anywhere]">
           Measured by {hypothesis.outcomeMetric}
         </p>
       </div>
 
       {/* Timeline */}
-      <div style={{ display: "flex", alignItems: "center", padding: "0 2px" }}>
+      <div className="flex items-center px-0.5">
         {phases.map((p, i) => {
           const done = i < idx;
           const active = i === idx;
           return (
-            <div key={i} style={{ display: "contents" }}>
+            <div key={i} className="contents">
+              {/* 44px, not 34: this is the control that moves you through the
+                  plan on a phone, and it was the smallest tap target left. */}
               <button
                 type="button"
                 aria-label={`Phase ${i + 1}: ${p.name}`}
                 aria-current={active}
                 onClick={() => go(i)}
-                style={{
-                  flex: "0 0 auto",
-                  width: 34,
-                  height: 34,
-                  borderRadius: "50%",
-                  display: "grid",
-                  placeItems: "center",
-                  cursor: "pointer",
-                  fontFamily: mono,
-                  fontWeight: 700,
-                  fontSize: 13,
-                  transition: "all .3s ease",
-                  border: `1px solid ${active ? "var(--s1)" : done ? "var(--ink)" : "var(--rule)"}`,
-                  background: active ? "var(--s1)" : "var(--paper)",
-                  color: active ? "var(--paper)" : done ? "var(--ink)" : "var(--muted)",
-                  transform: active ? "scale(1.08)" : "none",
-                }}
+                className={cn(
+                  "grid size-11 flex-none cursor-pointer place-items-center rounded-full border font-mono text-sm font-bold transition-all duration-300",
+                  active
+                    ? "scale-108 border-s1 bg-s1 text-paper"
+                    : done
+                      ? "border-ink bg-paper text-ink"
+                      : "border-rule bg-paper text-muted-foreground",
+                )}
               >
                 {p.label}
               </button>
               {i < phases.length - 1 && (
-                <span style={{ flex: "1 1 auto", height: 1, background: "var(--rule)", position: "relative", overflow: "hidden" }}>
+                <span className="relative h-px flex-auto overflow-hidden bg-rule">
                   {done && (
-                    <span
-                      className="hunch-seg-fill"
-                      style={{ position: "absolute", inset: 0, background: "var(--s1)", transformOrigin: "left", animation: "hunch-seg-grow .35s ease both" }}
-                    />
+                    <span className="hunch-seg-fill absolute inset-0 origin-left animate-[hunch-seg-grow_.35s_ease_both] bg-s1" />
                   )}
                 </span>
               )}
@@ -135,66 +111,75 @@ export function ProtocolStepper({
       </div>
 
       {design.washoutDays > 0 && (
-        <p style={{ margin: "-8px 0 0", ...label }}>{design.washoutDays}-day washout between phases</p>
+        <p className={cn(LABEL, "-mt-2 mb-0")}>
+          {design.washoutDays}-day washout between phases
+        </p>
       )}
 
       {/* One phase */}
-      <div style={{ overflow: "hidden", minWidth: 0 }}>
+      <div className="min-w-0 overflow-hidden">
         <div
           key={idx}
-          className="hunch-phase"
-          style={{
-            ["--hx" as string]: `${dir * 14}px`,
-            animation: "hunch-phase-in .32s cubic-bezier(.2,.7,.2,1) both",
-            borderRadius: 16,
-            border: `1px solid ${intervention ? "color-mix(in srgb,var(--s1) 55%,var(--rule))" : "var(--rule)"}`,
-            background: intervention
-              ? "color-mix(in srgb,var(--s1) 8%,color-mix(in srgb,var(--paper) 90%,var(--ink)))"
-              : "color-mix(in srgb,var(--paper) 90%,var(--ink))",
-            padding: "clamp(18px,2.2vw,24px)",
-            minWidth: 0,
-          }}
+          className={cn(
+            "hunch-phase min-w-0 rounded-xl border p-[clamp(18px,2.2vw,24px)] animate-[hunch-phase-in_.32s_cubic-bezier(.2,.7,.2,1)_both]",
+            intervention
+              ? "border-[color-mix(in_srgb,var(--s1)_55%,var(--rule))] bg-[color-mix(in_srgb,var(--s1)_8%,var(--card))]"
+              : "border-rule bg-card",
+          )}
+          style={{ ["--hx" as string]: `${dir * 14}px` }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontFamily: mono, fontWeight: 700, fontSize: 13, width: 26, height: 26, borderRadius: 7, display: "grid", placeItems: "center", border: `1px solid ${intervention ? "var(--s1)" : "var(--rule)"}`, color: intervention ? "var(--s1)" : "var(--muted)" }}>
+          <div className="flex items-center gap-2.5">
+            <span
+              className={cn(
+                "grid size-[26px] place-items-center rounded-md border font-mono text-sm font-bold",
+                intervention ? "border-s1 text-s1" : "border-rule text-muted-foreground",
+              )}
+            >
               {phase.label}
             </span>
-            <span style={label}>{intervention ? "Intervention" : "Baseline"}</span>
-            <span style={{ marginLeft: "auto", fontFamily: mono, fontSize: 11.5, color: "var(--muted)" }}>{phase.days} days</span>
+            <span className={LABEL}>{intervention ? "Intervention" : "Baseline"}</span>
+            <span className="ml-auto font-mono text-xs text-muted-foreground">
+              {phase.days} days
+            </span>
           </div>
-          <h3 style={{ margin: "14px 0 0", fontFamily: "'Clash Display',sans-serif", fontWeight: 600, fontSize: "clamp(19px,2.4vw,24px)", lineHeight: 1.18, letterSpacing: "-0.01em", color: "var(--ink)", overflowWrap: "anywhere" }}>
+          <h3 className="mt-3.5 mb-0 font-heading text-[clamp(19px,2.4vw,24px)] leading-tight font-semibold tracking-[-0.01em] text-ink [overflow-wrap:anywhere]">
             {phase.name}
           </h3>
-          <p style={{ margin: "10px 0 0", fontSize: 14, lineHeight: 1.6, color: "var(--muted)", overflowWrap: "anywhere" }}>
+          <p className="mt-2.5 mb-0 text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
             {phase.action}
           </p>
         </div>
       </div>
 
       {/* Step nav */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <button
+      <div className="flex items-center justify-between gap-2.5">
+        <Button
           type="button"
+          variant="brand"
+          size="touch"
           onClick={() => go(idx - 1)}
           disabled={idx === 0}
-          style={{ ...navBtn, background: "transparent", color: "var(--ink)", opacity: idx === 0 ? 0.3 : 1, cursor: idx === 0 ? "not-allowed" : "pointer" }}
+          className="border-rule font-bold"
         >
-          <ArrowLeftIcon aria-hidden className="mr-1.5 inline-block size-(--icon) align-[-0.15em]" />
+          <ArrowLeftIcon data-icon="inline-start" aria-hidden />
           back
-        </button>
-        <span style={{ fontFamily: mono, fontSize: 11, color: "var(--muted)" }}>
+        </Button>
+        <span className="font-mono text-xs text-muted-foreground">
           phase {idx + 1} / {phases.length}
         </span>
         {last ? (
-          <span aria-hidden style={{ ...navBtn, border: "1px solid transparent", visibility: "hidden" }}>
-            next
-            <ArrowRightIcon aria-hidden className="ml-1.5 inline-block size-(--icon) align-[-0.15em]" />
-          </span>
+          <span aria-hidden className="invisible" />
         ) : (
-          <button type="button" onClick={() => go(idx + 1)} style={{ ...navBtn, border: "1px solid var(--ink)", background: "var(--ink)", color: "var(--paper)" }}>
+          <Button
+            type="button"
+            variant="brand"
+            size="touch"
+            onClick={() => go(idx + 1)}
+            className="border-ink bg-ink font-bold text-paper"
+          >
             next
-            <ArrowRightIcon aria-hidden className="ml-1.5 inline-block size-(--icon) align-[-0.15em]" />
-          </button>
+            <ArrowRightIcon data-icon="inline-end" aria-hidden />
+          </Button>
         )}
       </div>
 
@@ -210,30 +195,40 @@ export function ProtocolStepper({
       )}
 
       {/* Why this design */}
-      <details style={{ borderTop: "1px solid var(--rule)", paddingTop: 4 }}>
+      <details className="group border-t border-rule pt-1">
         <summary
-          style={{ listStyle: "none", cursor: "pointer", padding: "10px 2px", display: "flex", alignItems: "center", justifyContent: "space-between", ...label }}
+          className={cn(
+            LABEL,
+            "flex h-11 cursor-pointer list-none items-center justify-between px-0.5",
+          )}
         >
           Why this design
-          <span aria-hidden style={{ color: "var(--s1)", fontSize: 15 }}>+</span>
+          <span aria-hidden className="text-base text-s1 group-open:hidden">
+            +
+          </span>
+          <span aria-hidden className="hidden text-base text-s1 group-open:inline">
+            −
+          </span>
         </summary>
-        <div style={{ display: "grid", gap: 14, padding: "4px 2px 10px" }}>
+        <div className="grid gap-3.5 px-0.5 pt-1 pb-2.5">
           {confounders.length > 0 && (
             <div>
-              <div style={{ ...label, marginBottom: 6 }}>Keep these steady</div>
-              <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 6 }}>
+              <p className={cn(LABEL, "mt-0 mb-1.5")}>Keep these steady</p>
+              <ul className="m-0 grid list-none gap-1.5 p-0">
                 {confounders.map((c) => (
-                  <li key={c.name} style={{ display: "flex", gap: 8, fontSize: 13, lineHeight: 1.5, color: "var(--ink)", minWidth: 0 }}>
-                    <span aria-hidden style={{ color: "var(--s1)" }}>·</span>
-                    <span style={{ overflowWrap: "anywhere" }}>{c.control}</span>
+                  <li key={c.name} className="flex min-w-0 gap-2 text-sm leading-normal text-ink">
+                    <span aria-hidden className="text-s1">
+                      ·
+                    </span>
+                    <span className="[overflow-wrap:anywhere]">{c.control}</span>
                   </li>
                 ))}
               </ul>
             </div>
           )}
           <div>
-            <div style={{ ...label, marginBottom: 6 }}>Why A → B → A</div>
-            <p style={{ margin: 0, fontSize: 12.5, fontStyle: "italic", lineHeight: 1.6, color: "var(--muted)", overflowWrap: "anywhere" }}>
+            <p className={cn(LABEL, "mt-0 mb-1.5")}>Why A → B → A</p>
+            <p className="m-0 text-xs leading-relaxed text-muted-foreground italic [overflow-wrap:anywhere]">
               The phases repeat so the change has to prove itself: if your {hypothesis.outcomeMetric}{" "}
               moves during the intervention and settles back afterward, the change caused it — not a
               lucky stretch. {powerInfo.rationale}
@@ -262,17 +257,10 @@ function StartBlock({
   onStart: (startOn: StartOn) => void;
 }) {
   return (
-    <div
-      style={{
-        borderTop: "1px solid var(--rule)",
-        paddingTop: 18,
-        display: "grid",
-        gap: 14,
-      }}
-    >
+    <div className="grid gap-3.5 border-t border-rule pt-[18px]">
       <div>
-        <div style={{ ...label, marginBottom: 6 }}>Ready when you are</div>
-        <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.6, color: "var(--ink)", overflowWrap: "anywhere" }}>
+        <p className={cn(LABEL, "mt-0 mb-1.5")}>Ready when you are</p>
+        <p className="m-0 text-sm leading-relaxed text-ink [overflow-wrap:anywhere]">
           Day 1 is {firstPhase.name.toLowerCase()}. {firstPhase.action} Nothing is
           running until you pick a day — starting tomorrow gives you a full first
           day instead of whatever is left of this one.
@@ -280,24 +268,19 @@ function StartBlock({
       </div>
 
       {error && (
-        <p role="alert" style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "var(--s1)" }}>
+        <p role="alert" className="m-0 text-sm leading-normal text-s1">
           {error}
         </p>
       )}
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-        <button
+      <div className="flex flex-wrap gap-2.5">
+        <Button
           type="button"
+          variant="brand"
+          size="touch"
           disabled={pending}
           onClick={() => onStart("today")}
-          style={{
-            ...navBtn,
-            border: "1px solid var(--s1)",
-            background: "var(--s1)",
-            color: "var(--paper)",
-            cursor: pending ? "wait" : "pointer",
-            opacity: pending ? 0.6 : 1,
-          }}
+          className="border-s1 bg-s1 font-bold text-paper hover:bg-s1"
         >
           {pending ? (
             "Starting…"
@@ -307,34 +290,19 @@ function StartBlock({
               <ArrowRightIcon aria-hidden className="ml-1.5 inline-block size-(--icon) align-[-0.15em]" />
             </>
           )}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="brand"
+          size="touch"
           disabled={pending}
           onClick={() => onStart("tomorrow")}
-          style={{
-            ...navBtn,
-            border: "1px solid var(--rule)",
-            background: "transparent",
-            color: "var(--ink)",
-            cursor: pending ? "wait" : "pointer",
-            opacity: pending ? 0.6 : 1,
-          }}
+          className="border-rule font-bold"
         >
           Start tomorrow
-        </button>
+        </Button>
       </div>
     </div>
   );
 }
 
-const navBtn: React.CSSProperties = {
-  fontFamily: mono,
-  fontWeight: 700,
-  fontSize: 12,
-  letterSpacing: "0.1em",
-  textTransform: "uppercase",
-  padding: "12px 18px",
-  borderRadius: 11,
-  border: "1px solid var(--rule)",
-};

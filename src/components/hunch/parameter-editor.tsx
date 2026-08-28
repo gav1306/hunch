@@ -3,38 +3,20 @@
 import { useState } from "react";
 import { MinusIcon, PlusIcon } from "lucide-react";
 import type { ParameterDraft } from "@/lib/schemas/parameter";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
-const label: React.CSSProperties = {
-  fontSize: 10.5,
-  letterSpacing: "0.16em",
-  textTransform: "uppercase",
-  color: "var(--muted)",
-};
+const LABEL = "text-xs tracking-[0.16em] uppercase";
 
-const mono = "'Space Mono',monospace";
-
-const field: React.CSSProperties = {
-  padding: "9px 11px",
-  background: "color-mix(in srgb,var(--paper) 82%,var(--ink))",
-  border: "1px solid var(--rule)",
-  borderRadius: 9,
-  color: "var(--ink)",
-  fontFamily: mono,
-  fontSize: 12.5,
-  minWidth: 0,
-};
-
-const ghostBtn: React.CSSProperties = {
-  background: "none",
-  border: "none",
-  cursor: "pointer",
-  fontFamily: mono,
-  fontSize: 11.5,
-  letterSpacing: "0.08em",
-  textTransform: "uppercase",
-  color: "var(--muted)",
-  padding: 0,
-};
+/**
+ * The ghost controls in this editor were 11.5px text with no padding — under
+ * 20px of tappable height on a screen the audit found four of them on. They are
+ * buttons at the 44px touch size now, drawn borderless so the row still reads
+ * as quiet.
+ */
+const GHOST =
+  "justify-self-start border-transparent px-1 font-mono text-xs tracking-[0.08em] text-muted-foreground hover:border-transparent hover:bg-transparent hover:text-ink";
 
 /** One editable row: label, number/yes-no toggle, and (for numbers) unit + bounds. */
 function Row({
@@ -48,38 +30,41 @@ function Row({
 }) {
   return (
     <div
-      style={{
-        border: "1px solid var(--rule)",
-        borderLeft: row.isPrimary ? "2px solid var(--s1)" : "1px solid var(--rule)",
-        borderRadius: 11,
-        padding: "12px 13px",
-        display: "grid",
-        gap: 9,
-        minWidth: 0,
-      }}
+      className={cn(
+        "grid min-w-0 gap-2.5 rounded-lg border border-rule px-3 py-3",
+        row.isPrimary && "border-l-2 border-l-s1",
+      )}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <span style={{ ...label, color: row.isPrimary ? "var(--s1)" : "var(--muted)" }}>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <span className={cn(LABEL, row.isPrimary ? "text-s1" : "text-muted-foreground")}>
           {row.isPrimary ? "main measure" : "also tracking"}
         </span>
         {onRemove && (
-          <button type="button" onClick={onRemove} style={{ ...ghostBtn, marginLeft: "auto" }}>
+          <Button
+            type="button"
+            variant="brand"
+            size="touch"
+            onClick={onRemove}
+            className={cn(GHOST, "ml-auto")}
+          >
             remove
-          </button>
+          </Button>
         )}
       </div>
 
-      <input
+      <Input
         value={row.label}
         onChange={(e) => onChange({ ...row, label: e.target.value })}
         placeholder="what you'll log"
         aria-label={row.isPrimary ? "Main measure" : "Tracker"}
-        style={{ ...field, width: "100%" }}
+        className="w-full font-mono"
       />
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-        <button
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
           type="button"
+          variant="brand"
+          size="touch"
           onClick={() =>
             onChange(
               row.type === "binary"
@@ -87,26 +72,21 @@ function Row({
                 : { ...row, type: "binary", unit: undefined, min: undefined, max: undefined },
             )
           }
-          style={{
-            ...field,
-            cursor: "pointer",
-            borderColor: "var(--rule)",
-            background: "transparent",
-          }}
+          className="border-rule font-mono lowercase"
         >
           {row.type === "binary" ? "yes / no" : "a number"}
-        </button>
+        </Button>
 
         {row.type === "continuous" && (
           <>
-            <input
+            <Input
               value={row.unit ?? ""}
               onChange={(e) => onChange({ ...row, unit: e.target.value || undefined })}
               placeholder="unit"
               aria-label="Unit"
-              style={{ ...field, width: 88 }}
+              className="w-24 font-mono"
             />
-            <input
+            <Input
               type="number"
               step="any"
               value={row.min ?? ""}
@@ -115,9 +95,9 @@ function Row({
               }
               placeholder="min"
               aria-label="Lowest value"
-              style={{ ...field, width: 76 }}
+              className="w-20 font-mono"
             />
-            <input
+            <Input
               type="number"
               step="any"
               value={row.max ?? ""}
@@ -126,7 +106,7 @@ function Row({
               }
               placeholder="max"
               aria-label="Highest value"
-              style={{ ...field, width: 76 }}
+              className="w-20 font-mono"
             />
           </>
         )}
@@ -155,7 +135,7 @@ export function ParameterEditor({
     onChange(value.map((row, j) => (j === i ? next : row)));
 
   return (
-    <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
+    <div className="mt-4 grid gap-2.5">
       {primaryIndex >= 0 && (
         <Row
           row={value[primaryIndex]}
@@ -164,10 +144,13 @@ export function ParameterEditor({
         />
       )}
 
-      <button
+      <Button
         type="button"
+        variant="brand"
+        size="touch"
         onClick={() => setOpen((o) => !o)}
-        style={{ ...ghostBtn, justifySelf: "start", color: "var(--s1)" }}
+        aria-expanded={open}
+        className={cn(GHOST, "text-s1 hover:text-s1")}
       >
         {open ? (
           <>
@@ -180,12 +163,12 @@ export function ParameterEditor({
             things to track{trackers.length ? ` (${trackers.length})` : ""}
           </>
         )}
-      </button>
+      </Button>
 
       {open && (
-        <div style={{ display: "grid", gap: 10 }}>
+        <div className="grid gap-2.5">
           {trackers.length === 0 && (
-            <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.6, color: "var(--muted)" }}>
+            <p className="m-0 text-xs leading-relaxed text-muted-foreground">
               Add anything else you want to log next to it — it won&apos;t change the verdict, it
               just helps you read the result.
             </p>
@@ -203,16 +186,18 @@ export function ParameterEditor({
           )}
 
           {value.length < 5 && (
-            <button
+            <Button
               type="button"
+              variant="brand"
+              size="touch"
               onClick={() =>
                 onChange([...value, { label: "", type: "continuous", isPrimary: false }])
               }
-              style={{ ...ghostBtn, justifySelf: "start" }}
+              className={GHOST}
             >
               <PlusIcon aria-hidden className="mr-1.5 inline-block size-(--icon) align-[-0.15em]" />
               add another
-            </button>
+            </Button>
           )}
         </div>
       )}
