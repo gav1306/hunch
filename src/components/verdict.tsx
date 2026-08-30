@@ -40,10 +40,13 @@ function beliefFrom(v: Verdict): Belief {
 export function VerdictView({
   hunchId,
   statement,
+  archived = false,
 }: {
   hunchId: string;
   /** The hypothesis this verdict answers — seeds the follow-up. */
   statement?: string;
+  /** Whether this hunch is currently filed away. */
+  archived?: boolean;
 }) {
   const query = useVerdict(hunchId);
 
@@ -78,7 +81,9 @@ export function VerdictView({
         {v.narrative}
       </p>
       {hasStats && <BeliefMeter belief={beliefFrom(v)} />}
-      {statement && <VerdictActions hunchId={hunchId} statement={statement} />}
+      {statement && (
+        <VerdictActions hunchId={hunchId} statement={statement} archived={archived} />
+      )}
     </section>
   );
 }

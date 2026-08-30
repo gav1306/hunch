@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   ArchiveIcon,
+  ArchiveRestoreIcon,
   DownloadIcon,
   RotateCcwIcon,
   SproutIcon,
@@ -24,10 +25,13 @@ import { useRepeatHunch } from "@/hooks/use-repeat-hunch";
 export function VerdictActions({
   hunchId,
   statement,
+  archived,
 }: {
   hunchId: string;
   /** The sharpened hypothesis, so a follow-up starts from what was tested. */
   statement: string;
+  /** Whether this hunch is currently filed away, so we offer restore instead of archive. */
+  archived: boolean;
 }) {
   const router = useRouter();
   const repeat = useRepeatHunch(hunchId);
@@ -80,20 +84,51 @@ export function VerdictActions({
           render={<a href={`/api/hunch/${hunchId}/export?format=csv`} download />}
         >
           <DownloadIcon data-icon="inline-start" aria-hidden />
-          Export
+          Export CSV
         </Button>
 
-        {!confirmingArchive && (
+        <Button
+          variant="brand"
+          size="touch"
+          className="border-rule font-bold"
+          render={<a href={`/api/hunch/${hunchId}/export?format=txt`} download />}
+        >
+          <DownloadIcon data-icon="inline-start" aria-hidden />
+          Export text
+        </Button>
+
+        {archived ? (
           <Button
             type="button"
             variant="brand"
             size="touch"
             className="border-transparent px-0.5 text-muted-foreground underline underline-offset-4 hover:border-transparent hover:bg-transparent hover:text-ink"
-            onClick={() => setConfirmingArchive(true)}
+            disabled={archive.isPending}
+            onClick={() =>
+              archive.mutate(false, {
+                onSuccess: () => {
+                  router.push("/home");
+                  router.refresh();
+                },
+              })
+            }
           >
-            <ArchiveIcon data-icon="inline-start" aria-hidden />
-            Archive
+            <ArchiveRestoreIcon data-icon="inline-start" aria-hidden />
+            Restore to home
           </Button>
+        ) : (
+          !confirmingArchive && (
+            <Button
+              type="button"
+              variant="brand"
+              size="touch"
+              className="border-transparent px-0.5 text-muted-foreground underline underline-offset-4 hover:border-transparent hover:bg-transparent hover:text-ink"
+              onClick={() => setConfirmingArchive(true)}
+            >
+              <ArchiveIcon data-icon="inline-start" aria-hidden />
+              Archive
+            </Button>
+          )
         )}
       </div>
 
@@ -111,7 +146,12 @@ export function VerdictActions({
               className="border-rule font-bold"
               disabled={archive.isPending}
               onClick={() =>
-                archive.mutate(true, { onSuccess: () => router.push("/home") })
+                archive.mutate(true, {
+                  onSuccess: () => {
+                    router.push("/home");
+                    router.refresh();
+                  },
+                })
               }
             >
               {archive.isPending ? "Archiving…" : "Archive it"}

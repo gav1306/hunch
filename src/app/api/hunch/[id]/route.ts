@@ -38,6 +38,7 @@ export async function GET(
     // dropping the user on a blank page with their original hunch lost.
     rawText: hunch.rawText,
     status: hunch.status,
+    archivedAt: hunch.archivedAt ? hunch.archivedAt.toISOString() : null,
     hypothesis: {
       statement: hunch.hypothesis.statement,
       outcomeMetric: hunch.hypothesis.outcomeMetric,

@@ -42,7 +42,11 @@ export function HunchDashboard({ id }: { id: string }) {
         : info.data?.protocol?.design.phases[schedule.phaseIndex]?.action;
 
     return concluded ? (
-      <VerdictView hunchId={id} statement={info.data?.hypothesis.statement} />
+      <VerdictView
+        hunchId={id}
+        statement={info.data?.hypothesis.statement}
+        archived={info.data?.archivedAt != null}
+      />
     ) : (
       <div className="grid gap-5">
         <BeliefMeter belief={belief} />

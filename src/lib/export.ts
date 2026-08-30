@@ -3,7 +3,7 @@
  *
  * A verdict the app can show but not hand over is a record the user does not
  * own. Two shapes: CSV for the raw days, so the numbers can go into a
- * spreadsheet or a doctor's hands, and text for the story — hypothesis, plan,
+ * spreadsheet or a doctor's hands, and text for the story — hypothesis,
  * verdict, every logged day underneath it.
  *
  * Pure functions over plain values: the route reads, this formats, so both
@@ -95,8 +95,8 @@ export function toText(h: ExportHunch): string {
     lines.push(`${CATEGORY_TEXT[v.category] ?? v.category} — ${Math.round(v.pEffect * 100)}% sure`);
     lines.push(v.narrative);
     lines.push(
-      `Effect: ${v.effect} (95% credible interval ${v.ci[0]} to ${v.ci[1]}); ` +
-        `${v.nA} baseline days, ${v.nB} intervention days.`,
+      `Effect: ${v.effect.toFixed(2)} (95% credible interval ${v.ci[0].toFixed(2)} to ` +
+        `${v.ci[1].toFixed(2)}); ${v.nA} baseline days, ${v.nB} intervention days.`,
     );
   } else {
     lines.push("VERDICT");

@@ -138,13 +138,16 @@ export function NewHunchForm({
       },
       parameters: hunch.parameters ?? [],
       protocol: null,
+      archivedAt: null,
     });
     router.push(`/hunch/${hunch.id}/protocol`);
   }, [createHunch.data, queryClient, router]);
 
   // Written on a short delay so a fast typist isn't hitting storage per key.
   useEffect(() => {
-    if (resuming) return;
+    // A seeded or resumed hunch has its own text — writing it would overwrite
+    // an unsent draft the user parked here on their way to this follow-up.
+    if (resuming || seed) return;
     const id = setTimeout(() => {
       try {
         if (rawText.trim()) window.localStorage.setItem(DRAFT_KEY, rawText);
@@ -154,7 +157,7 @@ export function NewHunchForm({
       }
     }, 400);
     return () => clearTimeout(id);
-  }, [rawText, resuming]);
+  }, [rawText, resuming, seed]);
 
   const step: "idle" | "asking" | "answering" | "committing" | "done" = createHunch.data
     ? "done"

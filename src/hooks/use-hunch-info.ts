@@ -9,6 +9,8 @@ export type HunchInfo = {
   hypothesis: { statement: string; outcomeMetric: string; outcomeType: "binary" | "continuous" };
   /** The parameters logged daily. Exactly one is primary once designed. */
   parameters: Parameter[];
+  /** Null means the hunch is live. Set once the user files it away. */
+  archivedAt: string | null;
   protocol: null | {
     id: string;
     safetyState: "approved" | "refused" | "pending";

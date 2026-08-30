@@ -8,13 +8,11 @@ import { Button } from "@/components/ui/button";
  * client component and hands it a `reset` that re-renders the segment.
  */
 export default function AppError({
-  error: _error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  void _error;
   return (
     <Boundary
       eyebrow="Something broke"
