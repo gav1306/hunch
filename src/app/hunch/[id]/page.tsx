@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
-import { notFound, redirect } from "next/navigation";
 import { HunchDashboard } from "@/components/hunch/hunch-dashboard";
-import { db } from "@/lib/db";
-import { getSession } from "@/lib/session";
+import { readOwnedHunch } from "@/lib/hunch-read";
 import { pageTitle } from "@/lib/titles";
 
 /**
@@ -17,18 +14,12 @@ export async function generateMetadata({
 }: {
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  const session = await getSession(await headers());
-  // The template appends " · hunch", so these fallbacks stay bare.
-  if (!session) return { title: "Experiment" };
-
   const { id } = await params;
-  const hunch = await db.hunch.findFirst({
-    where: { id, userId: session.user.id },
-    select: { rawText: true, hypothesis: { select: { statement: true } } },
-  });
+  const hunch = await readOwnedHunch(id);
+  // The template appends " · hunch", so these fallbacks stay bare.
   if (!hunch) return { title: "Experiment" };
 
-  return { title: pageTitle(hunch.hypothesis?.statement ?? hunch.rawText) };
+  return { title: pageTitle(hunch.statement ?? hunch.rawText) };
 }
 
 export default async function HunchPage({
@@ -36,17 +27,9 @@ export default async function HunchPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await getSession(await headers());
-  if (!session) redirect("/signin");
-
+  // Ownership, existence and the signed-out redirect are all settled above this
+  // segment's loading boundary — in `[id]/layout.tsx` and `/hunch/layout.tsx` —
+  // so a mistyped id 404s with a real status code instead of a streamed 200.
   const { id } = await params;
-  // A mistyped or deleted id renders the themed 404 rather than a dashboard
-  // whose every query 404s underneath it.
-  const exists = await db.hunch.findFirst({
-    where: { id, userId: session.user.id },
-    select: { id: true },
-  });
-  if (!exists) notFound();
-
   return <HunchDashboard id={id} />;
 }

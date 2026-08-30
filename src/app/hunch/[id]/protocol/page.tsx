@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
-import { notFound, redirect } from "next/navigation";
 import { ProtocolView } from "@/components/hunch/protocol-view";
-import { db } from "@/lib/db";
-import { getSession } from "@/lib/session";
+import { readOwnedHunch } from "@/lib/hunch-read";
 import { pageTitle } from "@/lib/titles";
 
 export async function generateMetadata({
@@ -11,17 +8,11 @@ export async function generateMetadata({
 }: {
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  const session = await getSession(await headers());
-  if (!session) return { title: "The plan" };
-
   const { id } = await params;
-  const hunch = await db.hunch.findFirst({
-    where: { id, userId: session.user.id },
-    select: { rawText: true, hypothesis: { select: { statement: true } } },
-  });
+  const hunch = await readOwnedHunch(id);
   if (!hunch) return { title: "The plan" };
 
-  return { title: `Plan · ${pageTitle(hunch.hypothesis?.statement ?? hunch.rawText)}` };
+  return { title: `Plan · ${pageTitle(hunch.statement ?? hunch.rawText)}` };
 }
 
 export default async function ProtocolPage({
@@ -29,15 +20,7 @@ export default async function ProtocolPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await getSession(await headers());
-  if (!session) redirect("/signin");
-
+  // Guarded by `[id]/layout.tsx`, which wraps this route too.
   const { id } = await params;
-  const exists = await db.hunch.findFirst({
-    where: { id, userId: session.user.id },
-    select: { id: true },
-  });
-  if (!exists) notFound();
-
   return <ProtocolView id={id} />;
 }
