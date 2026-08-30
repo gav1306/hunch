@@ -16,6 +16,11 @@ model Hunch {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// Set when the user files a finished experiment away. Archived hunches keep
+  /// everything — verdict, check-ins, plan — and simply stop competing for
+  /// attention on home. Null means live.
+  archivedAt DateTime?
+
   hypothesis Hypothesis?
   protocol   Protocol?
   parameters Parameter[]
