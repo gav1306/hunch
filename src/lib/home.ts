@@ -33,6 +33,8 @@ export type HomeHunch = {
   loggableToday: boolean;
   loggedToday: boolean;
   verdict: { category: string; effect: number; pEffect: number } | null;
+  /** Null while the hunch is live. ISO string once the user files it away. */
+  archivedOn: string | null;
 };
 
 export type HomeData = {
@@ -41,6 +43,8 @@ export type HomeData = {
   running: HomeHunch[];
   needsSetup: HomeHunch[];
   verdicts: HomeHunch[];
+  /** Filed away: still whole, just not competing for the screen. */
+  archived: HomeHunch[];
 };
 
 /**
@@ -148,20 +152,25 @@ export async function getHomeData(userId: string): Promise<HomeData> {
             pEffect: h.verdict.pEffect,
           }
         : null,
+      archivedOn: h.archivedAt ? h.archivedAt.toISOString() : null,
     };
   });
 
   const isToday = (h: HomeHunch) => h.loggableToday && !h.loggedToday;
+  // Archived hunches are held out of every working group before anything else
+  // is decided, so a filed-away experiment can't reappear as "check in today".
+  const live = mapped.filter((h) => h.archivedOn === null);
 
   return {
     hasAny: mapped.length > 0,
-    today: mapped.filter(isToday),
+    today: live.filter(isToday),
     // In-flight roster excludes what's already actionable under Today, so a
     // not-yet-logged experiment isn't shown twice on the same screen.
-    running: mapped.filter((h) => h.status === "running" && !isToday(h)),
-    needsSetup: mapped.filter(
+    running: live.filter((h) => h.status === "running" && !isToday(h)),
+    needsSetup: live.filter(
       (h) => !h.verdict && (h.status === "sharpened" || h.status === "draft"),
     ),
-    verdicts: mapped.filter((h) => h.verdict),
+    verdicts: live.filter((h) => h.verdict),
+    archived: mapped.filter((h) => h.archivedOn !== null),
   };
 }

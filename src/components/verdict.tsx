@@ -1,6 +1,7 @@
 "use client";
 
 import { BeliefMeter } from "@/components/belief-meter";
+import { VerdictActions } from "@/components/hunch/verdict-actions";
 import { CheckIcon, XIcon } from "lucide-react";
 import { useVerdict } from "@/hooks/use-verdict";
 import { cn } from "@/lib/utils";
@@ -36,7 +37,17 @@ function beliefFrom(v: Verdict): Belief {
  * verdict, and (when the data was sufficient) the frozen credible-interval meter.
  * Inconclusive outcomes are shown as legitimate findings, not errors. Brand system.
  */
-export function VerdictView({ hunchId }: { hunchId: string }) {
+export function VerdictView({
+  hunchId,
+  statement,
+  archived = false,
+}: {
+  hunchId: string;
+  /** The hypothesis this verdict answers — seeds the follow-up. */
+  statement?: string;
+  /** Whether this hunch is currently filed away. */
+  archived?: boolean;
+}) {
   const query = useVerdict(hunchId);
 
   if (query.isPending) {
@@ -70,6 +81,9 @@ export function VerdictView({ hunchId }: { hunchId: string }) {
         {v.narrative}
       </p>
       {hasStats && <BeliefMeter belief={beliefFrom(v)} />}
+      {statement && (
+        <VerdictActions hunchId={hunchId} statement={statement} archived={archived} />
+      )}
     </section>
   );
 }

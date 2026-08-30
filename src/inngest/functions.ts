@@ -88,7 +88,14 @@ export const sendReminder = inngest.createFunction(
 
       const today = localDateIn(user.timeZone, at);
       const hunches = await db.hunch.findMany({
-        where: { userId, status: "running", protocol: { startedAt: { not: null } } },
+        // Archived experiments stop nagging: filed away means off home, and it
+        // should mean out of the inbox too.
+        where: {
+          userId,
+          status: "running",
+          protocol: { startedAt: { not: null } },
+          archivedAt: null,
+        },
         include: {
           hypothesis: { select: { statement: true, outcomeMetric: true } },
           protocol: { select: { design: true, startedAt: true } },

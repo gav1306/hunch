@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app/app-shell";
 import { ReminderSettings } from "@/components/app/reminder-settings";
 import { SecuritySettings } from "@/components/app/security-settings";
 import { getSession } from "@/lib/session";
+
+export const metadata: Metadata = { title: "Account & security" };
 
 export default async function SecurityPage() {
   const session = await getSession(await headers());

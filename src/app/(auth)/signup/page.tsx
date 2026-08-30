@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { AuthForm } from "@/components/auth/auth-form";
 
 export const metadata: Metadata = {
-  title: "Create account · hunch",
+  title: "Create account",
 };
 
 export default function SignUpPage() {

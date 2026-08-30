@@ -4,7 +4,10 @@ import { Providers } from "./providers";
 import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
-  title: "Hunch",
+  title: {
+    default: "Hunch",
+    template: "%s · hunch",
+  },
   description: "A copilot for n-of-1 experiments on yourself.",
 };
 

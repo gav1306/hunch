@@ -131,3 +131,35 @@ describe("getHomeData scheduled starts", () => {
     expect(h.progress).toEqual({ day: 4, total: 10 });
   });
 });
+
+describe("getHomeData archived hunches", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("keeps an archived row out of every working group, only in archived", async () => {
+    // A concluded hunch with a verdict would otherwise land in `verdicts`, so
+    // this fails if the `live` filter in getHomeData is ever removed.
+    vi.mocked(db.hunch.findMany).mockResolvedValue([
+      hunch({
+        verdict: { category: "helped", effect: 1.2, pEffect: 0.97 },
+        archivedAt: utcMidnight(-1),
+      }),
+    ] as never);
+    const data = await getHomeData("u1");
+    expect(data.archived).toHaveLength(1);
+    expect(data.today).toHaveLength(0);
+    expect(data.running).toHaveLength(0);
+    expect(data.needsSetup).toHaveLength(0);
+    expect(data.verdicts).toHaveLength(0);
+  });
+
+  it("keeps hasAny true when every row is archived", async () => {
+    // hasAny gates the first-run empty state — if it went false here, the
+    // archived section would never render for a user to reach.
+    vi.mocked(db.hunch.findMany).mockResolvedValue([
+      hunch({ archivedAt: utcMidnight(-1) }),
+    ] as never);
+    const data = await getHomeData("u1");
+    expect(data.hasAny).toBe(true);
+    expect(data.archived).toHaveLength(1);
+  });
+});
