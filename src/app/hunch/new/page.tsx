@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { NewHunchForm } from "@/components/hunch/new-hunch-form";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { parseSeed } from "@/lib/seed";
+
+export const metadata: Metadata = { title: "New hunch" };
 
 export default async function NewHunchPage({
   searchParams,
