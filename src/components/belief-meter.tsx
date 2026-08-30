@@ -2,13 +2,6 @@
 
 import type { Belief } from "@/lib/schemas/belief";
 
-const label: React.CSSProperties = {
-  fontSize: 10.5,
-  letterSpacing: "0.16em",
-  textTransform: "uppercase",
-  color: "var(--muted)",
-};
-
 /**
  * The live belief meter. Headline = P(effect > 0) as a percent; below it a
  * zero-centered SVG bar shows the 95% credible interval on the effect. A bar
@@ -26,27 +19,21 @@ export function BeliefMeter({ belief }: { belief: Belief }) {
   const right = toX(belief.ci[1]);
 
   return (
-    <section
-      style={{
-        background: "color-mix(in srgb,var(--paper) 90%,var(--ink))",
-        border: "1px solid var(--rule)",
-        padding: "clamp(20px,2.4vw,28px)",
-        minWidth: 0,
-        maxWidth: "100%",
-      }}
-    >
-      <p style={label}>Likelihood it&apos;s real</p>
-      <p style={{ margin: "8px 0 0", fontFamily: "'Clash Display',sans-serif", fontWeight: 700, fontSize: "clamp(44px,7vw,60px)", lineHeight: 1, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums", color: "var(--ink)" }}>
+    <section className="max-w-full min-w-0 rounded-lg border border-rule bg-card p-[clamp(20px,2.4vw,28px)]">
+      <h2 className="m-0 text-xs font-normal tracking-[0.16em] text-muted-foreground uppercase">
+        Likelihood it&apos;s real
+      </h2>
+      <p className="mt-2 mb-0 font-heading text-[clamp(44px,7vw,60px)] leading-none font-bold tracking-[-0.02em] tabular-nums text-ink">
         {warming ? "—" : `${pct}%`}
       </p>
 
       {warming ? (
-        <p style={{ margin: "12px 0 0", fontSize: 13.5, lineHeight: 1.6, color: "var(--muted)" }}>
+        <p className="mt-3 mb-0 text-sm leading-relaxed text-muted-foreground">
           Gathering data — keep logging to sharpen this.
         </p>
       ) : (
-        <div style={{ marginTop: 18 }}>
-          <svg viewBox="0 0 100 16" style={{ height: 16, width: "100%" }} preserveAspectRatio="none">
+        <div className="mt-[18px]">
+          <svg viewBox="0 0 100 16" className="h-4 w-full" preserveAspectRatio="none">
             <line x1="50" y1="0" x2="50" y2="16" stroke="var(--rule)" strokeWidth="0.5" />
             <rect
               x={Math.min(left, right)}
@@ -57,7 +44,7 @@ export function BeliefMeter({ belief }: { belief: Belief }) {
               fill="var(--s1)"
             />
           </svg>
-          <p style={{ margin: "12px 0 0", fontFamily: "'Space Mono',monospace", fontSize: 11.5, letterSpacing: "0.02em", color: "var(--muted)", overflowWrap: "anywhere" }}>
+          <p className="mt-3 mb-0 font-mono text-xs tracking-[0.02em] text-muted-foreground [overflow-wrap:anywhere]">
             Effect {belief.effect.toFixed(2)} · 95% CI [{belief.ci[0].toFixed(2)},{" "}
             {belief.ci[1].toFixed(2)}] · {belief.nA + belief.nB} check-ins
           </p>

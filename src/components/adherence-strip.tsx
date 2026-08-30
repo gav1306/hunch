@@ -5,6 +5,7 @@ import { PencilIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CheckIn } from "@/components/check-in";
 import { adherenceStrip, adherenceSummary, type AdherenceDay } from "@/lib/adherence";
+import { cn } from "@/lib/utils";
 import type { ProtocolDesign } from "@/lib/schemas/protocol";
 import type { Parameter } from "@/lib/schemas/parameter";
 
@@ -14,20 +15,15 @@ const DATE_FMT = new Intl.DateTimeFormat("en-GB", {
   timeZone: "UTC",
 });
 
-const label: React.CSSProperties = {
-  fontSize: 12,
-  letterSpacing: "0.16em",
-  textTransform: "uppercase",
-  color: "var(--muted)",
-};
+const LABEL = "text-xs tracking-[0.16em] text-muted-foreground uppercase";
 
 /** What each day's tile looks like, and what a screen reader is told it is. */
-const STATE: Record<AdherenceDay["state"], { fill: string; border: string; word: string }> = {
-  logged: { fill: "var(--good)", border: "var(--good)", word: "logged" },
-  missed: { fill: "transparent", border: "var(--bad)", word: "missed" },
-  rest: { fill: "var(--surface-3)", border: "transparent", word: "rest day" },
-  today: { fill: "transparent", border: "var(--s1)", word: "today, not logged yet" },
-  future: { fill: "transparent", border: "var(--rule)", word: "still to come" },
+const STATE: Record<AdherenceDay["state"], { className: string; word: string }> = {
+  logged: { className: "border-good bg-good", word: "logged" },
+  missed: { className: "border-bad bg-transparent", word: "missed" },
+  rest: { className: "border-transparent bg-surface-3", word: "rest day" },
+  today: { className: "border-s1 bg-transparent", word: "today, not logged yet" },
+  future: { className: "border-rule bg-transparent opacity-65", word: "still to come" },
 };
 
 /**
@@ -75,38 +71,20 @@ export function AdherenceStrip({
   const selectedEntry = selected ? byDay.get(selected.date.getTime()) : undefined;
 
   return (
-    <section
-      style={{
-        background: "color-mix(in srgb,var(--paper) 90%,var(--ink))",
-        border: "1px solid var(--rule)",
-        borderRadius: "var(--radius-card)",
-        padding: "clamp(20px,2.4vw,28px)",
-        minWidth: 0,
-      }}
-    >
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "space-between" }}>
-        <p style={{ ...label, margin: 0 }}>Your logging</p>
-        <p style={{ margin: 0, fontSize: 12, color: "var(--muted)" }}>
+    <section className="min-w-0 rounded-lg border border-rule bg-card p-[clamp(20px,2.4vw,28px)]">
+      <div className="flex flex-wrap justify-between gap-2">
+        <h2 className={cn(LABEL, "m-0 font-normal")}>Your logging</h2>
+        <p className="m-0 text-xs text-muted-foreground">
           {elapsed === 0
             ? "Nothing to report yet"
             : `${logged} of ${elapsed} days logged${missed > 0 ? ` · ${missed} missed` : ""}`}
         </p>
       </div>
 
-      <ol
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 6,
-          margin: "16px 0 0",
-          padding: 0,
-          listStyle: "none",
-        }}
-      >
+      <ol className="m-0 mt-4 flex list-none flex-wrap gap-1.5 p-0">
         {strip.map((d) => {
           const tone = STATE[d.state];
           const isOpen = openDay === d.day;
-          const readable = d.state === "logged" || d.state === "missed" || d.state === "today";
           return (
             <li key={d.day}>
               <button
@@ -117,21 +95,13 @@ export function AdherenceStrip({
                   setOpenDay(isOpen ? null : d.day);
                   setEditing(null);
                 }}
-                style={{
-                  width: 26,
-                  height: 26,
-                  borderRadius: 6,
-                  padding: 0,
-                  cursor: "pointer",
-                  background: tone.fill,
-                  border: `1px solid ${tone.border}`,
-                  // The phase is the tile's second dimension: baseline days
-                  // read flat, intervention days carry the accent underline.
-                  boxShadow:
-                    d.kind === "intervention" ? "inset 0 -3px 0 0 var(--s2)" : undefined,
-                  outlineOffset: 2,
-                  opacity: readable ? 1 : 0.65,
-                }}
+                className={cn(
+                  "size-[26px] cursor-pointer rounded-md border p-0 outline-offset-2",
+                  tone.className,
+                  // The phase is the tile's second dimension: baseline days read
+                  // flat, intervention days carry the accent underline.
+                  d.kind === "intervention" && "shadow-[inset_0_-3px_0_0_var(--s2)]",
+                )}
               />
             </li>
           );
@@ -139,30 +109,21 @@ export function AdherenceStrip({
       </ol>
 
       {selected && (
-        <div
-          style={{
-            marginTop: 16,
-            borderTop: "1px solid var(--rule)",
-            paddingTop: 14,
-            fontSize: 13,
-            lineHeight: 1.6,
-            color: "var(--ink)",
-          }}
-        >
-          <div style={{ ...label, marginBottom: 8 }}>
+        <div className="mt-4 border-t border-rule pt-3.5 text-sm leading-relaxed text-ink">
+          <p className={cn(LABEL, "mt-0 mb-2")}>
             Day {selected.day} · {DATE_FMT.format(selected.date)}
-          </div>
+          </p>
           {selectedEntry ? (
-            <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 6 }}>
+            <ul className="m-0 grid list-none gap-1.5 p-0">
               {selectedEntry.values.map((v) => {
                 const p = parameters.find((x) => x.id === v.parameterId);
                 if (!p) return null;
                 return (
-                  <li key={v.parameterId} style={{ display: "flex", gap: 10, minWidth: 0 }}>
-                    <span style={{ color: "var(--muted)", overflowWrap: "anywhere" }}>
+                  <li key={v.parameterId} className="flex min-w-0 gap-2.5">
+                    <span className="text-muted-foreground [overflow-wrap:anywhere]">
                       {p.label}
                     </span>
-                    <span style={{ fontFamily: "'Space Mono',monospace" }}>
+                    <span className="font-mono">
                       {p.type === "binary" ? (v.value === 1 ? "yes" : "no") : v.value}
                       {p.unit ? ` ${p.unit}` : ""}
                     </span>
@@ -171,7 +132,7 @@ export function AdherenceStrip({
               })}
             </ul>
           ) : (
-            <p style={{ margin: 0, color: "var(--muted)" }}>
+            <p className="m-0 text-muted-foreground">
               {selected.state === "rest"
                 ? "A rest day — nothing was due."
                 : selected.state === "future"
@@ -188,7 +149,7 @@ export function AdherenceStrip({
               refuses them either way, and offering the form would be a lie. */}
           {(selected.state === "logged" || selected.state === "missed") &&
             (editing === selected.day ? (
-              <div style={{ marginTop: 14 }}>
+              <div className="mt-3.5">
                 <CheckIn
                   variant="correction"
                   hunchId={hunchId}

@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import { motion, useReducedMotion } from "motion/react";
 import { useCallback, useRef, useState } from "react";
 
@@ -36,15 +38,15 @@ function Card({ belief, shown }: { belief: number; shown: boolean }) {
             "opacity 800ms ease 720ms, transform 900ms cubic-bezier(.2,1.3,.3,1) 720ms",
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src="/starburst.png"
           alt=""
           aria-hidden
+          width={400}
+          height={400}
+          sizes="(max-width: 900px) 50vw, 400px"
+          className="block h-auto w-full mix-blend-luminosity"
           style={{
-            width: "100%",
-            display: "block",
-            mixBlendMode: "luminosity",
             animation: "hl-spin 26s linear infinite",
           }}
         />
@@ -398,6 +400,7 @@ export function VerdictReveal() {
           "radial-gradient(60% 50% at 50% 50%, color-mix(in srgb, var(--s2) 12%, transparent) 0%, color-mix(in srgb, var(--s1) 7%, transparent) 45%, transparent 74%)",
       }}
     >
+      <h2 className="sr-only">What a verdict looks like</h2>
       <Card belief={belief} shown={shown} />
     </section>
   );

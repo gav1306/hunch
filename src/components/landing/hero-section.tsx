@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import { useReducedMotion } from "motion/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -13,10 +15,14 @@ const INTRO_SEEN_KEY = "hunch:intro-seen";
 /** Glossy star used as the reduced-motion / no-WebGL fallback centerpiece. */
 function StarFallback() {
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
+    <Image
       src="/starburst.png"
       alt=""
+      aria-hidden
+      width={400}
+      height={400}
+      priority
+      sizes="(max-width: 900px) 60vw, 400px"
       style={{
         width: "78%",
         height: "auto",
@@ -36,14 +42,9 @@ const HeroRobot = dynamic(
   { ssr: false, loading: () => <StarFallback /> },
 );
 
-// Dark, glossy hero scheme (overrides the page palette locally). Accents
-// (--s1/--s2) still inherit from the page palette so the brand colors carry.
-const DARK = {
-  paper: "#0E0D12",
-  ink: "#F2ECDD",
-  muted: "#8C8676",
-  rule: "rgba(242,236,221,0.16)",
-};
+// The hero's ground, for the one gradient that needs the value rather than the
+// variable. The four tokens it used to redeclare live on `:root`.
+const HERO_PAPER = "var(--paper)";
 
 type Phase = "enter" | "focus" | "leave";
 
@@ -234,7 +235,7 @@ export function HeroSection({
   const line1 = <span style={line1Style}>Got a hunch?</span>;
   const line2 = <span style={line2Style}>Prove it.</span>;
   const headline = (
-    <h1 style={hStyle}>
+    <h1 id="hero-headline" style={hStyle}>
       {line1}
       {line2}
     </h1>
@@ -266,6 +267,36 @@ export function HeroSection({
     bottom: "clamp(96px,13vh,132px)",
   };
 
+  // The hero had no way into the product. "Sign in" sat in the nav for people
+  // who already had an account, and the only "start" was the CTA at the very
+  // bottom of a five-section scroll — so the screen that does the convincing
+  // ended without asking for anything.
+  const heroCta = (
+    <div style={{ ...reveal(320), marginTop: "clamp(20px,2.8vh,32px)" }}>
+      <Link
+        href="/signup"
+        className="hl-cta-inv"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 10,
+          padding: "15px 28px",
+          border: "1px solid var(--ink)",
+          background: "var(--ink)",
+          color: "var(--paper)",
+          fontFamily: "'Space Mono',monospace",
+          fontWeight: 700,
+          fontSize: 13,
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+          textDecoration: "none",
+        }}
+      >
+        Drop your first hunch
+      </Link>
+    </div>
+  );
+
   const heroCopy = (
     <div
       style={{
@@ -283,22 +314,20 @@ export function HeroSection({
       {eyebrow}
       {headline}
       {paragraph(true)}
+      {heroCta}
     </div>
   );
 
   return (
     <section
+      aria-labelledby="hero-headline"
       style={
         {
           position: "relative",
-          minHeight: "100vh",
+          minHeight: "100dvh",
           overflow: "hidden",
-          background: DARK.paper,
-          color: DARK.ink,
-          "--paper": DARK.paper,
-          "--ink": DARK.ink,
-          "--muted": DARK.muted,
-          "--rule": DARK.rule,
+          background: "var(--paper)",
+          color: "var(--ink)",
         } as React.CSSProperties
       }
     >
@@ -339,11 +368,13 @@ export function HeroSection({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src="/starburst.png"
             alt=""
-            style={{ width: 22, height: 22, display: "block" }}
+            aria-hidden
+            width={22}
+            height={22}
+            className="block"
           />
           <span
             style={{
@@ -399,7 +430,7 @@ export function HeroSection({
           height: "clamp(120px,20vh,240px)",
           zIndex: 6,
           pointerEvents: "none",
-          background: `linear-gradient(to bottom, transparent, ${DARK.paper})`,
+          background: `linear-gradient(to bottom, transparent, ${HERO_PAPER})`,
         }}
       />
 
@@ -437,16 +468,14 @@ export function HeroSection({
                 justifyContent: "center",
               }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src="/starburst.png"
                 alt=""
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  display: "block",
-                  animation: "hl-sparkle 2.2s ease-in-out infinite",
-                }}
+                aria-hidden
+                width={64}
+                height={64}
+                className="block size-full"
+                style={{ animation: "hl-sparkle 2.2s ease-in-out infinite" }}
               />
             </div>
             <div

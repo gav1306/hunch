@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import { motion, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
 import { Reveal } from "./motion-primitives";
@@ -14,16 +16,14 @@ type Step = {
 
 function SparkleGlyph() {
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
+    <Image
       src="/starburst.png"
       alt=""
-      style={{
-        width: 34,
-        height: 34,
-        display: "block",
-        animation: "hl-sparkle 2.6s ease-in-out infinite",
-      }}
+      aria-hidden
+      width={34}
+      height={34}
+      className="block"
+      style={{ animation: "hl-sparkle 2.6s ease-in-out infinite" }}
     />
   );
 }
@@ -134,6 +134,7 @@ export function HowItWorks() {
         margin: "0 auto",
       }}
     >
+      <h2 className="sr-only">How it works</h2>
       <div>
         {/* eyebrow */}
         <Reveal

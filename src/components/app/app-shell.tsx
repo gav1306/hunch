@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { LogOutIcon, PlusIcon, ShieldIcon } from "lucide-react";
 import { signOut } from "@/lib/auth-client";
-import { GRAIN_SVG } from "@/components/landing/palette";
-import { appThemeStyle } from "@/lib/app-theme";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -101,16 +100,7 @@ export function AppShell({
   const slim = variant === "slim";
 
   return (
-    <div
-      className="app-shell"
-      style={
-        {
-          minHeight: "100dvh",
-          width: "100%",
-          ...appThemeStyle(),
-        } as React.CSSProperties
-      }
-    >
+    <div className="app-shell min-h-dvh w-full bg-paper font-mono text-ink">
       <style>{`
         .app-shell a{color:inherit;}
         .app-card{transition:border-color 240ms ease,background 240ms ease,transform 240ms ease,box-shadow 240ms ease;}
@@ -118,22 +108,11 @@ export function AppShell({
         @media (prefers-reduced-motion: reduce){.app-card:hover{transform:none;}}
       `}</style>
 
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 0,
-          pointerEvents: "none",
-          opacity: 0.05,
-          mixBlendMode: "soft-light",
-          backgroundImage: GRAIN_SVG,
-        }}
-      />
+      <div aria-hidden className="grain-overlay z-0" />
 
       <header className="relative z-1 flex items-center justify-between gap-4 border-b border-rule px-[clamp(20px,4vw,52px)] py-[clamp(14px,2.4vw,22px)]">
         <Link href="/home" className="inline-flex items-center gap-2 no-underline">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/starburst.png" alt="" width={22} height={22} aria-hidden="true" />
+          <Image src="/starburst.png" alt="" width={22} height={22} aria-hidden />
           <span className="font-heading text-lg font-semibold tracking-[-0.01em]">
             hun<span className="text-s1">ch</span>
           </span>

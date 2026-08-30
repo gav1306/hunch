@@ -8,6 +8,7 @@ import { validateParameterValue, type ParameterType } from "@/lib/schemas/parame
 import { ArrowRightIcon, CheckIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 /**
  * What logging needs to know about a parameter. Home sends a five-field
@@ -25,21 +26,14 @@ export type LoggableParameter = {
   sortOrder?: number;
 };
 
-const label: React.CSSProperties = {
-  fontSize: 12,
-  letterSpacing: "0.16em",
-  textTransform: "uppercase",
-  color: "var(--muted)",
-};
+const LABEL = "text-xs tracking-[0.16em] text-muted-foreground uppercase";
 
-const rest: React.CSSProperties = {
-  background: "color-mix(in srgb,var(--paper) 90%,var(--ink))",
-  border: "1px solid var(--rule)",
-  borderRadius: "var(--radius-card)",
-  padding: "clamp(20px,2.4vw,28px)",
-  fontSize: 13.5,
-  color: "var(--muted)",
-};
+/** The card this component paints, in all of its shapes. */
+const PANEL =
+  "rounded-lg border border-rule bg-card p-[clamp(20px,2.4vw,28px)] min-w-0 max-w-full";
+
+/** A day with nothing to log on it — rest, not started, over. */
+const REST = `${PANEL} m-0 text-sm text-muted-foreground`;
 
 /**
  * Logging today, on both screens that offer it.
@@ -114,16 +108,16 @@ export function CheckIn({
       );
     }
     if (schedule.done) {
-      return <p style={rest}>Trial complete — your verdict is coming soon.</p>;
+      return <p className={REST}>Trial complete — your verdict is coming soon.</p>;
     }
     if (schedule.washout || schedule.phase === null) {
-      return <p style={rest}>Rest day — nothing to log today.</p>;
+      return <p className={REST}>Rest day — nothing to log today.</p>;
     }
   }
 
   if (parameters.length === 0) {
     return compact || correction ? null : (
-      <p style={rest}>Nothing to log — this hunch has no measures yet.</p>
+      <p className={REST}>Nothing to log — this hunch has no measures yet.</p>
     );
   }
 
@@ -167,27 +161,18 @@ export function CheckIn({
   const notices = (
     <>
       {problem && (
-        <p role="alert" style={{ margin: "14px 0 0", fontSize: 13, color: "var(--s1)" }}>
+        <p role="alert" className="mt-3.5 mb-0 text-sm text-s1">
           {problem}
         </p>
       )}
       {checkIn.isSuccess && !problem && (
-        <p
-          style={{
-            margin: "14px 0 0",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: 13,
-            color: "var(--good)",
-          }}
-        >
+        <p className="mt-3.5 mb-0 flex items-center gap-1.5 text-sm text-good">
           <CheckIcon aria-hidden className="size-(--icon)" />
           {correction ? "Saved." : "Logged — log again to change today\u2019s entry."}
         </p>
       )}
       {checkIn.isError && (
-        <p role="alert" style={{ margin: "14px 0 0", fontSize: 13, color: "var(--s1)" }}>
+        <p role="alert" className="mt-3.5 mb-0 text-sm text-s1">
           {checkIn.error.message}
         </p>
       )}
@@ -195,28 +180,27 @@ export function CheckIn({
   );
 
   const fields = shown.map((p) => (
-    <div key={p.id} style={{ display: "grid", gap: 8, minWidth: 0 }}>
-      <div
-        style={{
-          fontFamily: p.isPrimary && !compact ? "'Clash Display',sans-serif" : "inherit",
-          fontWeight: p.isPrimary && !compact ? 600 : 400,
-          fontSize: compact ? 12 : p.isPrimary ? "clamp(16px,2vw,19px)" : 13.5,
-          lineHeight: 1.3,
-          color: compact || !p.isPrimary ? "var(--muted)" : "var(--ink)",
-          overflowWrap: "anywhere",
-        }}
+    <div key={p.id} className="grid min-w-0 gap-2">
+      <label
+        htmlFor={`checkin-${p.id}`}
+        className={cn(
+          "leading-tight [overflow-wrap:anywhere]",
+          // The primary measure is the one the verdict is computed from, so on
+          // the full form it is set like a heading rather than a field label.
+          p.isPrimary && !compact
+            ? "font-heading text-[clamp(16px,2vw,19px)] font-semibold text-ink"
+            : "text-muted-foreground",
+          compact ? "text-xs" : p.isPrimary ? "" : "text-sm",
+        )}
       >
         {p.label}
         {p.unit ? (
-          <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 12, color: "var(--muted)" }}>
-            {" "}
-            ({p.unit})
-          </span>
+          <span className="font-mono text-xs text-muted-foreground"> ({p.unit})</span>
         ) : null}
-      </div>
+      </label>
 
       {p.type === "binary" ? (
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <div className="flex flex-wrap gap-2.5">
           {[
             { text: "Yes", v: "1" },
             { text: "No", v: "0" },
@@ -243,6 +227,7 @@ export function CheckIn({
         </div>
       ) : (
         <Input
+          id={`checkin-${p.id}`}
           type="number"
           step="any"
           min={p.min ?? undefined}
@@ -266,10 +251,8 @@ export function CheckIn({
       // Our own range check words the problem in the parameter's own terms; the
       // browser's native bubble would preempt it and say less.
       noValidate
-      style={
-        compact
-          ? { display: "flex", alignItems: "flex-end", gap: 10, flexWrap: "wrap" }
-          : { marginTop: 18, display: "grid", gap: 16 }
+      className={
+        compact ? "flex flex-wrap items-end gap-2.5" : "mt-[18px] grid gap-4"
       }
       onSubmit={(e) => {
         e.preventDefault();
@@ -301,33 +284,16 @@ export function CheckIn({
   }
 
   return (
-    <section
-      style={{
-        background: "color-mix(in srgb,var(--paper) 90%,var(--ink))",
-        border: "1px solid var(--rule)",
-        borderRadius: "var(--radius-card)",
-        padding: "clamp(20px,2.4vw,28px)",
-        minWidth: 0,
-        maxWidth: "100%",
-      }}
-    >
-      <p style={label}>
+    <section className={PANEL}>
+      <p className={cn(LABEL, "mt-0 mb-0")}>
         Log today · Phase {schedule!.phase}{" "}
-        <span style={{ textTransform: "none", letterSpacing: "0.04em" }}>
+        <span className="tracking-[0.04em] normal-case">
           ({schedule!.kind === "intervention" ? "intervention" : "baseline"})
         </span>
       </p>
 
       {phaseAction && (
-        <p
-          style={{
-            margin: "8px 0 0",
-            fontSize: 13,
-            lineHeight: 1.55,
-            color: "var(--muted)",
-            overflowWrap: "anywhere",
-          }}
-        >
+        <p className="mt-2 mb-0 text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
           {phaseAction}
         </p>
       )}
@@ -381,26 +347,10 @@ function NotStartedYet({
       : "No plan yet";
 
   return (
-    <section
-      style={{
-        border: "1px solid var(--rule)",
-        borderRadius: "var(--radius-card)",
-        padding: "20px 18px",
-        display: "grid",
-        gap: 14,
-      }}
-    >
-      <div style={{ ...rest, ...label }}>{eyebrowText}</div>
+    <section className="grid gap-3.5 rounded-lg border border-rule px-[18px] py-5">
+      <p className={cn(LABEL, "m-0")}>{eyebrowText}</p>
 
-      <p
-        style={{
-          margin: 0,
-          fontSize: 14,
-          lineHeight: 1.6,
-          color: "var(--ink)",
-          overflowWrap: "anywhere",
-        }}
-      >
+      <p className="m-0 text-sm leading-relaxed text-ink [overflow-wrap:anywhere]">
         {scheduled
           ? firstPhaseAction
             ? `Day 1 is a baseline day. ${firstPhaseAction}`

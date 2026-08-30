@@ -103,39 +103,17 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
   return (
     <div>
-      <div
-        style={{
-          fontSize: 11,
-          letterSpacing: "0.24em",
-          textTransform: "uppercase",
-          color: "var(--muted)",
-          marginBottom: 14,
-        }}
-      >
-        <span aria-hidden style={{ color: "var(--s1)" }}>✦</span>{" "}
+      <p className="mt-0 mb-3.5 text-xs tracking-[0.24em] text-muted-foreground uppercase">
+        <span aria-hidden className="text-s1">
+          ✦
+        </span>{" "}
         {isSignup ? "Start your first test" : "Welcome back"}
-      </div>
+      </p>
 
-      <h1
-        style={{
-          margin: "0 0 10px",
-          fontFamily: "'Clash Display',sans-serif",
-          fontWeight: 700,
-          fontSize: "clamp(30px,4vw,44px)",
-          lineHeight: 1,
-          letterSpacing: "-0.02em",
-        }}
-      >
+      <h1 className="mt-0 mb-2.5 font-heading text-[clamp(30px,4vw,44px)] leading-none font-bold tracking-[-0.02em] text-ink">
         {isSignup ? "Create your account" : "Sign in to hunch"}
       </h1>
-      <p
-        style={{
-          margin: "0 0 28px",
-          fontSize: 13,
-          lineHeight: 1.6,
-          color: "var(--muted)",
-        }}
-      >
+      <p className="mt-0 mb-7 text-sm leading-relaxed text-muted-foreground">
         {isSignup
           ? "Turn a gut feeling into a real answer."
           : "Pick up where your hunches left off."}
@@ -214,11 +192,10 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </FieldGroup>
 
         {!isSignup && (
-          <div style={{ marginTop: 10, textAlign: "right" }}>
+          <div className="mt-2.5 text-right">
             <Link
               href="/forgot-password"
-              className="auth-link"
-              style={{ fontSize: 12, color: "var(--muted)", textDecoration: "none" }}
+              className="auth-link text-xs text-muted-foreground no-underline"
             >
               Forgot password?
             </Link>
@@ -226,15 +203,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         )}
 
         {error && (
-          <div
-            role="alert"
-            style={{
-              margin: "10px 0 4px",
-              fontSize: 12,
-              lineHeight: 1.5,
-              color: "var(--s1)",
-            }}
-          >
+          <div role="alert" className="mt-2.5 mb-1 text-xs leading-normal text-s1">
             {error}
           </div>
         )}
@@ -251,18 +220,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </Button>
       </form>
 
-      <div
-        style={{
-          marginTop: 24,
-          fontSize: 12.5,
-          color: "var(--muted)",
-        }}
-      >
+      <div className="mt-6 text-xs text-muted-foreground">
         {isSignup ? "Already have an account? " : "New to hunch? "}
         <Link
           href={isSignup ? "/signin" : "/signup"}
-          className="auth-link"
-          style={{ color: "var(--ink)", textDecoration: "none" }}
+          className="auth-link text-ink no-underline"
         >
           {isSignup ? "Sign in" : "Create an account"}
         </Link>

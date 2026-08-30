@@ -7,7 +7,7 @@ import { HunchTicker } from "./hunch-ticker";
 import { MethodSection } from "./method-section";
 import { SmoothScroll } from "./smooth-scroll";
 import { VerdictReveal } from "./verdict-reveal";
-import { GRAIN_SVG, PALETTES, paletteVars, type PaletteName } from "./palette";
+import { PALETTES, paletteVars, type PaletteName } from "./palette";
 
 export type HunchLandingProps = {
   palette?: PaletteName | string;
@@ -23,18 +23,6 @@ export function HunchLanding({
   autoplay = true,
 }: HunchLandingProps) {
   const P = PALETTES[palette] ?? PALETTES.Riso;
-
-  // Dark theme across the whole page (matches the dark glossy hero).
-  // Keeps brand accents (--s1/--s2); only flips the canvas + text tokens.
-  const DARK = {
-    paper: "#0E0D12",
-    ink: "#F2ECDD",
-    muted: "#8C8676",
-    rule: "rgba(242,236,221,0.16)",
-  };
-
-  const grainOp = 0.05;
-  const grainBlend = "soft-light";
 
   return (
     <SmoothScroll>
@@ -80,35 +68,25 @@ export function HunchLanding({
         }
       `}</style>
 
-      <div
+      {/* `--paper/--ink/--muted/--rule` used to be redeclared here with the
+          same four values that live on `:root`. The palette vars stay: the
+          landing keeps its own Riso accents, which is the one place in the
+          product that still wants the light-ground `--s2`. */}
+      <main
         className="hl-root"
         style={{
           position: "relative",
-          minHeight: "100vh",
+          minHeight: "100dvh",
           background: "var(--paper)",
           color: "var(--ink)",
-          fontFamily: "'Space Mono',ui-monospace,monospace",
+          fontFamily: "var(--font-mono)",
           overflowX: "clip",
           ...paletteVars(P),
-          "--paper": DARK.paper,
-          "--ink": DARK.ink,
-          "--muted": DARK.muted,
-          "--rule": DARK.rule,
         } as React.CSSProperties}
       >
         {/* page-wide grain */}
         {grain && (
-          <div
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 40,
-              pointerEvents: "none",
-              opacity: grainOp,
-              mixBlendMode: grainBlend as React.CSSProperties["mixBlendMode"],
-              backgroundImage: GRAIN_SVG,
-            }}
-          />
+          <div aria-hidden className="grain-overlay" />
         )}
 
         <HeroSection wordHold={wordHold} autoplay={autoplay} />
@@ -117,7 +95,7 @@ export function HunchLanding({
         <VerdictReveal />
         <MethodSection />
         <FinalCta />
-      </div>
+      </main>
     </SmoothScroll>
   );
 }

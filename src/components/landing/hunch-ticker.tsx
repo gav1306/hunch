@@ -89,6 +89,7 @@ export function HunchTicker() {
         overflow: "hidden",
       }}
     >
+      <h2 className="sr-only">What people are testing</h2>
       <Reveal y={24}>
         <div
           style={{
