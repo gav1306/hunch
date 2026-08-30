@@ -334,6 +334,36 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
               </div>
             </section>
           )}
+
+          {data.archived.length > 0 && (
+            <section>
+              <details className="group">
+                <summary className="flex h-11 cursor-pointer list-none items-center gap-2 text-xs tracking-[0.24em] text-muted-foreground uppercase hover:text-ink">
+                  <span aria-hidden className="text-s1 group-open:hidden">
+                    +
+                  </span>
+                  <span aria-hidden className="hidden text-s1 group-open:inline">
+                    −
+                  </span>
+                  {data.archived.length} archived
+                </summary>
+                <div className={cn(GRID, "mt-[clamp(12px,1.6vw,18px)]")}>
+                  {data.archived.map((h) => (
+                    <Link key={h.id} href={`/hunch/${h.id}`} className={cn(CARD, "app-card")}>
+                      <p className={cn(CARD_EYEBROW, "text-muted-foreground")}>
+                        Archived
+                        <ArrowRightIcon
+                          aria-hidden
+                          className="ml-1 inline-block size-(--icon) align-[-0.15em]"
+                        />
+                      </p>
+                      <Statement h={h} />
+                    </Link>
+                  ))}
+                </div>
+              </details>
+            </section>
+          )}
         </div>
       )}
     </div>
