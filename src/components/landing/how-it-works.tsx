@@ -20,10 +20,10 @@ function SparkleGlyph() {
       src="/starburst.png"
       alt=""
       aria-hidden
-      width={34}
-      height={34}
+      width={736}
+      height={760}
       className="block"
-      style={{ animation: "hl-sparkle 2.6s ease-in-out infinite" }}
+      style={{ width: 34, height: "auto", animation: "hl-sparkle 2.6s ease-in-out infinite" }}
     />
   );
 }

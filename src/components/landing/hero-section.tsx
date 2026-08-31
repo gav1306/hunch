@@ -19,8 +19,8 @@ function StarFallback() {
       src="/starburst.png"
       alt=""
       aria-hidden
-      width={400}
-      height={400}
+      width={736}
+      height={760}
       priority
       sizes="(max-width: 900px) 60vw, 400px"
       style={{
@@ -372,9 +372,10 @@ export function HeroSection({
             src="/starburst.png"
             alt=""
             aria-hidden
-            width={22}
-            height={22}
+            width={736}
+            height={760}
             className="block"
+            style={{ width: 22, height: "auto" }}
           />
           <span
             style={{
@@ -468,10 +469,14 @@ export function HeroSection({
                 src="/starburst.png"
                 alt=""
                 aria-hidden
-                width={64}
-                height={64}
-                className="block size-full"
-                style={{ animation: "hl-sparkle 2.2s ease-in-out infinite" }}
+                width={736}
+                height={760}
+                className="block"
+                style={{
+                  width: "100%",
+                  height: "auto",
+                  animation: "hl-sparkle 2.2s ease-in-out infinite",
+                }}
               />
             </div>
             <div

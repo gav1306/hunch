@@ -41,8 +41,8 @@ export function FinalCta() {
             src="/starburst.png"
             alt=""
             aria-hidden
-            width={400}
-            height={400}
+            width={736}
+            height={760}
             sizes="(max-width: 900px) 40vw, 320px"
             className="block h-auto w-full"
             style={{ animation: "hl-wobble 18s ease-in-out infinite" }}
@@ -150,9 +150,10 @@ export function FinalCta() {
             src="/starburst.png"
             alt=""
             aria-hidden
-            width={18}
-            height={18}
+            width={736}
+            height={760}
             className="block"
+            style={{ width: 18, height: "auto" }}
           />
           <span
             style={{
