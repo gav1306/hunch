@@ -11,6 +11,8 @@ export type OwnedHunch = {
   rawText: string;
   /** Null until the hunch is sharpened — the tab falls back to the raw words. */
   statement: string | null;
+  /** Filed away: the screen offers "restore" where it would offer "archive". */
+  archived: boolean;
 };
 
 /**
@@ -30,7 +32,12 @@ export const readOwnedHunch = cache(async (id: string): Promise<OwnedHunch | nul
 
   const hunch = await db.hunch.findFirst({
     where: { id, userId: session.user.id },
-    select: { id: true, rawText: true, hypothesis: { select: { statement: true } } },
+    select: {
+      id: true,
+      rawText: true,
+      archivedAt: true,
+      hypothesis: { select: { statement: true } },
+    },
   });
   if (!hunch) return null;
 
@@ -38,5 +45,6 @@ export const readOwnedHunch = cache(async (id: string): Promise<OwnedHunch | nul
     id: hunch.id,
     rawText: hunch.rawText,
     statement: hunch.hypothesis?.statement ?? null,
+    archived: hunch.archivedAt !== null,
   };
 });

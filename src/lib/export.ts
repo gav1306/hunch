@@ -56,6 +56,11 @@ function csvCell(value: string): string {
   return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
+/** One day's readings keyed by parameter, which both formats look up by id. */
+function readingsById(c: ExportCheckIn): Map<string, number> {
+  return new Map(c.values.map((v) => [v.parameterId, v.value]));
+}
+
 /** The column header for a parameter — its unit in brackets when it has one. */
 function columnLabel(p: ExportParameter): string {
   return p.unit ? `${p.label} (${p.unit})` : p.label;
@@ -65,7 +70,7 @@ function columnLabel(p: ExportParameter): string {
 export function toCsv(h: ExportHunch): string {
   const header = ["date", "phase", ...h.parameters.map(columnLabel)].map(csvCell);
   const rows = h.checkIns.map((c) => {
-    const byId = new Map(c.values.map((v) => [v.parameterId, v.value]));
+    const byId = readingsById(c);
     return [
       isoDate(c.loggedOn),
       c.phase,
@@ -109,7 +114,7 @@ export function toText(h: ExportHunch): string {
     lines.push("Nothing logged yet.");
   } else {
     for (const c of h.checkIns) {
-      const byId = new Map(c.values.map((v) => [v.parameterId, v.value]));
+      const byId = readingsById(c);
       const readings = h.parameters
         .filter((p) => byId.has(p.id))
         .map((p) => `${columnLabel(p)}: ${byId.get(p.id)}`)

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useId } from "react";
 import {
   ArchiveIcon,
   ArchiveRestoreIcon,
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useArchiveHunch } from "@/hooks/use-archive-hunch";
+import { useConfirmPanel } from "@/hooks/use-confirm-panel";
 import { useRepeatHunch } from "@/hooks/use-repeat-hunch";
 
 /**
@@ -36,7 +37,8 @@ export function VerdictActions({
   const router = useRouter();
   const repeat = useRepeatHunch(hunchId);
   const archive = useArchiveHunch(hunchId);
-  const [confirmingArchive, setConfirmingArchive] = useState(false);
+  const confirm = useConfirmPanel();
+  const explainerId = useId();
 
   // The follow-up opens the form on the thing that was just settled, so the
   // user edits a sentence instead of starting from an empty box.
@@ -117,13 +119,13 @@ export function VerdictActions({
             Restore to home
           </Button>
         ) : (
-          !confirmingArchive && (
+          !confirm.open && (
             <Button
               type="button"
               variant="brand"
               size="touch"
               className="border-transparent px-0.5 text-muted-foreground underline underline-offset-4 hover:border-transparent hover:bg-transparent hover:text-ink"
-              onClick={() => setConfirmingArchive(true)}
+              {...confirm.triggerProps}
             >
               <ArchiveIcon data-icon="inline-start" aria-hidden />
               Archive
@@ -132,9 +134,13 @@ export function VerdictActions({
         )}
       </div>
 
-      {confirmingArchive && (
-        <div className="grid gap-2.5">
-          <p className="m-0 text-sm leading-relaxed text-ink">
+      {confirm.open && (
+        <div
+          {...confirm.panelProps}
+          aria-labelledby={explainerId}
+          className="grid gap-2.5 outline-none"
+        >
+          <p id={explainerId} className="m-0 text-sm leading-relaxed text-ink">
             Archiving takes this off your home screen. The verdict, the plan and
             every day you logged stay exactly where they are.
           </p>
@@ -162,7 +168,7 @@ export function VerdictActions({
               size="touch"
               className="border-rule font-bold"
               disabled={archive.isPending}
-              onClick={() => setConfirmingArchive(false)}
+              onClick={confirm.dismiss}
             >
               Keep it on home
             </Button>

@@ -346,13 +346,14 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
                   <span aria-hidden className="hidden text-s1 group-open:inline">
                     −
                   </span>
-                  {data.archived.length} archived
+                  {data.archived.length} experiment
+                  {data.archived.length === 1 ? "" : "s"}
                 </summary>
                 <div className={cn(GRID, "mt-[clamp(12px,1.6vw,18px)]")}>
                   {data.archived.map((h) => (
                     <Link key={h.id} href={`/hunch/${h.id}`} className={cn(CARD, "app-card")}>
                       <p className={cn(CARD_EYEBROW, "text-muted-foreground")}>
-                        Archived
+                        Open
                         <ArrowRightIcon
                           aria-hidden
                           className="ml-1 inline-block size-(--icon) align-[-0.15em]"
