@@ -17,7 +17,7 @@ export type HunchLandingProps = {
 };
 
 export function HunchLanding({
-  palette = "Riso",
+  palette = "Noir",
   grain = true,
   wordHold = 900,
   autoplay = true,
