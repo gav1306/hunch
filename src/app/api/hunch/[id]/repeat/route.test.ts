@@ -92,10 +92,32 @@ describe("POST /api/hunch/[id]/repeat", () => {
     expect(data.parameters.create.filter((p) => p.isPrimary)).toHaveLength(1);
   });
 
-  it("carries no check-ins or verdict across", async () => {
+  it("reads nothing it must not copy", async () => {
     await POST(req(), params);
-    const data = (vi.mocked(db.hunch.create).mock.calls[0][0] as { data: object }).data;
-    expect(data).not.toHaveProperty("checkIns");
-    expect(data).not.toHaveProperty("verdict");
+    const arg = vi.mocked(db.hunch.create).mock.calls[0][0] as { data: object };
+    const read = vi.mocked(db.hunch.findFirst).mock.calls[0][0] as {
+      include: Record<string, unknown>;
+    };
+    // The days and the verdict belong to the finished run. Not fetching them is
+    // what keeps a later edit from spreading them into the clone.
+    expect(Object.keys(read.include).sort()).toEqual([
+      "hypothesis",
+      "parameters",
+      "protocol",
+    ]);
+    expect(arg.data).not.toHaveProperty("checkIns");
+    expect(arg.data).not.toHaveProperty("verdict");
+  });
+
+  it("starts the repeat on home even when the original was filed away", async () => {
+    vi.mocked(db.hunch.findFirst).mockResolvedValue({
+      ...source,
+      archivedAt: new Date("2026-08-01T00:00:00.000Z"),
+    } as never);
+    await POST(req(), params);
+    const { data } = vi.mocked(db.hunch.create).mock.calls[0][0] as {
+      data: Record<string, unknown>;
+    };
+    expect(data.archivedAt ?? null).toBeNull();
   });
 });
