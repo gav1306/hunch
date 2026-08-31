@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useId } from "react";
+import { useConfirmPanel } from "@/hooks/use-confirm-panel";
 import { useDeleteHunch } from "@/hooks/use-delete-hunch";
 import { Button } from "@/components/ui/button";
 
@@ -24,15 +25,16 @@ export function AbandonHunch({
 }) {
   const router = useRouter();
   const remove = useDeleteHunch(hunchId);
-  const [confirming, setConfirming] = useState(false);
+  const confirm = useConfirmPanel();
+  const explainerId = useId();
 
-  if (!confirming) {
+  if (!confirm.open) {
     return (
       <Button
         type="button"
         variant="brand"
         size="touch"
-        onClick={() => setConfirming(true)}
+        {...confirm.triggerProps}
         className="border-transparent px-0.5 text-muted-foreground underline underline-offset-4 hover:border-transparent hover:bg-transparent hover:text-ink"
       >
         Abandon this hunch
@@ -41,8 +43,12 @@ export function AbandonHunch({
   }
 
   return (
-    <div className="grid gap-2.5 pt-3">
-      <p className="m-0 text-sm leading-relaxed text-ink">
+    <div
+      {...confirm.panelProps}
+      aria-labelledby={explainerId}
+      className="grid gap-2.5 pt-3 outline-none"
+    >
+      <p id={explainerId} className="m-0 text-sm leading-relaxed text-ink">
         {loggedDays > 0
           ? `This deletes the hunch and the ${loggedDays} ${loggedDays === 1 ? "day" : "days"} you've logged against it. It can't be undone.`
           : "This deletes the hunch and its plan. It can't be undone."}
@@ -68,7 +74,7 @@ export function AbandonHunch({
           variant="brand"
           size="touch"
           disabled={remove.isPending}
-          onClick={() => setConfirming(false)}
+          onClick={confirm.dismiss}
           className="border-rule font-bold"
         >
           Keep it
