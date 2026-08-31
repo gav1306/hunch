@@ -12,7 +12,13 @@ export const PALETTES: Record<string, Palette> = {
   Riso: { paper: "#EDE7D9", ink: "#17140E", muted: "#6E6656", rule: "rgba(23,20,14,0.20)", s1: "#FF3B14", s2: "#1F33E0", dark: false },
   Fuchsia: { paper: "#EFE6E7", ink: "#171015", muted: "#6E5F64", rule: "rgba(23,16,21,0.20)", s1: "#FF2E7E", s2: "#2B2BFF", dark: false },
   Citrus: { paper: "#ECE9D4", ink: "#14150E", muted: "#6B6A52", rule: "rgba(20,21,14,0.20)", s1: "#F24405", s2: "#1E7A3C", dark: false },
-  Noir: { paper: "#14110C", ink: "#EFE7D6", muted: "#9B9384", rule: "rgba(239,231,214,0.20)", s1: "#FF4A1C", s2: "#5AA0FF", dark: true },
+  // The one palette that has to agree with something outside itself. Its
+  // neutrals are the app's own tokens, value for value, because the landing
+  // hands straight over to /signin and then /home: a warm near-black followed
+  // by a cool one reads as the ground shifting under the reader. The accents
+  // stay the landing's — Riso orange and a sky blue that carries on a dark
+  // ground better than the app's periwinkle.
+  Noir: { paper: "#0e0d12", ink: "#f2ecdd", muted: "#8c8676", rule: "rgba(242,236,221,0.16)", s1: "#FF4A1C", s2: "#5AA0FF", dark: true },
 };
 
 export type PaletteName = keyof typeof PALETTES;
