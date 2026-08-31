@@ -37,14 +37,26 @@ export function Boundary({
   );
 }
 
-/** The link every boundary offers, so no screen is a dead end. */
-export function HomeLink({ children = "Back to home" }: { children?: React.ReactNode }) {
+/**
+ * The link every boundary offers, so no screen is a dead end.
+ *
+ * Defaults to `/home` because most boundaries are inside the app. The public
+ * 404 passes `/` instead: `/home` would bounce a signed-out visitor straight to
+ * `/signin`, which is a stranger reading "you are lost" and then "sign in".
+ */
+export function HomeLink({
+  href = "/home",
+  children = "Back to home",
+}: {
+  href?: string;
+  children?: React.ReactNode;
+}) {
   return (
     <Button
       variant="brand"
       size="touch"
       className="border-rule font-bold"
-      render={<Link href="/home" />}
+      render={<Link href={href} />}
     >
       {children}
     </Button>
