@@ -18,7 +18,17 @@ import { cn } from "@/lib/utils";
  * The frame — ground, header, column — comes from the slim AppShell in
  * `/hunch/layout.tsx`.
  */
-export function HunchDashboard({ id }: { id: string }) {
+export function HunchDashboard({
+  id,
+  statement,
+  archived,
+}: {
+  id: string;
+  /** The sharpened hypothesis, read on the server. Absent until sharpening. */
+  statement?: string;
+  /** Whether this hunch is filed away, read on the server. */
+  archived: boolean;
+}) {
   const query = useBelief(id);
   const info = useHunchInfo(id);
 
@@ -42,11 +52,7 @@ export function HunchDashboard({ id }: { id: string }) {
         : info.data?.protocol?.design.phases[schedule.phaseIndex]?.action;
 
     return concluded ? (
-      <VerdictView
-        hunchId={id}
-        statement={info.data?.hypothesis.statement}
-        archived={info.data?.archivedAt != null}
-      />
+      <VerdictView hunchId={id} statement={statement} archived={archived} />
     ) : (
       <div className="grid gap-5">
         <BeliefMeter belief={belief} />
