@@ -406,11 +406,7 @@ export function HeroSection({
           <Link
             href="/signin"
             className="hl-signin"
-            style={{
-              padding: "8px 15px",
-              border: "1px solid var(--ink)",
-              color: "var(--ink)",
-            }}
+            style={{ padding: "8px 15px" }}
           >
             Sign in
           </Link>

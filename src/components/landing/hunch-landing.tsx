@@ -40,8 +40,14 @@ export function HunchLanding({
         @keyframes hl-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
         .hl-navlink{color:var(--muted);transition:color 180ms ease;}
         .hl-navlink:hover{color:var(--ink);}
-        .hl-signin{transition:background 180ms ease,color 180ms ease;}
+        /* The base colour lives here, not inline: an inline color declaration
+           beats any class rule, so the hover and focus states below repainted
+           the ground and never the text — a cream button with cream letters. */
+        .hl-signin{transition:background 180ms ease,color 180ms ease,border-color 180ms ease;border:1px solid var(--ink);color:var(--ink);}
         .hl-signin:hover{background:var(--ink);color:var(--paper);}
+        /* Focus takes the landing blue rather than the orange the app uses,
+           so a keyboard walker can tell "focused" from "hovered" at a glance. */
+        .hl-signin:focus-visible{background:var(--s2);border-color:var(--s2);color:var(--paper);outline-color:var(--s2);}
         .hl-cta{transition:background 200ms ease;}
         .hl-cta:hover{background:var(--s1);}
         .hl-cta-inv{transition:background 200ms ease,color 200ms ease;}
