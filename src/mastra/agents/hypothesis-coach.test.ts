@@ -30,3 +30,22 @@ describe("buildSharpenPrompt", () => {
     expect(p.toLowerCase()).not.toContain("ground truth");
   });
 });
+
+describe("buildSharpenPrompt for a log", () => {
+  it("tells the coach to write something to watch for, not something to do", () => {
+    const prompt = buildSharpenPrompt("skip my antidepressant", [], [], true);
+    expect(prompt).toContain("LOG, not a trial");
+    expect(prompt).toContain("WATCH FOR");
+  });
+
+  it("says nothing of the sort for an ordinary trial", () => {
+    const prompt = buildSharpenPrompt("coffee wrecks my sleep", [], []);
+    expect(prompt).not.toContain("LOG, not a trial");
+  });
+
+  it("still carries the raw text either way", () => {
+    expect(buildSharpenPrompt("coffee wrecks my sleep", [], [], true)).toContain(
+      "coffee wrecks my sleep",
+    );
+  });
+});

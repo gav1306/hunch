@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session";
 import { recallPriors } from "@/lib/memory/recall";
 import { hunchInputSchema } from "@/lib/schemas/hypothesis";
 import { askClarifying } from "@/mastra/agents/clarifier";
+import { MEDICATION_REFUSAL, medicationIntent } from "@/lib/safety/medication";
 
 /**
  * Pre-hunch step: given raw text, the Clarifier returns <=3 tappable questions.
@@ -19,6 +20,16 @@ export async function POST(request: Request) {
   const parsed = hunchInputSchema.safeParse(await request.json());
   if (!parsed.success) {
     return NextResponse.json({ error: "A hunch can't be empty." }, { status: 400 });
+  }
+
+  // This is the true first touch — the form asks for questions before it asks
+  // for a hypothesis. Refusing here means the user never answers three
+  // clarifying questions only to be turned down at the end of them.
+  if (medicationIntent(parsed.data.rawText)) {
+    return NextResponse.json(
+      { blocked: "medication", error: MEDICATION_REFUSAL },
+      { status: 422 },
+    );
   }
 
   try {

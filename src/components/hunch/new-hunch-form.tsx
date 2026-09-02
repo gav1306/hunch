@@ -1,10 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useClarify } from "@/hooks/use-clarify";
-import { useCreateHunch } from "@/hooks/use-create-hunch";
+import { BlockedHunchError, useCreateHunch } from "@/hooks/use-create-hunch";
 import type { HunchInfo } from "@/hooks/use-hunch-info";
 import type { ClarifyingAnswer, ClarifyingQuestion } from "@/lib/schemas/clarify";
 import { PencilIcon } from "lucide-react";
@@ -121,6 +121,10 @@ export function NewHunchForm({
   // confirms the hypothesis and the plan is designed (Variation B: one page).
   // Seed the protocol page's query cache with the hypothesis we already have so
   // it renders the confirm gate instantly instead of blanking on a refetch.
+  // Set when the user chooses the log rather than editing their hunch, so the
+  // success effect knows which door they came through.
+  const keptAsLog = useRef(false);
+
   useEffect(() => {
     const hunch = createHunch.data;
     if (!hunch) return;
@@ -140,6 +144,17 @@ export function NewHunchForm({
       protocol: null,
       archivedAt: null,
     });
+    // A hunch kept as a log skips the design gate entirely: there is nothing to
+    // design, and sending it there would offer to plan the very trial the app
+    // just declined. It gets its one-phase protocol and goes straight to the
+    // dashboard.
+    if (keptAsLog.current) {
+      keptAsLog.current = false;
+      void fetch(`/api/hunch/${hunch.id}/observe`, { method: "POST" }).then(() =>
+        router.push(`/hunch/${hunch.id}`),
+      );
+      return;
+    }
     router.push(`/hunch/${hunch.id}/protocol`);
   }, [createHunch.data, queryClient, router]);
 
@@ -183,8 +198,13 @@ export function NewHunchForm({
     setNudge(null);
     clarify.mutate(text, {
       onSuccess: (qs) => setQuestions(qs),
-      // Degrade: if the clarifier fails, skip straight to a one-shot sharpen.
-      onError: () => createHunch.mutate({ rawText: text, answers: [] }),
+      // Degrade: if the clarifier fails, skip straight to a one-shot sharpen —
+      // unless it didn't fail but refused, in which case falling through would
+      // run the very thing that was just declined.
+      onError: (err) => {
+        if (err instanceof BlockedHunchError) return;
+        createHunch.mutate({ rawText: text, answers: [] });
+      },
     });
   }
 
@@ -206,6 +226,14 @@ export function NewHunchForm({
   const allAnswered = questions?.every((q) => (answers[q.id] ?? "").trim() !== "") ?? false;
   // Sharpen is in flight (or just resolved and we're about to navigate).
   const busy = createHunch.isPending || !!createHunch.data;
+  // The app declined to plan this one. `Edit my hunch` resets the mutation and
+  // the textarea still holds what they typed — nothing is thrown away.
+  const blocked =
+    createHunch.error instanceof BlockedHunchError
+      ? createHunch.error
+      : clarify.error instanceof BlockedHunchError
+        ? clarify.error
+        : null;
 
   return (
     <div>
@@ -319,7 +347,49 @@ export function NewHunchForm({
         </p>
       )}
 
-      {(clarify.isError && step === "idle") || createHunch.isError ? (
+      {/* A refusal, not a failure. It gets a card and two doors rather than a
+          red line: the person asking has usually noticed something real, and a
+          dead end is why they'd leave. */}
+      {blocked ? (
+        <section
+          role="alert"
+          className="mt-5 rounded-xl border border-rule bg-card p-[clamp(20px,2.4vw,28px)]"
+        >
+          <p className="m-0 text-sm leading-relaxed text-ink [overflow-wrap:anywhere]">
+            {blocked.message}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2.5">
+            <Button
+              type="button"
+              variant="brand"
+              size="touch"
+              disabled={createHunch.isPending}
+              onClick={() => {
+                keptAsLog.current = true;
+                createHunch.mutate({
+                  rawText: rawText.trim(),
+                  answers: [],
+                  observeOnly: true,
+                });
+              }}
+            >
+              {createHunch.isPending ? "Setting it up…" : "Track it as it is"}
+            </Button>
+            <Button
+              type="button"
+              variant="brand"
+              size="touch"
+              onClick={() => {
+                createHunch.reset();
+                clarify.reset();
+                document.getElementById("raw-text")?.focus();
+              }}
+            >
+              Edit my hunch
+            </Button>
+          </div>
+        </section>
+      ) : (clarify.isError && step === "idle") || createHunch.isError ? (
         <p role="alert" className="mt-5 text-sm text-s1 [overflow-wrap:anywhere]">
           {createHunch.error?.message ?? clarify.error?.message}
         </p>

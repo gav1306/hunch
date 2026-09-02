@@ -6,7 +6,8 @@ import { recallPriors } from "@/lib/memory/recall";
 import { draftsFromSharpened, toParameterDto } from "@/lib/parameters";
 import { sharpenRequestSchema } from "@/lib/schemas/clarify";
 import { MEDICATION_REFUSAL, medicationIntent } from "@/lib/safety/medication";
-import { sharpenHunch } from "@/mastra/agents/hypothesis-coach";
+import { NoStructuredOutput, sharpenHunch } from "@/mastra/agents/hypothesis-coach";
+import { diaryFallback } from "@/lib/safety/diary-fallback";
 
 /**
  * Core loop, step one: drop a hunch -> Hypothesis Coach sharpens it -> persist
@@ -37,7 +38,22 @@ export async function POST(request: Request) {
 
   try {
     const priors = await recallPriors(session.user.id, parsed.data.rawText);
-    const sharpened = await sharpenHunch(parsed.data.rawText, priors, parsed.data.answers);
+    let sharpened;
+    try {
+      sharpened = await sharpenHunch(
+        parsed.data.rawText,
+        priors,
+        parsed.data.answers,
+        parsed.data.observeOnly,
+      );
+    } catch (err) {
+      // A diary keeps its promise even when the coach won't answer. Asked about
+      // coming off a statin the model returns prose rather than an object, and
+      // failing here would put the dead end back one step later — after the user
+      // had already been told the app would keep the record.
+      if (!(parsed.data.observeOnly && err instanceof NoStructuredOutput)) throw err;
+      sharpened = diaryFallback(parsed.data.rawText);
+    }
 
     const drafts = draftsFromSharpened(sharpened);
 

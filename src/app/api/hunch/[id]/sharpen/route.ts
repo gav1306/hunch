@@ -63,7 +63,12 @@ export async function POST(
 
   try {
     const priors = await recallPriors(session.user.id, parsed.data.rawText);
-    const sharpened = await sharpenHunch(parsed.data.rawText, priors, parsed.data.answers);
+    const sharpened = await sharpenHunch(
+      parsed.data.rawText,
+      priors,
+      parsed.data.answers,
+      parsed.data.observeOnly,
+    );
     const drafts = draftsFromSharpened(sharpened);
     const hypothesisData = {
       statement: sharpened.statement,
