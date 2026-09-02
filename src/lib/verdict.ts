@@ -79,3 +79,29 @@ export function verdictHeadline(
       return outcome ? `${sentenceStart(outcome.label)} went down` : "Your outcome went down";
   }
 }
+
+/**
+ * The scanning badge for a concluded trial, for a list where a sentence is too
+ * long to read.
+ *
+ * With a recorded prediction it answers the only question a list needs: did the
+ * hunch hold up? Without one — every hypothesis sharpened before the Coach
+ * wrote `expectedDirection` — it falls back to the direction, which is always
+ * knowable. Neither branch says whether the news was good.
+ *
+ * `Reversed` is deliberately its own word rather than folded into "Not
+ * confirmed". A surprise reversal is the most interesting result an experiment
+ * can produce, and a clean null is not the same finding at all.
+ */
+export function verdictBadge(
+  category: VerdictCategory,
+  expectedDirection: "up" | "down" | null | undefined,
+): string {
+  if (category === "inconclusive_insufficient") return "Not enough days";
+  if (category === "inconclusive_no_effect") {
+    return expectedDirection ? "Not confirmed" : "No difference";
+  }
+  const measured = category === "helped" ? "up" : "down";
+  if (!expectedDirection) return measured === "up" ? "Increase" : "Decrease";
+  return measured === expectedDirection ? "Confirmed" : "Reversed";
+}

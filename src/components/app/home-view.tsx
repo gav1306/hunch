@@ -8,6 +8,8 @@ import { ArrowRightIcon, CheckIcon } from "lucide-react";
 import { CheckIn } from "@/components/check-in";
 import type { HomeData, HomeHunch } from "@/lib/home";
 import { cn } from "@/lib/utils";
+import { verdictBadge } from "@/lib/verdict";
+import type { VerdictCategory } from "@/lib/schemas/verdict";
 
 const EXAMPLES = [
   "Does coffee after lunch wreck my sleep?",
@@ -72,12 +74,6 @@ function startsCopy(iso: string): string {
  * rising bug count read as a green tick on a bad week. Confirmed/Reversed
  * needs the hypothesis' expected direction, which the Coach does not write yet.
  */
-const VERDICT_LABEL: Record<string, { text: string; className: string }> = {
-  helped: { text: "Increase", className: "text-neutral" },
-  hurt: { text: "Decrease", className: "text-neutral" },
-  inconclusive_no_effect: { text: "No difference", className: "text-neutral" },
-  inconclusive_insufficient: { text: "Not enough days", className: "text-neutral" },
-};
 
 /**
  * The section heading: brand mark, then the label.
@@ -169,9 +165,14 @@ function ProgressBar({ day, total }: { day: number; total: number }) {
 
 /** A concluded experiment, as a card. */
 function VerdictCard({ h }: { h: HomeHunch }) {
-  const v = VERDICT_LABEL[h.verdict!.category] ?? {
-    text: h.verdict!.category,
-    className: "text-muted-foreground",
+  const v = {
+    text: verdictBadge(
+      h.verdict!.category as VerdictCategory,
+      h.verdict!.expectedDirection,
+    ),
+    // Never a colour. Green on "Increase" would put back the judgement the
+    // whole change removes — a rising bug count is not good news.
+    className: "text-neutral",
   };
   return (
     <Link href={`/hunch/${h.id}`} className={cn(CARD, "app-card")}>
