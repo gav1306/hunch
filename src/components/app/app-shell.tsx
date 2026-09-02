@@ -51,14 +51,18 @@ function AccountMenu({ user }: { user: SessionUser }) {
         {initial}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={8} className="w-56 min-w-56">
-        <DropdownMenuLabel className="flex flex-col gap-0.5">
-          <span className="text-sm text-foreground">{user.name}</span>
-          <span className="truncate text-xs font-normal text-muted-foreground">
-            {user.email}
-          </span>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
+        {/* The label names the group it sits in — Base UI throws outright if a
+            GroupLabel is rendered outside a Group, which is what a stray
+            identity header at the top of this menu was doing. Inside, it reads
+            as "Dev, dev@example.com: Security, Sign out". */}
         <DropdownMenuGroup>
+          <DropdownMenuLabel className="flex flex-col gap-0.5">
+            <span className="text-sm text-foreground">{user.name}</span>
+            <span className="truncate text-xs font-normal text-muted-foreground">
+              {user.email}
+            </span>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
           <DropdownMenuItem
             className="h-11 gap-2 px-2.5 font-mono text-xs tracking-[0.06em]"
             render={<Link href="/security" />}

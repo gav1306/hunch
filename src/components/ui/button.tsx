@@ -1,3 +1,5 @@
+import * as React from "react"
+
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 
@@ -55,12 +57,25 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  nativeButton,
+  render,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  // Third Hunch edit: half the buttons in the app are links wearing a button
+  // (`render={<Link/>}`, `render={<a download/>}`). Base UI assumes a native
+  // <button> unless told otherwise and warns on every one of them at runtime,
+  // which is a real signal — an <a> has no form participation and no space-key
+  // activation. Infer it once here rather than repeating the prop at every
+  // call site, and let an explicit `nativeButton` win.
+  const rendersButton =
+    render === undefined || (React.isValidElement(render) && render.type === "button")
+
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      nativeButton={nativeButton ?? rendersButton}
+      render={render}
       {...props}
     />
   )

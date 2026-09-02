@@ -42,8 +42,8 @@ function Card({ belief, shown }: { belief: number; shown: boolean }) {
           src="/starburst.png"
           alt=""
           aria-hidden
-          width={400}
-          height={400}
+          width={736}
+          height={760}
           sizes="(max-width: 900px) 50vw, 400px"
           className="block h-auto w-full mix-blend-luminosity"
           style={{

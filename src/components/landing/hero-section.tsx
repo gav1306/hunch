@@ -19,8 +19,8 @@ function StarFallback() {
       src="/starburst.png"
       alt=""
       aria-hidden
-      width={400}
-      height={400}
+      width={736}
+      height={760}
       priority
       sizes="(max-width: 900px) 60vw, 400px"
       style={{
@@ -267,36 +267,6 @@ export function HeroSection({
     bottom: "clamp(96px,13vh,132px)",
   };
 
-  // The hero had no way into the product. "Sign in" sat in the nav for people
-  // who already had an account, and the only "start" was the CTA at the very
-  // bottom of a five-section scroll — so the screen that does the convincing
-  // ended without asking for anything.
-  const heroCta = (
-    <div style={{ ...reveal(320), marginTop: "clamp(20px,2.8vh,32px)" }}>
-      <Link
-        href="/signup"
-        className="hl-cta-inv"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 10,
-          padding: "15px 28px",
-          border: "1px solid var(--ink)",
-          background: "var(--ink)",
-          color: "var(--paper)",
-          fontFamily: "'Space Mono',monospace",
-          fontWeight: 700,
-          fontSize: 13,
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
-          textDecoration: "none",
-        }}
-      >
-        Drop your first hunch
-      </Link>
-    </div>
-  );
-
   const heroCopy = (
     <div
       style={{
@@ -314,7 +284,6 @@ export function HeroSection({
       {eyebrow}
       {headline}
       {paragraph(true)}
-      {heroCta}
     </div>
   );
 
@@ -372,9 +341,10 @@ export function HeroSection({
             src="/starburst.png"
             alt=""
             aria-hidden
-            width={22}
-            height={22}
+            width={736}
+            height={760}
             className="block"
+            style={{ width: 22, height: "auto" }}
           />
           <span
             style={{
@@ -406,11 +376,7 @@ export function HeroSection({
           <Link
             href="/signin"
             className="hl-signin"
-            style={{
-              padding: "8px 15px",
-              border: "1px solid var(--ink)",
-              color: "var(--ink)",
-            }}
+            style={{ padding: "8px 15px" }}
           >
             Sign in
           </Link>
@@ -472,10 +438,14 @@ export function HeroSection({
                 src="/starburst.png"
                 alt=""
                 aria-hidden
-                width={64}
-                height={64}
-                className="block size-full"
-                style={{ animation: "hl-sparkle 2.2s ease-in-out infinite" }}
+                width={736}
+                height={760}
+                className="block"
+                style={{
+                  width: "100%",
+                  height: "auto",
+                  animation: "hl-sparkle 2.2s ease-in-out infinite",
+                }}
               />
             </div>
             <div

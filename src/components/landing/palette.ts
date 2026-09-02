@@ -12,7 +12,12 @@ export const PALETTES: Record<string, Palette> = {
   Riso: { paper: "#EDE7D9", ink: "#17140E", muted: "#6E6656", rule: "rgba(23,20,14,0.20)", s1: "#FF3B14", s2: "#1F33E0", dark: false },
   Fuchsia: { paper: "#EFE6E7", ink: "#171015", muted: "#6E5F64", rule: "rgba(23,16,21,0.20)", s1: "#FF2E7E", s2: "#2B2BFF", dark: false },
   Citrus: { paper: "#ECE9D4", ink: "#14150E", muted: "#6B6A52", rule: "rgba(20,21,14,0.20)", s1: "#F24405", s2: "#1E7A3C", dark: false },
-  Noir: { paper: "#14110C", ink: "#EFE7D6", muted: "#9B9384", rule: "rgba(239,231,214,0.20)", s1: "#FF4A1C", s2: "#5AA0FF", dark: true },
+  // The one palette that has to agree with something outside itself: every
+  // value is the app's own token from globals.css. The landing hands straight
+  // over to /signin and then /home, and a front door painted in near-misses of
+  // the product's colours reads as the ground shifting under the reader.
+  // Change these only by changing globals.css first.
+  Noir: { paper: "#0e0d12", ink: "#f2ecdd", muted: "#8c8676", rule: "rgba(242,236,221,0.16)", s1: "#ff3b14", s2: "#7b8cff", dark: true },
 };
 
 export type PaletteName = keyof typeof PALETTES;
