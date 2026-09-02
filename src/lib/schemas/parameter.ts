@@ -62,6 +62,12 @@ export const parameterListSchema = z
 export const parameterSchema = parameterDraftSchema.extend({
   id: z.string().min(1),
   sortOrder: z.number().int().min(0),
+  /**
+   * The user stopped logging this one. Its history stays and the export keeps
+   * its column; the check-in stops asking. Defaults false so payloads written
+   * before retirement existed still parse.
+   */
+  retired: z.boolean().default(false),
 });
 export type Parameter = z.infer<typeof parameterSchema>;
 

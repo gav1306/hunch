@@ -85,6 +85,10 @@ model Parameter {
   max       Float?
   isPrimary Boolean @default(false)
   sortOrder Int     @default(0)
+  /// When the user stopped logging this tracker. Never a delete: readings
+  /// cascade off this row, so removing it would take the trial's history with
+  /// it. Null means live.
+  retiredAt DateTime?
 
   hunch  Hunch          @relation(fields: [hunchId], references: [id], onDelete: Cascade)
   values CheckInValue[]
