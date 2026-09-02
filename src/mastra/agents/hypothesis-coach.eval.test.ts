@@ -7,7 +7,7 @@ const hasKey = Boolean(process.env.OPENROUTER_API_KEY);
 /**
  * Hypothesis-quality eval (RESEARCH §5): the coach must turn a vague hunch
  * into a hypothesis that is well-formed, falsifiable, and measurable.
- * Self-skips when AWS credentials are absent (e.g. CI).
+ * Self-skips without an OpenRouter key (e.g. CI).
  */
 describe.skipIf(!hasKey)("Hypothesis Coach quality", () => {
   const hunches = [

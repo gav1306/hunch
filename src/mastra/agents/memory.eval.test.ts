@@ -24,7 +24,7 @@ const desk = edge({
 /**
  * Memory faithfulness eval: the agent must recall a genuinely-related past
  * finding, skip unrelated ones, and only ever return ids it was given. Self-skips
- * without AWS credentials.
+ * without an OpenRouter key.
  */
 describe.skipIf(!hasKey)("Memory recall quality", () => {
   test("recalls a related past finding (coffee ~ caffeine)", async () => {
