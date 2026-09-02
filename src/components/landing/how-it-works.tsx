@@ -116,7 +116,7 @@ const STEPS: Step[] = [
     tag: "Know",
     no: "03",
     title: "Get a verdict",
-    body: "Helped, hurt, or no difference — decided by the numbers in your own log, not a gut call. An answer you can actually stand behind.",
+    body: "Which way it moved, and how sure — decided by the numbers in your own log, not a gut call. An answer you can actually stand behind.",
     glyph: <GaugeGlyph />,
   },
 ];

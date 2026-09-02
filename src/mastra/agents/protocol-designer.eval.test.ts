@@ -4,12 +4,12 @@ import { detectConfounders } from "@/mastra/tools/confounder-detection";
 import { estimateTrialLength } from "@/mastra/tools/power-analysis";
 import { protocolDesignSchema } from "@/lib/schemas/protocol";
 
-const hasKey = Boolean(process.env.AWS_PROFILE || process.env.AWS_ACCESS_KEY_ID);
+const hasKey = Boolean(process.env.OPENROUTER_API_KEY);
 
 /**
  * Protocol-quality eval: the designer must emit a valid ABA design that honours
  * the deterministic trial length and carries the confounder controls.
- * Self-skips without AWS credentials (e.g. CI).
+ * Self-skips without an OpenRouter key (e.g. CI).
  */
 describe.skipIf(!hasKey)("Protocol Designer quality", () => {
   test("produces a valid ABA design honouring the given inputs", async () => {
