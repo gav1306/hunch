@@ -43,12 +43,34 @@ const running = {
     },
   },
   parameters: [
-    { id: "p1", label: "hours of sleep", type: "amount", min: null, max: null, isPrimary: true },
-    { id: "p2", label: "stress", type: "amount", min: 1, max: 10, isPrimary: false },
+    { id: "p1", label: "hours of sleep", type: "amount", min: null, max: null, isPrimary: true, retiredAt: null },
+    { id: "p2", label: "stress", type: "amount", min: 1, max: 10, isPrimary: false, retiredAt: null },
   ],
 };
 
 describe("POST /api/hunch/[id]/checkin", () => {
+  it("refuses a reading for a retired tracker, and writes nothing", async () => {
+    vi.mocked(db.hunch.findFirst).mockResolvedValue({
+      ...running,
+      parameters: [
+        running.parameters[0],
+        { ...running.parameters[1], retiredAt: new Date("2026-09-01T00:00:00.000Z") },
+      ],
+    } as never);
+
+    const res = await POST(
+      req({ values: [{ parameterId: "p1", value: 7 }, { parameterId: "p2", value: 3 }] }),
+      params,
+    );
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: "You stopped tracking stress." });
+    // Validation runs before any write, so a rejected day leaves no rows behind
+    // — not even the check-in bucket the readings would have hung off.
+    expect(db.checkIn.upsert).not.toHaveBeenCalled();
+    expect(db.checkInValue.upsert).not.toHaveBeenCalled();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "u1" } } as never);
