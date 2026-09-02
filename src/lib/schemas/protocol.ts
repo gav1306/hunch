@@ -28,10 +28,15 @@ export type ProtocolPhase = z.infer<typeof protocolPhaseSchema>;
 
 /**
  * The experiment design. v1 emits ABA (three phases); the shape is left
- * general (>= 2 phases) so randomized blocks can land later without a change.
+ * general so randomized blocks can land later without a change.
+ *
+ * The floor is one phase, not two, because an observe-only hunch is a diary:
+ * one baseline arm, nothing to contrast it with. Two-or-more used to stand in
+ * for "this is a real experiment", and `phases.length === 1` is now what marks
+ * a design that produces no verdict.
  */
 export const protocolDesignSchema = z.object({
-  phases: z.array(protocolPhaseSchema).min(2),
+  phases: z.array(protocolPhaseSchema).min(1),
   washoutDays: z.number().int().min(0),
   controls: z.array(z.string().trim().min(1)),
   instructions: z.string().trim().min(1),
@@ -91,3 +96,51 @@ export const designResultSchema = z.object({
   safety: safetyVerdictSchema,
 });
 export type DesignResult = z.infer<typeof designResultSchema>;
+
+/**
+ * How long a diary runs.
+ *
+ * A diary has no natural end, but every screen here assumes one: the adherence
+ * strip draws a fixed row, home sorts by days remaining, and "done" is what
+ * stops a hunch competing for attention. Two weeks is enough habit to hold and
+ * enough rows to see a shape in. Ending is not deleting — the log stays, and
+ * running it again is one tap.
+ */
+export const OBSERVE_DAYS = 14;
+
+/**
+ * The protocol for a hunch the app will record but will not schedule.
+ *
+ * One phase, labelled `A`/`baseline` deliberately: `currentPhase`, the
+ * adherence strip, the check-in's phase text and `CheckIn.phase` all already
+ * understand A and B, and a third label would mean teaching each of them a case
+ * the user never sees. What marks a diary is `phases.length === 1`, and that is
+ * what the code checks.
+ */
+export function observeOnlyDesign(outcomeMetric: string): ProtocolDesign {
+  return {
+    phases: [
+      {
+        label: "A",
+        kind: "baseline",
+        days: OBSERVE_DAYS,
+        name: "Just keep the record",
+        action: `Change nothing about your routine. Each day, log ${outcomeMetric}.`,
+      },
+    ],
+    washoutDays: 0,
+    controls: [],
+    instructions:
+      "This one is a log, not a trial: nothing changes, you just write down what " +
+      "happens. At the end you'll have your own record of it, and it's yours to export.",
+  };
+}
+
+/**
+ * May this protocol be started and logged against? A diary may — nothing about
+ * it needs approving, because it schedules no change at all. Pending and refused
+ * may not.
+ */
+export function canRun(safetyState: string): boolean {
+  return safetyState === "approved" || safetyState === "observe-only";
+}

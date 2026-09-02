@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  canRun,
   confounderSchema,
   designResultSchema,
   parseStoredDesign,
   powerInfoSchema,
   protocolDesignSchema,
   protocolPhaseSchema,
+  observeOnlyDesign,
+  OBSERVE_DAYS,
   safetyVerdictSchema,
 } from "@/lib/schemas/protocol";
 
@@ -37,10 +40,16 @@ describe("protocol schemas", () => {
     expect(protocolDesignSchema.safeParse(design).success).toBe(true);
   });
 
-  it("rejects a design with fewer than two phases", () => {
+  it("accepts a single-phase design, which is what a diary is", () => {
+    // The floor used to be two, standing in for "this is a real experiment".
+    // observe-only made that wrong: one baseline arm and nothing to contrast.
     expect(
       protocolDesignSchema.safeParse({ ...design, phases: [design.phases[0]] }).success,
-    ).toBe(false);
+    ).toBe(true);
+  });
+
+  it("still rejects a design with no phases at all", () => {
+    expect(protocolDesignSchema.safeParse({ ...design, phases: [] }).success).toBe(false);
   });
 
   it("rejects a non-integer minDaysPerPhase", () => {
@@ -111,5 +120,54 @@ describe("parseStoredDesign (tolerates pre-name/action rows)", () => {
     const design = parseStoredDesign(withNames);
     expect(design.phases[1].name).toBe("Phase 1");
     expect(design.phases[1].action).toBe("Do thing 1.");
+  });
+});
+
+describe("observeOnlyDesign", () => {
+  const design = observeOnlyDesign("hours of sleep");
+
+  it("has exactly one phase — there is nothing to contrast", () => {
+    expect(design.phases).toHaveLength(1);
+  });
+
+  it("reuses the baseline label so the schedule needs no third case", () => {
+    expect(design.phases[0]).toMatchObject({
+      label: "A",
+      kind: "baseline",
+      days: OBSERVE_DAYS,
+    });
+  });
+
+  it("asks the user to change nothing", () => {
+    expect(design.phases[0].action.toLowerCase()).toContain("change nothing");
+  });
+
+  it("names the thing being logged, so the phase card isn't generic", () => {
+    expect(design.phases[0].action).toContain("hours of sleep");
+  });
+
+  it("has no washout — a washout separates arms, and there is one arm", () => {
+    expect(design.washoutDays).toBe(0);
+  });
+
+  it("passes the stored-design parser the dashboard reads through", () => {
+    expect(() => parseStoredDesign(design, "hours of sleep")).not.toThrow();
+  });
+
+  it("still rejects an empty phase list", () => {
+    expect(protocolDesignSchema.safeParse({ ...design, phases: [] }).success).toBe(false);
+  });
+});
+
+describe("canRun", () => {
+  it("a diary runs, like an approved trial", () => {
+    expect(canRun("observe-only")).toBe(true);
+    expect(canRun("approved")).toBe(true);
+  });
+
+  it("nothing else does", () => {
+    expect(canRun("pending")).toBe(false);
+    expect(canRun("refused")).toBe(false);
+    expect(canRun("")).toBe(false);
   });
 });
