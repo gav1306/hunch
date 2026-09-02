@@ -74,3 +74,30 @@ describe("sharpenedHypothesisSchema", () => {
     expect(sharpenedHypothesisSchema.safeParse({ ...valid, trackers }).success).toBe(false);
   });
 });
+
+describe("expectedDirection", () => {
+  const base = {
+    statement: "Skipping my morning walk makes my code buggier.",
+    outcomeMetric: "bugs found in review",
+    outcomeType: "continuous" as const,
+  };
+
+  test("accepts up and down", () => {
+    expect(sharpenedHypothesisSchema.safeParse({ ...base, expectedDirection: "up" }).success).toBe(
+      true,
+    );
+    expect(
+      sharpenedHypothesisSchema.safeParse({ ...base, expectedDirection: "down" }).success,
+    ).toBe(true);
+  });
+
+  test("rejects anything that isn't a direction", () => {
+    expect(
+      sharpenedHypothesisSchema.safeParse({ ...base, expectedDirection: "sideways" }).success,
+    ).toBe(false);
+  });
+
+  test("is optional, so hypotheses sharpened before the field still parse", () => {
+    expect(sharpenedHypothesisSchema.safeParse(base).success).toBe(true);
+  });
+});
