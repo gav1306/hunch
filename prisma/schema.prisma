@@ -36,6 +36,10 @@ model Hypothesis {
   statement     String // falsifiable hypothesis
   outcomeMetric String // measurable outcome
   outcomeType   String // "binary" | "continuous"
+  /// "up" | "down" — which way the user expects the outcome to move. The
+  /// verdict badge compares it against the measured sign. Null on hypotheses
+  /// sharpened before the Coach wrote it.
+  expectedDirection String?
   confounders   String[] // named confounders
   createdAt     DateTime @default(now())
 

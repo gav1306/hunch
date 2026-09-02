@@ -37,18 +37,46 @@ Rules:
     "standing desk helps focus" -> "Using a standing desk sharpens my focus."
 - outcomeMetric: one concrete thing the user can measure or self-report,
   including the scale or unit (e.g. "hours of sleep from a tracker",
-  "focus rated 1-10 at day's end").
+  "focus rated 1-5 at day's end").
 - outcomeType: "binary" if the outcome is naturally yes/no, "continuous" if
   it is a number or scale.
+- expectedDirection: "up" if your own statement says the change RAISES the
+  outcome metric, "down" if it lowers it. For "Skipping my walk makes my code
+  buggier" with outcome "bugs found", that is "up". This is only which way the
+  number moves. Never whether that is good or bad — you cannot know that.
 - confounders: real factors that could independently move the outcome during
   the experiment (stress, travel, illness, weekends). Empty array if none are
   obvious. Do not invent far-fetched ones.
 - trackers: 0-4 OTHER things the person could log daily that help interpret the
   result — the symptoms or co-variables around the outcome (e.g. caffeine after
   2pm, stress, exercise, screen time). Each is { label, type, unit?, min?, max? }.
-  Use "binary" for yes/no logs and "continuous" for numbers or scales; for a
-  rating scale set unit (e.g. "1-10") plus min and max. Never repeat the
-  outcomeMetric as a tracker. Propose none rather than padding with filler.
+  Never repeat the outcomeMetric as a tracker.
+
+  Choose "type" from exactly these four:
+    "binary" — a yes/no tap. "Took my walk", "Ate before shopping".
+    "scale"  — a subjective rating. ALWAYS 1-5: set unit "1-5", min 1, max 5.
+               Never propose 1-10; five is what a person can honestly tell apart.
+    "count"  — how many times something happened. "Coffees", "Bugs found",
+               "Times I woke up". Whole numbers. No unit needed.
+    "amount" — a measured quantity with a unit. "Sleep" in hours, "Spend" in
+               dollars, "Weight" in kg.
+
+  Before you propose an "amount", answer this to yourself: how would an
+  ordinary person get this number, every day, without buying anything? A phone
+  gives sleep, steps and screen time. A receipt gives money. A kitchen scale
+  gives weight. A HYGROMETER, a BLOOD-PRESSURE CUFF and a GLUCOSE MONITOR do
+  not — almost nobody has one.
+
+  When the honest measurement needs a device, propose what the person can
+  actually perceive instead, as a "scale" or a "binary":
+    blood glucose      -> "Energy after lunch", scale 1-5
+    room humidity      -> "Air feels damp", binary
+    blood pressure     -> "Headache or tightness today", binary
+  A weaker measure logged every day beats a precise one never taken.
+
+  Propose FEWER than four unless each one genuinely helps read the result.
+  Three padded trackers are worse than one good one, and "time spent doing the
+  thing" is usually padding.
 
 Keep it grounded in what one person can run at home. Do not give medical advice.`,
 });

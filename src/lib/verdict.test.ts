@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyVerdict, verdictHeadline } from "@/lib/verdict";
+import { classifyVerdict, verdictBadge, verdictHeadline } from "@/lib/verdict";
 import type { Belief } from "@/lib/schemas/belief";
 import type { PhaseStatus } from "@/lib/schedule";
 
@@ -85,6 +85,45 @@ describe("verdictHeadline", () => {
     const banned = /helped|hurt|better|worse|improved|good|bad/i;
     for (const c of ["helped", "hurt", "inconclusive_no_effect"] as const) {
       expect(verdictHeadline(c, outcome)).not.toMatch(banned);
+    }
+  });
+});
+
+describe("verdictBadge", () => {
+  it("says Confirmed when the effect went the way the user expected", () => {
+    expect(verdictBadge("helped", "up")).toBe("Confirmed");
+    expect(verdictBadge("hurt", "down")).toBe("Confirmed");
+  });
+
+  it("says Reversed when it went the other way", () => {
+    expect(verdictBadge("helped", "down")).toBe("Reversed");
+    expect(verdictBadge("hurt", "up")).toBe("Reversed");
+  });
+
+  it("keeps Reversed distinct from Not confirmed", () => {
+    // Folding them together would throw away the most interesting result an
+    // experiment can produce.
+    expect(verdictBadge("inconclusive_no_effect", "up")).toBe("Not confirmed");
+    expect(verdictBadge("helped", "down")).not.toBe("Not confirmed");
+  });
+
+  it("names the days when there weren't enough", () => {
+    expect(verdictBadge("inconclusive_insufficient", "up")).toBe("Not enough days");
+    expect(verdictBadge("inconclusive_insufficient", null)).toBe("Not enough days");
+  });
+
+  it("falls back to a direction word when no prediction was recorded", () => {
+    expect(verdictBadge("helped", null)).toBe("Increase");
+    expect(verdictBadge("hurt", undefined)).toBe("Decrease");
+    expect(verdictBadge("inconclusive_no_effect", null)).toBe("No difference");
+  });
+
+  it("never uses valence words", () => {
+    const banned = /helped|hurt|better|worse|improved|good|bad/i;
+    for (const c of ["helped", "hurt", "inconclusive_no_effect"] as const) {
+      for (const d of ["up", "down", null] as const) {
+        expect(verdictBadge(c, d)).not.toMatch(banned);
+      }
     }
   });
 });

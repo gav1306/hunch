@@ -24,6 +24,15 @@ export const sharpenedHypothesisSchema = z.object({
   /** Named confounders to watch for; empty when none surfaced. */
   confounders: z.array(z.string().trim().min(1)).default([]),
   /**
+   * Which way the user expects the outcome to move. The verdict badge compares
+   * it against the measured sign to say Confirmed or Reversed — the app can
+   * know a direction, never whether a direction is good news.
+   *
+   * Optional: hypotheses sharpened before this field existed carry none, and
+   * their badge falls back to a plain direction word.
+   */
+  expectedDirection: z.enum(["up", "down"]).optional(),
+  /**
    * Extra things worth logging daily next to the outcome — context for reading
    * the result. Never verdicted. Empty when nothing obvious applies.
    */
