@@ -2,9 +2,15 @@
 
 import { useState } from "react";
 import { MinusIcon, PlusIcon } from "lucide-react";
-import type { ParameterDraft } from "@/lib/schemas/parameter";
+import {
+  SCALE_MAX,
+  SCALE_MIN,
+  type ParameterDraft,
+  type ParameterType,
+} from "@/lib/schemas/parameter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 
 const LABEL = "text-xs tracking-[0.16em] uppercase";
@@ -18,7 +24,30 @@ const LABEL = "text-xs tracking-[0.16em] uppercase";
 const GHOST =
   "justify-self-start border-transparent px-1 font-mono text-xs tracking-[0.08em] text-muted-foreground hover:border-transparent hover:bg-transparent hover:text-ink";
 
-/** One editable row: label, number/yes-no toggle, and (for numbers) unit + bounds. */
+const KINDS = ["binary", "scale", "count", "amount"] as const;
+
+/** The kinds in the user's words, not the schema's. */
+const KIND_LABEL: Record<ParameterType, string> = {
+  binary: "yes / no",
+  scale: "1-5",
+  count: "how many",
+  amount: "a number",
+};
+
+/**
+ * Switching kind has to clear what the old kind meant, or a row keeps a "1-10"
+ * unit it no longer honours. A scale carries the kind's own bounds so the
+ * check-in control and the validator agree about what five taps mean.
+ */
+function nextRow(row: ParameterDraft, type: ParameterType): ParameterDraft {
+  if (type === "scale") {
+    return { ...row, type, unit: `${SCALE_MIN}-${SCALE_MAX}`, min: SCALE_MIN, max: SCALE_MAX };
+  }
+  if (type === "amount") return { ...row, type, unit: undefined, min: undefined, max: undefined };
+  return { ...row, type, unit: undefined, min: undefined, max: undefined };
+}
+
+/** One editable row: label, kind picker, and (for amounts) unit + bounds. */
 function Row({
   row,
   onChange,
@@ -61,21 +90,26 @@ function Row({
       />
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button
-          type="button"
-          variant="brand"
-          size="touch"
-          onClick={() =>
-            onChange(
-              row.type === "binary"
-                ? { ...row, type: "amount" }
-                : { ...row, type: "binary", unit: undefined, min: undefined, max: undefined },
-            )
-          }
-          className="border-rule font-mono lowercase"
+        <ToggleGroup
+          value={[row.type]}
+          onValueChange={(v: string[]) => {
+            const next = v[v.length - 1] as ParameterType | undefined;
+            if (!next || next === row.type) return;
+            onChange(nextRow(row, next));
+          }}
+          aria-label="How this is logged"
         >
-          {row.type === "binary" ? "yes / no" : "a number"}
-        </Button>
+          {KINDS.map((k) => (
+            <ToggleGroupItem
+              key={k}
+              value={k}
+              aria-label={KIND_LABEL[k]}
+              className="min-h-11 border border-rule px-3 font-mono text-xs lowercase aria-pressed:border-ink aria-pressed:bg-ink aria-pressed:text-paper"
+            >
+              {KIND_LABEL[k]}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
 
         {row.type === "amount" && (
           <>
