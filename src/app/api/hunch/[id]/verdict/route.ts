@@ -83,6 +83,14 @@ export async function GET(
   if (!hunch.protocol?.startedAt) {
     return NextResponse.json({ error: "This trial hasn't started." }, { status: 409 });
   }
+  // A diary has one arm. The engine compares two, and inventing a contrast the
+  // data does not contain would be fabricating a result.
+  if (hunch.protocol.safetyState === "observe-only") {
+    return NextResponse.json(
+      { error: "This one is a log, not a trial — there's nothing to compare it against." },
+      { status: 409 },
+    );
+  }
 
   const outcomeType = engineOutcomeType(primary?.type ?? hunch.hypothesis.outcomeType);
   const belief = computeBelief(primaryBeliefRows(hunch.checkIns, primary?.id), outcomeType);

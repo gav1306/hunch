@@ -7,7 +7,7 @@ import { engineOutcomeType, pickPrimary, primaryBeliefRows } from "@/lib/paramet
 import { currentPhase, utcMidnight, utcToday as utcTodayFrom } from "@/lib/schedule";
 import { checkInValuesInputSchema, validateParameterValue } from "@/lib/schemas/parameter";
 import type { ParameterType } from "@/lib/schemas/parameter";
-import { parseStoredDesign } from "@/lib/schemas/protocol";
+import { canRun, parseStoredDesign } from "@/lib/schemas/protocol";
 
 /**
  * Phase 4: log a day's readings. The server derives the phase from the schedule
@@ -40,7 +40,11 @@ export async function POST(
   if (!hunch || !hunch.hypothesis) {
     return NextResponse.json({ error: "Hunch not found." }, { status: 404 });
   }
-  if (hunch.status !== "running" || !hunch.protocol?.startedAt || hunch.protocol.safetyState !== "approved") {
+  if (
+    hunch.status !== "running" ||
+    !hunch.protocol?.startedAt ||
+    !canRun(hunch.protocol.safetyState)
+  ) {
     return NextResponse.json({ error: "This hunch is not running yet." }, { status: 409 });
   }
 
