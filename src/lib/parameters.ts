@@ -96,3 +96,25 @@ export function primaryBeliefRows(
   }
   return rows;
 }
+
+/**
+ * The only place a parameter kind becomes something the Bayesian engine
+ * understands. `computeBelief` takes binary or continuous; scale, count and
+ * amount are all continuous to the maths, and what separates them is how a
+ * number is asked for, not how it is analysed.
+ *
+ * This exists because four call sites used to write
+ * `primary.type as "binary" | "continuous"`. That cast stopped TypeScript
+ * checking exactly where a new kind would first arrive, and the engine would
+ * have picked its model from a string nobody had validated.
+ *
+ * Only "binary" is binary. Everything else — a legacy "continuous" row, a new
+ * kind, an unrecognised string — is continuous, because treating a real
+ * measurement as a coin flip would silently corrupt a verdict, while the
+ * reverse merely widens an interval.
+ */
+export function engineOutcomeType(
+  type: string | null | undefined,
+): "binary" | "continuous" {
+  return type === "binary" ? "binary" : "continuous";
+}

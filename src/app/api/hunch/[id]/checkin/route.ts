@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { computeBelief } from "@/lib/bayes";
-import { pickPrimary, primaryBeliefRows } from "@/lib/parameters";
+import { engineOutcomeType, pickPrimary, primaryBeliefRows } from "@/lib/parameters";
 import { currentPhase, utcMidnight, utcToday as utcTodayFrom } from "@/lib/schedule";
 import { checkInValuesInputSchema, validateParameterValue } from "@/lib/schemas/parameter";
 import type { ParameterType } from "@/lib/schemas/parameter";
@@ -123,7 +123,7 @@ export async function POST(
   const primary = pickPrimary(hunch.parameters);
   const belief = computeBelief(
     primaryBeliefRows(all, primary?.id),
-    (primary?.type ?? hunch.hypothesis.outcomeType) as "binary" | "continuous",
+    engineOutcomeType(primary?.type ?? hunch.hypothesis.outcomeType),
   );
 
   return NextResponse.json({ checkIn, belief }, { status: 201 });

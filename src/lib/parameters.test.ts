@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
   draftsFromSharpened,
+  engineOutcomeType,
   pickPrimary,
   primaryBeliefRows,
   toParameterDto,
@@ -117,5 +118,30 @@ describe("primaryBeliefRows", () => {
 
   test("skips days where the primary was not logged", () => {
     expect(primaryBeliefRows([{ phase: "A", values: [] }], "p1")).toEqual([]);
+  });
+});
+
+describe("engineOutcomeType", () => {
+  test("keeps binary binary", () => {
+    expect(engineOutcomeType("binary")).toBe("binary");
+  });
+
+  test("sends every measured kind down the continuous path", () => {
+    expect(engineOutcomeType("scale")).toBe("continuous");
+    expect(engineOutcomeType("count")).toBe("continuous");
+    expect(engineOutcomeType("amount")).toBe("continuous");
+  });
+
+  test("still understands rows written before the split", () => {
+    expect(engineOutcomeType("continuous")).toBe("continuous");
+  });
+
+  test("falls back to continuous for an absent or unknown type", () => {
+    // Erring towards continuous is the safe direction: treating a real number
+    // as a coin flip would corrupt a verdict, while the reverse only widens an
+    // interval.
+    expect(engineOutcomeType(null)).toBe("continuous");
+    expect(engineOutcomeType(undefined)).toBe("continuous");
+    expect(engineOutcomeType("nonsense")).toBe("continuous");
   });
 });

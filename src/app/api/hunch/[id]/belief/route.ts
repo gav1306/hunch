@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { computeBelief } from "@/lib/bayes";
-import { pickPrimary, primaryBeliefRows, toParameterDto } from "@/lib/parameters";
+import { engineOutcomeType, pickPrimary, primaryBeliefRows, toParameterDto } from "@/lib/parameters";
 import { currentPhase } from "@/lib/schedule";
 import { parseStoredDesign } from "@/lib/schemas/protocol";
 
@@ -39,7 +39,7 @@ export async function GET(
   }
 
   const primary = pickPrimary(hunch.parameters);
-  const outcomeType = (primary?.type ?? hunch.hypothesis.outcomeType) as "binary" | "continuous";
+  const outcomeType = engineOutcomeType(primary?.type ?? hunch.hypothesis.outcomeType);
   const belief = computeBelief(primaryBeliefRows(hunch.checkIns, primary?.id), outcomeType);
 
   let schedule = null;

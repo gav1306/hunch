@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
-import { toParameterDto } from "@/lib/parameters";
+import { engineOutcomeType, toParameterDto } from "@/lib/parameters";
 import { parameterListSchema } from "@/lib/schemas/parameter";
 import { designProtocol, resolveSafetyState } from "@/mastra/workflows/design";
 
@@ -73,7 +73,7 @@ export async function POST(
   const result = await designProtocol({
     statement: hunch.hypothesis.statement,
     outcomeMetric: hunch.hypothesis.outcomeMetric,
-    outcomeType: hunch.hypothesis.outcomeType as "binary" | "continuous",
+    outcomeType: engineOutcomeType(hunch.hypothesis.outcomeType),
     confounderNames: hunch.hypothesis.confounders,
   });
 
