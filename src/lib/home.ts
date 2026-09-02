@@ -33,7 +33,13 @@ export type HomeHunch = {
   progress: { day: number; total: number } | null;
   loggableToday: boolean;
   loggedToday: boolean;
-  verdict: { category: string; effect: number; pEffect: number } | null;
+  verdict: {
+    category: string;
+    effect: number;
+    pEffect: number;
+    /** The user's own prediction, for the badge. Null on older hypotheses. */
+    expectedDirection: "up" | "down" | null;
+  } | null;
   /** Null while the hunch is live. ISO string once the user files it away. */
   archivedOn: string | null;
 };
@@ -151,6 +157,8 @@ export async function getHomeData(userId: string): Promise<HomeData> {
             category: h.verdict.category,
             effect: h.verdict.effect,
             pEffect: h.verdict.pEffect,
+            expectedDirection:
+              (h.hypothesis?.expectedDirection as "up" | "down" | null) ?? null,
           }
         : null,
       archivedOn: h.archivedAt ? h.archivedAt.toISOString() : null,
