@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
+  backfillKind,
   draftsFromSharpened,
   engineOutcomeType,
   pickPrimary,
@@ -143,5 +144,28 @@ describe("engineOutcomeType", () => {
     expect(engineOutcomeType(null)).toBe("continuous");
     expect(engineOutcomeType(undefined)).toBe("continuous");
     expect(engineOutcomeType("nonsense")).toBe("continuous");
+  });
+});
+
+describe("backfillKind", () => {
+  test("leaves binary alone", () => {
+    expect(backfillKind({ type: "binary", unit: null, min: null, max: null })).toBe("binary");
+  });
+
+  test("reads a rating unit as a scale", () => {
+    expect(backfillKind({ type: "continuous", unit: "1-10", min: 1, max: 10 })).toBe("scale");
+    expect(backfillKind({ type: "continuous", unit: "1 - 5", min: null, max: null })).toBe("scale");
+    expect(backfillKind({ type: "continuous", unit: "1–10", min: null, max: null })).toBe("scale");
+  });
+
+  test("treats a real unit as an amount, bounds or not", () => {
+    expect(backfillKind({ type: "continuous", unit: "°F", min: 50, max: 90 })).toBe("amount");
+    expect(backfillKind({ type: "continuous", unit: "hours", min: null, max: null })).toBe("amount");
+  });
+
+  test("defaults to amount, so an existing free-number row keeps its control", () => {
+    // Guessing "count" here would swap a working number field for a stepper on
+    // rows like "hours of sleep", which is a regression for people mid-trial.
+    expect(backfillKind({ type: "continuous", unit: null, min: null, max: null })).toBe("amount");
   });
 });

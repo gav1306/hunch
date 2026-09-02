@@ -118,3 +118,27 @@ export function engineOutcomeType(
 ): "binary" | "continuous" {
   return type === "binary" ? "binary" : "continuous";
 }
+
+/** "1-10", "1 - 5", "1–10" — a unit that is really a rating range. */
+const RATING_UNIT = /^\d+\s*[-–]\s*\d+$/;
+
+/**
+ * The kind an existing row becomes when the four kinds land. Mirrored in SQL by
+ * the parameter_kinds migration; change both together or the database and the
+ * code disagree about rows nobody has touched since.
+ *
+ * Deliberately conservative. Anything not clearly a rating becomes an `amount`,
+ * which is the free number input the row already rendered — the spec's original
+ * "count otherwise" would have turned "hours of sleep" into a stepper and
+ * changed a control under someone mid-trial.
+ */
+export function backfillKind(row: {
+  type: string;
+  unit: string | null;
+  min: number | null;
+  max: number | null;
+}): ParameterType {
+  if (row.type === "binary") return "binary";
+  if (row.unit && RATING_UNIT.test(row.unit.trim())) return "scale";
+  return "amount";
+}
