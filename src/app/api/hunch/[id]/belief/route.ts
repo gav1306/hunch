@@ -3,7 +3,13 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { computeBelief } from "@/lib/bayes";
-import { engineOutcomeType, pickPrimary, primaryBeliefRows, toParameterDto } from "@/lib/parameters";
+import {
+  activeParameters,
+  engineOutcomeType,
+  pickPrimary,
+  primaryBeliefRows,
+  toParameterDto,
+} from "@/lib/parameters";
 import { currentPhase } from "@/lib/schedule";
 import { parseStoredDesign } from "@/lib/schemas/protocol";
 
@@ -50,7 +56,9 @@ export async function GET(
 
   return NextResponse.json({
     belief,
-    parameters: hunch.parameters.map(toParameterDto),
+    // Retired trackers keep their history but stop being asked for, so the
+    // check-in this feeds renders only what is still live.
+    parameters: activeParameters(hunch.parameters).map(toParameterDto),
     checkIns: hunch.checkIns.map((c) => ({
       phase: c.phase,
       loggedAt: c.loggedAt,

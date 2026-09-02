@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
+  activeParameters,
   backfillKind,
   draftsFromSharpened,
   engineOutcomeType,
@@ -69,6 +70,7 @@ describe("toParameterDto", () => {
     max: null,
     isPrimary: true,
     sortOrder: 0,
+    retiredAt: null,
   };
 
   test("turns Prisma nulls into undefined so the zod DTO accepts it", () => {
@@ -167,5 +169,48 @@ describe("backfillKind", () => {
     // Guessing "count" here would swap a working number field for a stepper on
     // rows like "hours of sleep", which is a regression for people mid-trial.
     expect(backfillKind({ type: "continuous", unit: null, min: null, max: null })).toBe("amount");
+  });
+});
+
+describe("activeParameters", () => {
+  const rows = [
+    { id: "p1", retiredAt: null },
+    { id: "p2", retiredAt: new Date("2026-09-01T00:00:00.000Z") },
+    { id: "p3", retiredAt: null },
+  ];
+
+  test("drops the retired ones and keeps order", () => {
+    expect(activeParameters(rows).map((r) => r.id)).toEqual(["p1", "p3"]);
+  });
+
+  test("returns everything when nothing is retired", () => {
+    expect(activeParameters([{ id: "p1", retiredAt: null }])).toHaveLength(1);
+  });
+});
+
+describe("toParameterDto retirement", () => {
+  const base = {
+    id: "p1",
+    label: "Stress",
+    type: "scale",
+    unit: "1-5",
+    min: 1,
+    max: 5,
+    isPrimary: false,
+    sortOrder: 1,
+  };
+
+  test("reports a live parameter as not retired", () => {
+    expect(toParameterDto({ ...base, retiredAt: null }).retired).toBe(false);
+  });
+
+  test("reports a retired parameter as retired", () => {
+    expect(
+      toParameterDto({ ...base, retiredAt: new Date("2026-09-01T00:00:00.000Z") }).retired,
+    ).toBe(true);
+  });
+
+  test("sends a boolean, not a date — the client only asks whether", () => {
+    expect(typeof toParameterDto({ ...base, retiredAt: new Date() }).retired).toBe("boolean");
   });
 });

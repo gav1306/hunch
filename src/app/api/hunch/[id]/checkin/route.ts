@@ -56,6 +56,16 @@ export async function POST(
     if (!param) {
       return NextResponse.json({ error: "That isn't something this hunch tracks." }, { status: 400 });
     }
+    // Retired means the user chose to stop logging this. Accepting a late
+    // reading — even a backfill for a day before they retired it — would need a
+    // per-day notion of which parameters were live, here and in every screen
+    // that renders a day. If they want it back, they un-retire it.
+    if (param.retiredAt !== null) {
+      return NextResponse.json(
+        { error: `You stopped tracking ${param.label}.` },
+        { status: 400 },
+      );
+    }
     const problem = validateParameterValue(
       { label: param.label, type: param.type as ParameterType, min: param.min, max: param.max },
       row.value,

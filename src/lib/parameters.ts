@@ -22,6 +22,7 @@ export type ParameterRow = {
   max: number | null;
   isPrimary: boolean;
   sortOrder: number;
+  retiredAt: Date | null;
 };
 
 /**
@@ -39,6 +40,7 @@ export function toParameterDto(row: ParameterRow): Parameter {
     max: row.max ?? undefined,
     isPrimary: row.isPrimary,
     sortOrder: row.sortOrder,
+    retired: row.retiredAt !== null,
   };
 }
 
@@ -141,4 +143,13 @@ export function backfillKind(row: {
   if (row.type === "binary") return "binary";
   if (row.unit && RATING_UNIT.test(row.unit.trim())) return "scale";
   return "amount";
+}
+
+/**
+ * The parameters still being logged. Retired rows stay in the database and in
+ * the export — a column that stops halfway is the honest record of a trial —
+ * but nothing asks the user for them again.
+ */
+export function activeParameters<T extends { retiredAt: Date | null }>(rows: T[]): T[] {
+  return rows.filter((r) => r.retiredAt === null);
 }

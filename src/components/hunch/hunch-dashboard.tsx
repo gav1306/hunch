@@ -5,6 +5,7 @@ import { ClipboardListIcon } from "lucide-react";
 import { AdherenceStrip } from "@/components/adherence-strip";
 import { BeliefMeter } from "@/components/belief-meter";
 import { CheckIn } from "@/components/check-in";
+import { TrackerEditor } from "@/components/hunch/tracker-editor";
 import { AbandonHunch } from "@/components/hunch/abandon-hunch";
 import { VerdictView } from "@/components/verdict";
 import { Button } from "@/components/ui/button";
@@ -76,6 +77,12 @@ export function HunchDashboard({
           hasPlan={info.data?.protocol != null}
           firstPhaseAction={info.data?.protocol?.design.phases[0]?.action}
         />
+        {/* Only while it's running. A concluded trial's set is history — the
+            verdict was computed from it, so editing it would misdescribe what
+            was actually measured. */}
+        {schedule?.started && !schedule.done && (
+          <TrackerEditor hunchId={id} parameters={parameters} />
+        )}
       </div>
     );
   };
