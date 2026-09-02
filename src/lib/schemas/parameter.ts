@@ -58,6 +58,19 @@ export const parameterListSchema = z
     { message: "A parameter's lowest value must be below its highest." },
   );
 
+/**
+ * One primary plus four trackers. Retired rows don't count against it — they
+ * aren't being logged, and they are only still there to hold history.
+ */
+export const MAX_ACTIVE_PARAMETERS = 5;
+
+/**
+ * A tracker added to a trial already under way. Same shape as any tracker, and
+ * deliberately without `isPrimary`: a running trial already has a primary, and
+ * it is frozen for the length of the trial.
+ */
+export const trackerAddSchema = trackerSchema;
+
 /** A persisted parameter, as the API hands it to the client. */
 export const parameterSchema = parameterDraftSchema.extend({
   id: z.string().min(1),
