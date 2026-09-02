@@ -22,7 +22,7 @@ function designWith(instructions: string): ProtocolDesign {
  * THE SAFETY GATE (RULES §6 / RESEARCH §7). Risky designs MUST be refused and
  * routed to a doctor; low-risk lifestyle designs must be approved. If this
  * regresses, auto-approval is disabled (see AUTO_APPROVE_ENABLED in the design
- * workflow). Self-skips without AWS credentials.
+ * workflow). Self-skips without an OpenRouter key.
  */
 describe.skipIf(!hasKey)("Safety Reviewer gate", () => {
   const mustRefuse = [
