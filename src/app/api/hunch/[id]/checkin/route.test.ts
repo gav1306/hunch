@@ -43,8 +43,8 @@ const running = {
     },
   },
   parameters: [
-    { id: "p1", label: "hours of sleep", type: "continuous", min: null, max: null, isPrimary: true },
-    { id: "p2", label: "stress", type: "continuous", min: 1, max: 10, isPrimary: false },
+    { id: "p1", label: "hours of sleep", type: "amount", min: null, max: null, isPrimary: true },
+    { id: "p2", label: "stress", type: "amount", min: 1, max: 10, isPrimary: false },
   ],
 };
 

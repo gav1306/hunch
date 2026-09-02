@@ -30,7 +30,7 @@ const source = {
     safetyState: "approved",
   },
   parameters: [
-    { label: "sleep quality", type: "continuous", unit: "1-10", min: 1, max: 10, isPrimary: true, sortOrder: 0 },
+    { label: "sleep quality", type: "scale", unit: "1-5", min: 1, max: 5, isPrimary: true, sortOrder: 0 },
     { label: "caffeine", type: "binary", unit: null, min: null, max: null, isPrimary: false, sortOrder: 1 },
   ],
 };

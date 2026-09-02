@@ -17,7 +17,7 @@ describe("draftsFromSharpened", () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatchObject({
       label: "hours of sleep from a tracker",
-      type: "continuous",
+      type: "amount",
       isPrimary: true,
     });
     expect(rows[1]).toMatchObject({ label: "caffeine after 2pm", isPrimary: false });
@@ -42,7 +42,7 @@ describe("draftsFromSharpened", () => {
     const rows = draftsFromSharpened({
       outcomeMetric: "hours of sleep",
       outcomeType: "continuous",
-      trackers: [{ label: "hours of sleep", type: "continuous" }],
+      trackers: [{ label: "hours of sleep", type: "amount" }],
     });
     expect(rows).toHaveLength(1);
   });
@@ -51,7 +51,7 @@ describe("draftsFromSharpened", () => {
     const rows = draftsFromSharpened({
       outcomeMetric: "m",
       outcomeType: "binary",
-      trackers: [{ label: "stress", type: "continuous", unit: "1-10", min: 1, max: 10 }],
+      trackers: [{ label: "stress", type: "amount", unit: "1-10", min: 1, max: 10 }],
     });
     expect(rows[1]).toMatchObject({ unit: "1-10", min: 1, max: 10 });
   });
@@ -61,7 +61,7 @@ describe("toParameterDto", () => {
   const row = {
     id: "p1",
     label: "stress",
-    type: "continuous",
+    type: "amount",
     unit: null,
     min: null,
     max: null,

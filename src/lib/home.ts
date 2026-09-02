@@ -3,6 +3,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { pickPrimary } from "@/lib/parameters";
 import { currentPhase, utcDaysBetween } from "@/lib/schedule";
+import type { ParameterType } from "@/lib/schemas/parameter";
 import { parseStoredDesign } from "@/lib/schemas/protocol";
 
 export type HomeHunch = {
@@ -15,7 +16,7 @@ export type HomeHunch = {
   primaryParameter: {
     id: string;
     label: string;
-    type: "binary" | "continuous";
+    type: ParameterType;
     min: number | null;
     max: number | null;
   } | null;
@@ -134,7 +135,7 @@ export async function getHomeData(userId: string): Promise<HomeData> {
         ? {
             id: primary.id,
             label: primary.label,
-            type: primary.type as "binary" | "continuous",
+            type: primary.type as ParameterType,
             min: primary.min,
             max: primary.max,
           }

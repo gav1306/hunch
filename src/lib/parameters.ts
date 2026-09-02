@@ -54,12 +54,17 @@ function sameLabel(a: string, b: string): boolean {
  */
 export function draftsFromSharpened(s: {
   outcomeMetric: string;
-  outcomeType: ParameterType;
+  /** The hypothesis' own word — the engine's vocabulary, not a kind. */
+  outcomeType: "binary" | "continuous";
   trackers?: Tracker[];
 }): ParameterDraft[] {
   const primary: ParameterDraft = {
     label: s.outcomeMetric,
-    type: s.outcomeType,
+    // The Coach reports the outcome in the engine's two-value vocabulary, so a
+    // primary arrives as "continuous". Land it on `amount` — the free number
+    // input these rows already rendered — rather than guessing a rating or a
+    // stepper for a measure nobody has described yet.
+    type: s.outcomeType === "binary" ? "binary" : "amount",
     isPrimary: true,
   };
   const trackers = (s.trackers ?? [])
