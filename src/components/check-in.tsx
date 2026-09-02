@@ -4,10 +4,16 @@ import Link from "next/link";
 import { useState } from "react";
 import { useCheckIn, type CheckInValueInput } from "@/hooks/use-checkin";
 import type { PhaseStatus } from "@/lib/schedule";
-import { validateParameterValue, type ParameterType } from "@/lib/schemas/parameter";
-import { ArrowRightIcon, CheckIcon } from "lucide-react";
+import {
+  SCALE_MAX,
+  SCALE_MIN,
+  validateParameterValue,
+  type ParameterType,
+} from "@/lib/schemas/parameter";
+import { ArrowRightIcon, CheckIcon, MinusIcon, PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 
 /**
@@ -225,6 +231,66 @@ export function CheckIn({
             );
           })}
         </div>
+      ) : p.type === "scale" ? (
+        // One tap is the whole interaction, the same as a yes/no — so on home
+        // it logs immediately rather than waiting for a submit that isn't there.
+        <ToggleGroup
+          value={entries[p.id] ? [entries[p.id]] : []}
+          onValueChange={(v: string[]) => {
+            const next = v[v.length - 1];
+            if (!next) return;
+            if (compact) submit({ id: p.id, raw: next });
+            else set(p.id, next);
+          }}
+          disabled={disabled}
+          aria-label={p.label}
+        >
+          {Array.from({ length: SCALE_MAX - SCALE_MIN + 1 }, (_, i) =>
+            String(SCALE_MIN + i),
+          ).map((n) => (
+            <ToggleGroupItem
+              key={n}
+              value={n}
+              aria-label={`${p.label}: ${n}`}
+              // The registry's default is h-8 — 32px, under the 44px floor the
+              // audit already made this app honour everywhere else. This is the
+              // control people tap every day, so it matches the yes/no pair
+              // beside it rather than the primitive's default.
+              className="min-h-11 min-w-11 border border-rule font-mono text-sm aria-pressed:border-ink aria-pressed:bg-ink aria-pressed:text-paper"
+            >
+              {n}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      ) : p.type === "count" ? (
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="brand"
+            size="touch"
+            disabled={disabled || Number(entries[p.id] ?? 0) <= 0}
+            aria-label={`One fewer: ${p.label}`}
+            onClick={() => set(p.id, String(Math.max(0, Number(entries[p.id] ?? 0) - 1)))}
+          >
+            <MinusIcon aria-hidden className="size-icon" />
+          </Button>
+          <output
+            aria-live="polite"
+            className="w-10 text-center font-mono text-lg text-ink"
+          >
+            {entries[p.id] ?? 0}
+          </output>
+          <Button
+            type="button"
+            variant="brand"
+            size="touch"
+            disabled={disabled}
+            aria-label={`One more: ${p.label}`}
+            onClick={() => set(p.id, String(Number(entries[p.id] ?? 0) + 1))}
+          >
+            <PlusIcon aria-hidden className="size-icon" />
+          </Button>
+        </div>
       ) : (
         <Input
           id={`checkin-${p.id}`}
@@ -244,7 +310,10 @@ export function CheckIn({
 
   // The one measure being a yes/no is the whole of compact's interaction; there
   // is nothing left to submit.
-  const compactTapsOnly = compact && shown.every((p) => p.type === "binary");
+  // A scale is a single tap too, so home has nothing left to submit for it
+  // either. A count is not: the stepper needs a confirming press.
+  const compactTapsOnly =
+    compact && shown.every((p) => p.type === "binary" || p.type === "scale");
 
   const form = (
     <form
