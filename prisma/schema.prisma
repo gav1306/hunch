@@ -52,7 +52,7 @@ model Protocol {
   design      Json // ABA / randomized n-of-1 structure: phases, washout, lengths
   powerInfo   Json? // sample-size / power analysis output
   confounders Json? // structured Confounder[] (surface-and-warn; adjust-ready for Phase 4)
-  safetyState String    @default("pending") // pending | approved | refused
+  safetyState String    @default("pending") // pending | approved | refused | observe-only
   startedAt   DateTime? // set when approved + hunch flips to running; anchors the check-in schedule
   createdAt   DateTime  @default(now())
 

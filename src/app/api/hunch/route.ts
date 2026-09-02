@@ -5,7 +5,9 @@ import { db } from "@/lib/db";
 import { recallPriors } from "@/lib/memory/recall";
 import { draftsFromSharpened, toParameterDto } from "@/lib/parameters";
 import { sharpenRequestSchema } from "@/lib/schemas/clarify";
-import { sharpenHunch } from "@/mastra/agents/hypothesis-coach";
+import { MEDICATION_REFUSAL, medicationIntent } from "@/lib/safety/medication";
+import { NoStructuredOutput, sharpenHunch } from "@/mastra/agents/hypothesis-coach";
+import { diaryFallback } from "@/lib/safety/diary-fallback";
 
 /**
  * Core loop, step one: drop a hunch -> Hypothesis Coach sharpens it -> persist
@@ -24,9 +26,34 @@ export async function POST(request: Request) {
     });
   }
 
+  // Deterministic and first: a refusal here costs no tokens and reaches the user
+  // before they have invested anything in a plan. `observeOnly` means they have
+  // already read it and chosen the log instead, and that path schedules nothing.
+  if (!parsed.data.observeOnly && medicationIntent(parsed.data.rawText)) {
+    return NextResponse.json(
+      { blocked: "medication", error: MEDICATION_REFUSAL },
+      { status: 422 },
+    );
+  }
+
   try {
     const priors = await recallPriors(session.user.id, parsed.data.rawText);
-    const sharpened = await sharpenHunch(parsed.data.rawText, priors, parsed.data.answers);
+    let sharpened;
+    try {
+      sharpened = await sharpenHunch(
+        parsed.data.rawText,
+        priors,
+        parsed.data.answers,
+        parsed.data.observeOnly,
+      );
+    } catch (err) {
+      // A diary keeps its promise even when the coach won't answer. Asked about
+      // coming off a statin the model returns prose rather than an object, and
+      // failing here would put the dead end back one step later — after the user
+      // had already been told the app would keep the record.
+      if (!(parsed.data.observeOnly && err instanceof NoStructuredOutput)) throw err;
+      sharpened = diaryFallback(parsed.data.rawText);
+    }
 
     const drafts = draftsFromSharpened(sharpened);
 

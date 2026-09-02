@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { canRun } from "@/lib/schemas/protocol";
 import { getSession } from "@/lib/session";
 import { startDateFor } from "@/lib/schedule";
 
@@ -51,7 +52,7 @@ export async function POST(
       { status: 409 },
     );
   }
-  if (hunch.protocol.safetyState !== "approved") {
+  if (!canRun(hunch.protocol.safetyState)) {
     return NextResponse.json(
       { error: "This plan hasn't cleared its safety review." },
       { status: 409 },

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowRightIcon, RotateCcwIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { ProtocolStepper } from "@/components/protocol-stepper";
@@ -13,6 +14,7 @@ import { parameterListSchema, type ParameterDraft } from "@/lib/schemas/paramete
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useObserveOnly } from "@/hooks/use-observe-only";
 
 const LABEL = "text-xs tracking-[0.16em] text-muted-foreground uppercase";
 
@@ -63,6 +65,8 @@ function DesignSkeleton() {
 export function ProtocolView({ id }: { id: string }) {
   const info = useHunchInfo(id);
   const design = useDesignProtocol(id);
+  const observe = useObserveOnly(id);
+  const router = useRouter();
 
   // What the read gives us: the persisted parameters if the sharpen step wrote
   // them, otherwise just the outcome as the primary. Derived, not stored — the
@@ -219,6 +223,28 @@ export function ProtocolView({ id }: { id: string }) {
           <p className={cn(LABEL, "mt-4 mb-0")}>
             Hunch is not medical advice — please talk to a doctor before trying this.
           </p>
+
+          {/* Until now this card was the app's only dead end. The hunch behind
+              it is still a real thing the person noticed; what it can't do is
+              schedule the change. So it keeps the record instead. */}
+          <p className="mt-4 mb-0 text-sm leading-relaxed text-ink">
+            What it can still do is keep the record — change nothing, log each day, and
+            you&rsquo;ll have your own account of it.
+          </p>
+          <div className="mt-4">
+            <Button
+              type="button"
+              variant="brand"
+              size="touch"
+              disabled={observe.isPending}
+              onClick={() => observe.mutate(undefined, { onSuccess: () => router.refresh() })}
+            >
+              {observe.isPending ? "Setting it up…" : "Track it as it is"}
+            </Button>
+          </div>
+          {observe.isError && (
+            <p className="mt-2.5 mb-0 text-sm text-s1">{observe.error.message}</p>
+          )}
         </section>
       )}
 

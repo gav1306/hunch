@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { engineOutcomeType, pickPrimary } from "@/lib/parameters";
 import { currentPhase, utcDaysBetween } from "@/lib/schedule";
 import type { ParameterType } from "@/lib/schemas/parameter";
-import { parseStoredDesign } from "@/lib/schemas/protocol";
+import { canRun, parseStoredDesign } from "@/lib/schemas/protocol";
 
 export type HomeHunch = {
   id: string;
@@ -107,7 +107,7 @@ export async function getHomeData(userId: string): Promise<HomeData> {
         phaseLabel = ph.kind;
         loggableToday =
           h.status === "running" &&
-          h.protocol.safetyState === "approved" &&
+          canRun(h.protocol.safetyState) &&
           ph.started &&
           !ph.done &&
           !ph.washout &&
@@ -125,7 +125,7 @@ export async function getHomeData(userId: string): Promise<HomeData> {
         setupStage = "needs-sharpening";
       } else if (h.status === "sharpened") {
         setupStage =
-          h.protocol && h.protocol.safetyState === "approved"
+          h.protocol && canRun(h.protocol.safetyState)
             ? "ready-to-start"
             : "needs-plan";
       }

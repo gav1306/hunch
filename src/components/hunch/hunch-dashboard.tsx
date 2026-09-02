@@ -52,11 +52,32 @@ export function HunchDashboard({
         ? undefined
         : info.data?.protocol?.design.phases[schedule.phaseIndex]?.action;
 
+    // A diary has one arm: no contrast, so no meter and no verdict. Rendering
+    // either would promise a comparison the data cannot make.
+    const isDiary = info.data?.protocol?.safetyState === "observe-only";
+
+    if (isDiary && concluded) {
+      return (
+        <section className="rounded-lg border border-rule bg-card p-[clamp(20px,2.4vw,28px)]">
+          <p className="m-0 text-sm leading-relaxed text-ink">
+            Your log is complete. Nothing was changed and nothing was compared — it&rsquo;s
+            the record of what happened, and it&rsquo;s yours to export.
+          </p>
+        </section>
+      );
+    }
+
     return concluded ? (
       <VerdictView hunchId={id} statement={statement} archived={archived} />
     ) : (
       <div className="grid gap-5">
-        <BeliefMeter belief={belief} />
+        {isDiary ? (
+          <p className="m-0 text-sm text-muted-foreground">
+            A log, not a trial. Nothing to change — just the record.
+          </p>
+        ) : (
+          <BeliefMeter belief={belief} />
+        )}
         {/* The days behind the meter. Without it, a five-day gap and a perfect
             week look identical on every screen the app has. */}
         {schedule?.started && startsOn && info.data?.protocol && (

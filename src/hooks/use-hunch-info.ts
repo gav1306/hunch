@@ -13,7 +13,8 @@ export type HunchInfo = {
   archivedAt: string | null;
   protocol: null | {
     id: string;
-    safetyState: "approved" | "refused" | "pending";
+    /** "observe-only" is a diary: recorded, never scheduled. */
+    safetyState: "approved" | "refused" | "pending" | "observe-only";
     design: ProtocolDesign;
     powerInfo: PowerInfo;
     confounders: Confounder[];

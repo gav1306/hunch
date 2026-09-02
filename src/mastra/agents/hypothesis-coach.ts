@@ -96,6 +96,7 @@ export function buildSharpenPrompt(
   rawText: string,
   priors: Prior[],
   answers: ClarifyingAnswer[],
+  observeOnly = false,
 ): string {
   const priorsBlock =
     priors.length > 0
@@ -111,16 +112,49 @@ export function buildSharpenPrompt(
           .join("\n")}`
       : "";
 
-  return `Sharpen this hunch into a testable hypothesis:\n\n"${rawText}"${answersBlock}${priorsBlock}`;
+  // A diary changes nothing, so a statement about skipping or stopping would
+  // contradict the plan printed underneath it. Sharpen the same noticing into
+  // something observational instead of an intervention.
+  const observeBlock = observeOnly
+    ? [
+        "",
+        "",
+        "IMPORTANT: this is a LOG, not a trial. The person will change nothing — they",
+        "are only recording what happens. Write the statement as something to WATCH FOR,",
+        "not something to do, and never describe starting, stopping, skipping or changing",
+        'anything. "Do I sleep better if I skip my antidepressant" becomes "My sleep',
+        'quality varies from night to night." Pick an outcome they can log daily while',
+        "their routine stays exactly as it is.",
+      ].join("\n")
+    : "";
+
+  return `Sharpen this hunch into a testable hypothesis:\n\n"${rawText}"${answersBlock}${priorsBlock}${observeBlock}`;
+}
+
+/**
+ * The model returned prose instead of the object we asked for. Seen in the
+ * wild when the raw text is medication-adjacent — the model declines to answer
+ * at all, so `response.object` is undefined and the Zod error that follows says
+ * nothing useful about why.
+ *
+ * Its own type so the observe-only path can recognise it and keep its promise
+ * to record the thing anyway.
+ */
+export class NoStructuredOutput extends Error {
+  constructor() {
+    super("The coach didn't return a hypothesis.");
+    this.name = "NoStructuredOutput";
+  }
 }
 
 export async function sharpenHunch(
   rawText: string,
   priors: Prior[] = [],
   answers: ClarifyingAnswer[] = [],
+  observeOnly = false,
 ): Promise<SharpenedHypothesis> {
   const response = await hypothesisCoach.generate(
-    buildSharpenPrompt(rawText, priors, answers),
+    buildSharpenPrompt(rawText, priors, answers, observeOnly),
     {
       structuredOutput: { schema: sharpenedHypothesisSchema },
       // The output is a small object; cap tokens to stay within budget and
@@ -129,5 +163,8 @@ export async function sharpenHunch(
     },
   );
 
+  if (!response.object) {
+    throw new NoStructuredOutput();
+  }
   return sharpenedHypothesisSchema.parse(response.object);
 }
