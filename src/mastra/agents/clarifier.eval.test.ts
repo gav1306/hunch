@@ -15,4 +15,19 @@ describe.skipIf(!hasKey)("Clarifier quality", () => {
       expect(q.options.length).toBeLessThanOrEqual(4);
     }
   }, 60_000);
+
+  test("asks which one when the hunch is about several of something", async () => {
+    const { questions } = await askClarifying("my houseplants droop when I play music");
+    const text = JSON.stringify(questions).toLowerCase();
+    // Averaging several plants is not a measurement of any of them.
+    expect(text).toMatch(/which|one of them|each plant|a single/);
+  }, 60_000);
+
+  test("offers a no-device option when the honest measure needs an instrument", async () => {
+    const { questions } = await askClarifying("my blood sugar spikes when I eat white rice");
+    const text = JSON.stringify(questions).toLowerCase();
+    // Either they own a monitor, or they log what they can actually feel.
+    expect(text).toMatch(/monitor|meter|cuff|device/);
+    expect(text).toMatch(/energy|tired|sleepy|feel|sluggish|crash/);
+  }, 60_000);
 });

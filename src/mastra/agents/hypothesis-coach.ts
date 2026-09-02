@@ -77,6 +77,11 @@ Rules:
     blood pressure     -> "Headache or tightness today", binary
   A weaker measure logged every day beats a precise one never taken.
 
+  Blood pressure is TWO parameters, never one: systolic as the primary (the
+  number that moves first and most) and diastolic as a tracker, both "amount"
+  in mmHg. Only propose them at all if the person has said they own a cuff and
+  read it daily; otherwise offer what they can feel instead.
+
   Propose FEWER than four unless each one genuinely helps read the result.
   Three padded trackers are worse than one good one, and "time spent doing the
   thing" is usually padding.
