@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { recallPriors } from "@/lib/memory/recall";
 import { draftsFromSharpened, toParameterDto } from "@/lib/parameters";
 import { sharpenRequestSchema } from "@/lib/schemas/clarify";
+import { MEDICATION_REFUSAL, medicationIntent } from "@/lib/safety/medication";
 import { sharpenHunch } from "@/mastra/agents/hypothesis-coach";
 
 /**
@@ -22,6 +23,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "A hunch can't be empty." }, {
       status: 400,
     });
+  }
+
+  // Deterministic and first: a refusal here costs no tokens and reaches the user
+  // before they have invested anything in a plan. `observeOnly` means they have
+  // already read it and chosen the log instead, and that path schedules nothing.
+  if (!parsed.data.observeOnly && medicationIntent(parsed.data.rawText)) {
+    return NextResponse.json(
+      { blocked: "medication", error: MEDICATION_REFUSAL },
+      { status: 422 },
+    );
   }
 
   try {

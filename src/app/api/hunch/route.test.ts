@@ -22,6 +22,37 @@ describe("POST /api/hunch", () => {
     vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "u1" } } as never);
   });
 
+  it("refuses a medication-variation hunch before calling the model", async () => {
+    const res = await POST(req({ rawText: "do I sleep better if I skip my antidepressant" }));
+
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.blocked).toBe("medication");
+    expect(body.error).toContain("can't plan a trial that changes your medication");
+    // The whole point of a deterministic check: it costs nothing to run, and
+    // nothing is written.
+    expect(sharpenHunch).not.toHaveBeenCalled();
+    expect(db.hunch.create).not.toHaveBeenCalled();
+  });
+
+  it("keeps the same hunch when the user has read that and chosen a log", async () => {
+    vi.mocked(sharpenHunch).mockResolvedValue({
+      statement: "I feel more tired on some days than others.",
+      outcomeMetric: "tiredness rated 1-5",
+      outcomeType: "continuous",
+      confounders: [],
+      trackers: [],
+    } as never);
+    vi.mocked(db.hunch.create).mockResolvedValue({ id: "h1", parameters: [] } as never);
+
+    const res = await POST(
+      req({ rawText: "do I sleep better if I skip my antidepressant", observeOnly: true }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(sharpenHunch).toHaveBeenCalled();
+  });
+
   it("persists the outcome as the primary parameter plus the proposed trackers", async () => {
     vi.mocked(sharpenHunch).mockResolvedValue({
       statement: "Coffee after lunch makes me sleep worse.",

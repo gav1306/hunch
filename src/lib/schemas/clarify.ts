@@ -34,5 +34,11 @@ export type ClarifyingAnswer = z.infer<typeof clarifyingAnswerSchema>;
 export const sharpenRequestSchema = z.object({
   rawText: z.string().trim().min(1, "A hunch can't be empty."),
   answers: z.array(clarifyingAnswerSchema).default([]),
+  /**
+   * The user read the medication refusal and chose to keep this as a log
+   * instead. Skipping the check is safe here precisely because the diary path
+   * cannot schedule a medication change: its single phase says change nothing.
+   */
+  observeOnly: z.boolean().default(false),
 });
 export type SharpenRequest = z.infer<typeof sharpenRequestSchema>;
