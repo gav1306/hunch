@@ -58,6 +58,10 @@ export async function POST(
       statement: sharpened.statement,
       outcomeMetric: sharpened.outcomeMetric,
       outcomeType: sharpened.outcomeType,
+      // Re-sharpening rewrites the statement, so the prediction that goes with
+      // it is rewritten too. Null when the Coach didn't give one, rather than
+      // leaving the previous statement's direction attached to a new claim.
+      expectedDirection: sharpened.expectedDirection ?? null,
       confounders: sharpened.confounders,
     };
 
