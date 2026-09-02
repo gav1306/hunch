@@ -33,6 +33,13 @@ export const sharpenedHypothesisSchema = z.object({
    */
   expectedDirection: z.enum(["up", "down"]).optional(),
   /**
+   * Whose life this is about. Almost always the user; "other" covers a plant, a
+   * pet, a room. Its only consequence is that a non-self result never becomes a
+   * prior recalled into a hunch about the user's own body — otherwise "you
+   * already learned music affects droopiness" turns up inside a sleep trial.
+   */
+  subject: z.enum(["self", "other"]).default("self"),
+  /**
    * Extra things worth logging daily next to the outcome — context for reading
    * the result. Never verdicted. Empty when nothing obvious applies.
    */

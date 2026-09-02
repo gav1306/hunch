@@ -67,6 +67,7 @@ export async function POST(request: Request) {
             statement: sharpened.statement,
             outcomeMetric: sharpened.outcomeMetric,
             expectedDirection: sharpened.expectedDirection ?? null,
+            subject: sharpened.subject,
             outcomeType: sharpened.outcomeType,
             confounders: sharpened.confounders,
           },

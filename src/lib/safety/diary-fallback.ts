@@ -19,6 +19,8 @@ export function diaryFallback(rawText: string): SharpenedHypothesis {
     statement: rawText.trim(),
     outcomeMetric: "how you felt overall, rated 1-5",
     outcomeType: "continuous",
+    // A diary is about the person keeping it.
+    subject: "self",
     confounders: [],
     trackers: [],
   };

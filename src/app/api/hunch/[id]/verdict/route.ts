@@ -127,6 +127,7 @@ export async function GET(
     outcomeMetric: hunch.hypothesis.outcomeMetric,
     hunchId: hunch.id,
     userId: session.user.id,
+    subject: hunch.hypothesis.subject,
   });
 
   try {

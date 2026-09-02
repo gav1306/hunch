@@ -35,3 +35,19 @@ describe("writeEdgeData", () => {
     expect(writeEdgeData({ ...base, category: "inconclusive_insufficient" })).toBe(null);
   });
 });
+
+describe("writeEdgeData and the subject", () => {
+  it("writes no edge for a hunch about something that isn't the user", () => {
+    // "You already learned music affects droopiness" must never surface inside
+    // a sleep experiment.
+    expect(writeEdgeData({ ...base, category: "helped", subject: "other" })).toBe(null);
+  });
+
+  it("still writes one for the user's own hunch", () => {
+    expect(writeEdgeData({ ...base, category: "helped", subject: "self" })).not.toBe(null);
+  });
+
+  it("treats a missing subject as self, so hunches written before it keep working", () => {
+    expect(writeEdgeData({ ...base, category: "helped" })).not.toBe(null);
+  });
+});

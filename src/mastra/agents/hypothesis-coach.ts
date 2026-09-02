@@ -44,6 +44,9 @@ Rules:
   outcome metric, "down" if it lowers it. For "Skipping my walk makes my code
   buggier" with outcome "bugs found", that is "up". This is only which way the
   number moves. Never whether that is good or bad — you cannot know that.
+- subject: "self" for a hunch about the person's own body, mood, work or habits
+  — almost every hunch. "other" when the thing being measured is NOT the person:
+  a houseplant, a pet, a room, a car.
 - confounders: real factors that could independently move the outcome during
   the experiment (stress, travel, illness, weekends). Empty array if none are
   obvious. Do not invent far-fetched ones.
