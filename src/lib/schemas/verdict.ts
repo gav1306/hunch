@@ -14,12 +14,24 @@ export const verdictNarrativeSchema = z.object({
   narrative: z.string().trim().min(1),
 });
 
+/** The primary parameter, as the user labelled it. */
+export const verdictOutcomeSchema = z.object({
+  label: z.string().trim().min(1),
+  unit: z.string().trim().min(1).optional(),
+});
+
 /**
  * The verdict as returned by the API and rendered by the UI. `ci` is the 95%
  * credible interval on the effect; the numbers are the frozen engine snapshot.
  */
 export const verdictSchema = z.object({
   category: verdictCategorySchema,
+  /**
+   * The primary parameter as the user labelled it, so the headline can name
+   * what moved instead of saying "it". Absent on verdicts frozen before the
+   * headline carried the outcome.
+   */
+  outcome: verdictOutcomeSchema.nullish(),
   narrative: z.string().trim().min(1),
   pEffect: z.number().min(0).max(1),
   effect: z.number(),

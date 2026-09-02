@@ -37,8 +37,8 @@ const row = {
     nB: 13,
   },
   parameters: [
-    { id: "p1", label: "sleep quality", unit: "1-10", sortOrder: 0 },
-    { id: "p2", label: "caffeine", unit: null, sortOrder: 1 },
+    { id: "p1", label: "sleep quality", unit: "1-10", sortOrder: 0, isPrimary: true },
+    { id: "p2", label: "caffeine", unit: null, sortOrder: 1, isPrimary: false },
   ],
   checkIns: [
     {
@@ -128,7 +128,9 @@ describe("GET /api/hunch/[id]/export", () => {
     expect(body).toContain("Hypothesis: Coffee after 2pm reduces my sleep quality.");
     expect(body).toContain("Outcome measured: sleep quality");
     expect(body).toContain("Started: 2026-07-01");
-    expect(body).toContain("It hurt — 93% sure");
+    // Direction and the primary parameter's own name — never "it hurt", which
+    // would be a value judgement the engine has no basis for.
+    expect(body).toContain("Sleep quality went down — 93% sure");
     // ciLow then ciHigh, nA then nB: the two pairs a mapping slip would swap.
     expect(body).toContain(
       "Effect: -1.23 (95% credible interval -2.50 to -0.25); 11 baseline days, 13 intervention days.",

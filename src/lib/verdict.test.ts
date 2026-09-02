@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyVerdict } from "@/lib/verdict";
+import { classifyVerdict, verdictHeadline } from "@/lib/verdict";
 import type { Belief } from "@/lib/schemas/belief";
 import type { PhaseStatus } from "@/lib/schedule";
 
@@ -36,5 +36,55 @@ describe("classifyVerdict", () => {
   it("treats a CI bound touching zero as straddling (not clear)", () => {
     expect(classifyVerdict(belief({ effect: 0.5, ci: [0, 1.0] }), done)).toBe("inconclusive_no_effect");
     expect(classifyVerdict(belief({ effect: -0.5, ci: [-1.0, 0] }), done)).toBe("inconclusive_no_effect");
+  });
+});
+
+describe("verdictHeadline", () => {
+  const outcome = { label: "Bugs found today", unit: undefined };
+
+  it("says the outcome went up when the effect is positive", () => {
+    expect(verdictHeadline("helped", outcome)).toBe("Bugs found today went up");
+  });
+  it("says the outcome went down when the effect is negative", () => {
+    expect(verdictHeadline("hurt", outcome)).toBe("Bugs found today went down");
+  });
+  it("names the outcome when there was no difference", () => {
+    expect(verdictHeadline("inconclusive_no_effect", outcome)).toBe(
+      "No difference in bugs found today",
+    );
+  });
+  it("does not name the outcome when there wasn't enough data", () => {
+    expect(verdictHeadline("inconclusive_insufficient", outcome)).toBe(
+      "Not enough days to tell",
+    );
+  });
+
+  it("capitalises a lower-case label so the headline reads as a sentence", () => {
+    expect(verdictHeadline("helped", { label: "hours of sleep" })).toBe(
+      "Hours of sleep went up",
+    );
+  });
+  it("lower-cases the label mid-sentence", () => {
+    expect(verdictHeadline("inconclusive_no_effect", { label: "Hours of sleep" })).toBe(
+      "No difference in hours of sleep",
+    );
+  });
+  it("leaves an acronym alone rather than mangling its case", () => {
+    expect(verdictHeadline("helped", { label: "BP systolic" })).toBe("BP systolic went up");
+    expect(verdictHeadline("inconclusive_no_effect", { label: "BP systolic" })).toBe(
+      "No difference in BP systolic",
+    );
+  });
+
+  it("falls back to a generic noun when no outcome label is known", () => {
+    expect(verdictHeadline("helped", null)).toBe("Your outcome went up");
+    expect(verdictHeadline("inconclusive_no_effect", null)).toBe("No difference either way");
+  });
+
+  it("never uses valence words, whichever way the effect went", () => {
+    const banned = /helped|hurt|better|worse|improved|good|bad/i;
+    for (const c of ["helped", "hurt", "inconclusive_no_effect"] as const) {
+      expect(verdictHeadline(c, outcome)).not.toMatch(banned);
+    }
   });
 });

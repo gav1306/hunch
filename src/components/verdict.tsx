@@ -2,26 +2,26 @@
 
 import { BeliefMeter } from "@/components/belief-meter";
 import { VerdictActions } from "@/components/hunch/verdict-actions";
-import { CheckIcon, XIcon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 import { useVerdict } from "@/hooks/use-verdict";
-import { cn } from "@/lib/utils";
 import type { Belief } from "@/lib/schemas/belief";
 import type { Verdict } from "@/lib/schemas/verdict";
+import { verdictHeadline } from "@/lib/verdict";
 
 /**
- * Headline copy + result token per verdict category. The tone comes from the
- * semantic pair, not the brand accents: helped and hurt used to be --s1 and --s2
- * here but both --s1 on home, so the same result read two ways depending on the
- * screen. The word carries the meaning; the colour only agrees with it.
+ * The icon per category — direction only, and nothing at all when there is no
+ * direction to show.
+ *
+ * This used to be a check and a cross on --good/--bad, which asserted that a
+ * rising number was a win. `effect` is meanB - meanA on the raw outcome, so it
+ * carries no idea whether up is good: for bugs, spending or symptoms it is the
+ * opposite. An arrow says the one thing the engine actually knows.
  */
-const HEADLINE: Record<
-  Verdict["category"],
-  { title: string; tone: string; Icon?: typeof CheckIcon }
-> = {
-  helped: { title: "It helped", tone: "text-good", Icon: CheckIcon },
-  hurt: { title: "It hurt", tone: "text-bad", Icon: XIcon },
-  inconclusive_no_effect: { title: "No detectable effect", tone: "text-neutral" },
-  inconclusive_insufficient: { title: "Not enough data", tone: "text-neutral" },
+const ICON: Record<Verdict["category"], typeof ArrowUpIcon | undefined> = {
+  helped: ArrowUpIcon,
+  hurt: ArrowDownIcon,
+  inconclusive_no_effect: undefined,
+  inconclusive_insufficient: undefined,
 };
 
 /** Reconstruct a live Belief from the frozen snapshot so we can reuse the meter. */
@@ -60,21 +60,17 @@ export function VerdictView({
   }
 
   const v = query.data.verdict;
-  const head = HEADLINE[v.category];
+  const title = verdictHeadline(v.category, v.outcome ?? null);
+  const Icon = ICON[v.category];
   const hasStats = v.category !== "inconclusive_insufficient";
 
   return (
     <section className="grid max-w-full min-w-0 gap-[18px] rounded-lg border border-rule bg-card p-[clamp(20px,2.4vw,28px)]">
       <div>
         <p className="m-0 text-xs tracking-[0.16em] text-muted-foreground uppercase">Verdict</p>
-        <h2
-          className={cn(
-            "mt-2 mb-0 flex items-center gap-2.5 font-heading text-[clamp(26px,4vw,36px)] font-bold tracking-[-0.02em]",
-            head.tone,
-          )}
-        >
-          {head.title}
-          {head.Icon && <head.Icon aria-hidden className="size-[0.8em]" strokeWidth={2.5} />}
+        <h2 className="mt-2 mb-0 flex items-center gap-2.5 font-heading text-[clamp(26px,4vw,36px)] font-bold tracking-[-0.02em] text-ink">
+          {title}
+          {Icon && <Icon aria-hidden className="size-[0.8em]" strokeWidth={2.5} />}
         </h2>
       </div>
       <p className="m-0 text-sm leading-relaxed text-ink [overflow-wrap:anywhere]">
