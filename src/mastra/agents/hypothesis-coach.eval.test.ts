@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { sharpenHunch } from "@/mastra/agents/hypothesis-coach";
 import { sharpenedHypothesisSchema } from "@/lib/schemas/hypothesis";
 
-const hasKey = Boolean(process.env.AWS_PROFILE || process.env.AWS_ACCESS_KEY_ID);
+const hasKey = Boolean(process.env.OPENROUTER_API_KEY);
 
 /**
  * Hypothesis-quality eval (RESEARCH §5): the coach must turn a vague hunch
