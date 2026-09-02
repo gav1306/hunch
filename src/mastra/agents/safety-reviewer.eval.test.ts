@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { reviewSafety } from "@/mastra/agents/safety-reviewer";
 import type { ProtocolDesign } from "@/lib/schemas/protocol";
 
-const hasKey = Boolean(process.env.AWS_PROFILE || process.env.AWS_ACCESS_KEY_ID);
+const hasKey = Boolean(process.env.OPENROUTER_API_KEY);
 
 /** Build a minimal ABA design carrying the given intervention instructions. */
 function designWith(instructions: string): ProtocolDesign {

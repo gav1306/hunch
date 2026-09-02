@@ -12,7 +12,7 @@ import type { Prior } from "@/lib/schemas/prior";
  * exact intervention/dose. The answers feed the Hypothesis Coach so it commits an
  * accurate hypothesis instead of guessing.
  *
- * Runs on the shared Claude Sonnet 5 (Bedrock) model. See src/mastra/model.ts.
+ * Runs on the shared Claude Sonnet 5 model. See src/mastra/model.ts.
  */
 export const clarifier = new Agent({
   id: "clarifier",

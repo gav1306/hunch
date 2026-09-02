@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { narrateVerdict } from "@/mastra/agents/analyst";
 
-const hasKey = Boolean(process.env.AWS_PROFILE || process.env.AWS_ACCESS_KEY_ID);
+const hasKey = Boolean(process.env.OPENROUTER_API_KEY);
 
 /**
  * Analyst faithfulness eval: the narrative must reflect the decided category and

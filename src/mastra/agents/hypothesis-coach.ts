@@ -12,8 +12,7 @@ import type { ClarifyingAnswer } from "@/lib/schemas/clarify";
  * falsifiable hypothesis with a measurable outcome, an outcome type that drives
  * the Bayesian model choice, and the confounders worth controlling for.
  *
- * Claude (Sonnet 5) runs on Amazon Bedrock via the shared `claudeModel`
- * instance; AWS credentials resolve from the standard provider chain. See
+ * Claude (Sonnet 5) runs via the shared `claudeModel` instance. See
  * `src/mastra/model.ts`.
  */
 export const hypothesisCoach = new Agent({
