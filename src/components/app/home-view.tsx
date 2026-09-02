@@ -66,11 +66,17 @@ function startsCopy(iso: string): string {
   return `Starts in ${days} days`;
 }
 
+/**
+ * The scanning badge for a concluded trial. Direction, not verdict: the engine
+ * knows a number rose or fell, never whether that was a win — "Helped" on a
+ * rising bug count read as a green tick on a bad week. Confirmed/Reversed
+ * needs the hypothesis' expected direction, which the Coach does not write yet.
+ */
 const VERDICT_LABEL: Record<string, { text: string; className: string }> = {
-  helped: { text: "Helped", className: "text-good" },
-  hurt: { text: "Hurt", className: "text-bad" },
-  inconclusive_no_effect: { text: "No effect", className: "text-neutral" },
-  inconclusive_insufficient: { text: "Not enough data", className: "text-neutral" },
+  helped: { text: "Increase", className: "text-neutral" },
+  hurt: { text: "Decrease", className: "text-neutral" },
+  inconclusive_no_effect: { text: "No difference", className: "text-neutral" },
+  inconclusive_insufficient: { text: "Not enough days", className: "text-neutral" },
 };
 
 /**

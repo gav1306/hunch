@@ -10,7 +10,15 @@
  * shapes are testable without a database.
  */
 
-export type ExportParameter = { id: string; label: string; unit: string | null };
+import { verdictHeadline } from "@/lib/verdict";
+import type { VerdictCategory } from "@/lib/schemas/verdict";
+
+export type ExportParameter = {
+  id: string;
+  label: string;
+  unit: string | null;
+  isPrimary?: boolean;
+};
 
 export type ExportCheckIn = {
   loggedOn: Date;
@@ -38,13 +46,7 @@ export type ExportHunch = {
   verdict: ExportVerdict | null;
 };
 
-/** The verdict categories, in the words the app uses on screen. */
-const CATEGORY_TEXT: Record<string, string> = {
-  helped: "It helped",
-  hurt: "It hurt",
-  inconclusive_no_effect: "No detectable effect",
-  inconclusive_insufficient: "Not enough data",
-};
+
 
 /** `2026-08-01` — the UTC calendar date, which is how check-ins are stored. */
 function isoDate(d: Date): string {
@@ -97,7 +99,14 @@ export function toText(h: ExportHunch): string {
   if (h.verdict) {
     const v = h.verdict;
     lines.push("VERDICT");
-    lines.push(`${CATEGORY_TEXT[v.category] ?? v.category} — ${Math.round(v.pEffect * 100)}% sure`);
+    // The file follows the verdict page's headline, not home's badge: an export
+    // is read once and carefully, so it gets the sentence, not the chip.
+    const primary = h.parameters.find((p) => p.isPrimary);
+    const headline = verdictHeadline(
+      v.category as VerdictCategory,
+      primary ? { label: primary.label, unit: primary.unit ?? undefined } : null,
+    );
+    lines.push(`${headline} — ${Math.round(v.pEffect * 100)}% sure`);
     lines.push(v.narrative);
     lines.push(
       `Effect: ${v.effect.toFixed(2)} (95% credible interval ${v.ci[0].toFixed(2)} to ` +

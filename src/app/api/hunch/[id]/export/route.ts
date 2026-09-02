@@ -48,6 +48,7 @@ export async function GET(
       id: p.id,
       label: p.label,
       unit: p.unit,
+      isPrimary: p.isPrimary,
     })),
     checkIns: hunch.checkIns.map((c) => ({
       loggedOn: c.loggedOn,

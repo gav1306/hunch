@@ -11,13 +11,23 @@ import { runAnalysis } from "@/mastra/workflows/analysis";
 import { verdictSchema, type Verdict } from "@/lib/schemas/verdict";
 import { parseStoredDesign } from "@/lib/schemas/protocol";
 
-/** Shape a persisted Verdict row into the API DTO (ciLow/ciHigh -> ci tuple). */
-function toDto(row: {
-  category: string; narrative: string; pEffect: number; effect: number;
-  ciLow: number; ciHigh: number; nA: number; nB: number; model: string;
-}): Verdict {
+/**
+ * Shape a persisted Verdict row into the API DTO (ciLow/ciHigh -> ci tuple).
+ *
+ * `outcome` is not stored on the verdict: it is the primary parameter, read
+ * from the hunch on every request. The headline names what moved, and the
+ * label the user sees on the check-in screen is the name they know it by.
+ */
+function toDto(
+  row: {
+    category: string; narrative: string; pEffect: number; effect: number;
+    ciLow: number; ciHigh: number; nA: number; nB: number; model: string;
+  },
+  outcome: { label: string; unit?: string } | null,
+): Verdict {
   return verdictSchema.parse({
     category: row.category,
+    outcome,
     narrative: row.narrative,
     pEffect: row.pEffect,
     effect: row.effect,
@@ -61,15 +71,19 @@ export async function GET(
     return NextResponse.json({ error: "Hunch not found." }, { status: 404 });
   }
 
+  const primary = pickPrimary(hunch.parameters);
+  const outcome = primary
+    ? { label: primary.label, unit: primary.unit ?? undefined }
+    : null;
+
   if (hunch.verdict) {
-    return NextResponse.json({ verdict: toDto(hunch.verdict) });
+    return NextResponse.json({ verdict: toDto(hunch.verdict, outcome) });
   }
 
   if (!hunch.protocol?.startedAt) {
     return NextResponse.json({ error: "This trial hasn't started." }, { status: 409 });
   }
 
-  const primary = pickPrimary(hunch.parameters);
   const outcomeType = (primary?.type ?? hunch.hypothesis.outcomeType) as "binary" | "continuous";
   const belief = computeBelief(primaryBeliefRows(hunch.checkIns, primary?.id), outcomeType);
   const design = parseStoredDesign(hunch.protocol.design, hunch.hypothesis.outcomeMetric);
@@ -132,7 +146,7 @@ export async function GET(
     // both requests see the same frozen verdict instead of a 500.
     const existing = await db.verdict.findUnique({ where: { hunchId: hunch.id } });
     if (existing) {
-      return NextResponse.json({ verdict: toDto(existing) });
+      return NextResponse.json({ verdict: toDto(existing, outcome) });
     }
     return NextResponse.json(
       { error: "Could not save your verdict. Please try again." },

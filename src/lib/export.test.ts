@@ -7,7 +7,7 @@ const hunch: ExportHunch = {
   rawText: "does coffee wreck my sleep",
   startedAt: new Date("2026-08-01T00:00:00.000Z"),
   parameters: [
-    { id: "p1", label: "sleep quality", unit: "1-10" },
+    { id: "p1", label: "sleep quality", unit: "1-10", isPrimary: true },
     { id: "p2", label: "caffeine, mg", unit: null },
   ],
   checkIns: [
@@ -63,7 +63,7 @@ describe("toText", () => {
   it("leads with the hypothesis and the verdict", () => {
     const out = toText(hunch);
     expect(out).toContain("Coffee after 2pm reduces my sleep quality.");
-    expect(out).toContain("It hurt");
+    expect(out).toContain("Sleep quality went down");
     expect(out).toContain("94% sure");
     expect(out).toContain("Your sleep was worse");
   });
