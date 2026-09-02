@@ -56,7 +56,7 @@ describe("POST /api/hunch/[id]/protocol", () => {
 
   it("400s when the confirmed list has no primary", async () => {
     const res = await POST(
-      req({ parameters: [{ label: "stress", type: "continuous", isPrimary: false }] }),
+      req({ parameters: [{ label: "stress", type: "amount", isPrimary: false }] }),
       params,
     );
     expect(res.status).toBe(400);
@@ -72,8 +72,8 @@ describe("POST /api/hunch/[id]/protocol", () => {
     const res = await POST(
       req({
         parameters: [
-          { label: "hours of sleep", type: "continuous", isPrimary: true },
-          { label: "stress", type: "continuous", unit: "1-10", min: 1, max: 10, isPrimary: false },
+          { label: "hours of sleep", type: "amount", isPrimary: true },
+          { label: "stress", type: "scale", unit: "1-5", min: 1, max: 5, isPrimary: false },
         ],
       }),
       params,
@@ -85,7 +85,7 @@ describe("POST /api/hunch/[id]/protocol", () => {
     };
     expect(created.data).toHaveLength(2);
     expect(created.data[0]).toMatchObject({ isPrimary: true, sortOrder: 0 });
-    expect(created.data[1]).toMatchObject({ label: "stress", min: 1, max: 10, sortOrder: 1 });
+    expect(created.data[1]).toMatchObject({ label: "stress", min: 1, max: 5, sortOrder: 1 });
   });
 
   it("409s once days have been logged, so a redesign can't erase them", async () => {
@@ -94,7 +94,7 @@ describe("POST /api/hunch/[id]/protocol", () => {
       _count: { checkIns: 4 },
     } as never);
     const res = await POST(
-      req({ parameters: [{ label: "hours of sleep", type: "continuous", isPrimary: true }] }),
+      req({ parameters: [{ label: "hours of sleep", type: "amount", isPrimary: true }] }),
       params,
     );
     expect(res.status).toBe(409);

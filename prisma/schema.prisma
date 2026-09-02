@@ -75,7 +75,7 @@ model Parameter {
   id        String  @id @default(cuid())
   hunchId   String
   label     String // human label, e.g. "hours of sleep"
-  type      String // "binary" | "continuous"
+  type      String // "binary" | "scale" | "count" | "amount"
   unit      String? // optional display unit, e.g. "hrs", "1-10"
   min       Float? // optional bound (continuous scales)
   max       Float?

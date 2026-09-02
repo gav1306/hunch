@@ -19,7 +19,7 @@ const design = {
 const primary = {
   id: "p1",
   label: "hours of sleep",
-  type: "continuous",
+  type: "amount",
   min: null,
   max: null,
   isPrimary: true,

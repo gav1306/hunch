@@ -1,6 +1,8 @@
 import { describe, expect, test } from "vitest";
 import {
+  backfillKind,
   draftsFromSharpened,
+  engineOutcomeType,
   pickPrimary,
   primaryBeliefRows,
   toParameterDto,
@@ -17,7 +19,7 @@ describe("draftsFromSharpened", () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatchObject({
       label: "hours of sleep from a tracker",
-      type: "continuous",
+      type: "amount",
       isPrimary: true,
     });
     expect(rows[1]).toMatchObject({ label: "caffeine after 2pm", isPrimary: false });
@@ -42,7 +44,7 @@ describe("draftsFromSharpened", () => {
     const rows = draftsFromSharpened({
       outcomeMetric: "hours of sleep",
       outcomeType: "continuous",
-      trackers: [{ label: "hours of sleep", type: "continuous" }],
+      trackers: [{ label: "hours of sleep", type: "amount" }],
     });
     expect(rows).toHaveLength(1);
   });
@@ -51,7 +53,7 @@ describe("draftsFromSharpened", () => {
     const rows = draftsFromSharpened({
       outcomeMetric: "m",
       outcomeType: "binary",
-      trackers: [{ label: "stress", type: "continuous", unit: "1-10", min: 1, max: 10 }],
+      trackers: [{ label: "stress", type: "amount", unit: "1-10", min: 1, max: 10 }],
     });
     expect(rows[1]).toMatchObject({ unit: "1-10", min: 1, max: 10 });
   });
@@ -61,7 +63,7 @@ describe("toParameterDto", () => {
   const row = {
     id: "p1",
     label: "stress",
-    type: "continuous",
+    type: "amount",
     unit: null,
     min: null,
     max: null,
@@ -117,5 +119,53 @@ describe("primaryBeliefRows", () => {
 
   test("skips days where the primary was not logged", () => {
     expect(primaryBeliefRows([{ phase: "A", values: [] }], "p1")).toEqual([]);
+  });
+});
+
+describe("engineOutcomeType", () => {
+  test("keeps binary binary", () => {
+    expect(engineOutcomeType("binary")).toBe("binary");
+  });
+
+  test("sends every measured kind down the continuous path", () => {
+    expect(engineOutcomeType("scale")).toBe("continuous");
+    expect(engineOutcomeType("count")).toBe("continuous");
+    expect(engineOutcomeType("amount")).toBe("continuous");
+  });
+
+  test("still understands rows written before the split", () => {
+    expect(engineOutcomeType("continuous")).toBe("continuous");
+  });
+
+  test("falls back to continuous for an absent or unknown type", () => {
+    // Erring towards continuous is the safe direction: treating a real number
+    // as a coin flip would corrupt a verdict, while the reverse only widens an
+    // interval.
+    expect(engineOutcomeType(null)).toBe("continuous");
+    expect(engineOutcomeType(undefined)).toBe("continuous");
+    expect(engineOutcomeType("nonsense")).toBe("continuous");
+  });
+});
+
+describe("backfillKind", () => {
+  test("leaves binary alone", () => {
+    expect(backfillKind({ type: "binary", unit: null, min: null, max: null })).toBe("binary");
+  });
+
+  test("reads a rating unit as a scale", () => {
+    expect(backfillKind({ type: "continuous", unit: "1-10", min: 1, max: 10 })).toBe("scale");
+    expect(backfillKind({ type: "continuous", unit: "1 - 5", min: null, max: null })).toBe("scale");
+    expect(backfillKind({ type: "continuous", unit: "1–10", min: null, max: null })).toBe("scale");
+  });
+
+  test("treats a real unit as an amount, bounds or not", () => {
+    expect(backfillKind({ type: "continuous", unit: "°F", min: 50, max: 90 })).toBe("amount");
+    expect(backfillKind({ type: "continuous", unit: "hours", min: null, max: null })).toBe("amount");
+  });
+
+  test("defaults to amount, so an existing free-number row keeps its control", () => {
+    // Guessing "count" here would swap a working number field for a stepper on
+    // rows like "hours of sleep", which is a regression for people mid-trial.
+    expect(backfillKind({ type: "continuous", unit: null, min: null, max: null })).toBe("amount");
   });
 });

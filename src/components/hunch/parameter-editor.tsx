@@ -68,7 +68,7 @@ function Row({
           onClick={() =>
             onChange(
               row.type === "binary"
-                ? { ...row, type: "continuous" }
+                ? { ...row, type: "amount" }
                 : { ...row, type: "binary", unit: undefined, min: undefined, max: undefined },
             )
           }
@@ -77,7 +77,7 @@ function Row({
           {row.type === "binary" ? "yes / no" : "a number"}
         </Button>
 
-        {row.type === "continuous" && (
+        {row.type === "amount" && (
           <>
             <Input
               value={row.unit ?? ""}
@@ -191,7 +191,7 @@ export function ParameterEditor({
               variant="brand"
               size="touch"
               onClick={() =>
-                onChange([...value, { label: "", type: "continuous", isPrimary: false }])
+                onChange([...value, { label: "", type: "amount", isPrimary: false }])
               }
               className={GHOST}
             >

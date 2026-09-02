@@ -54,12 +54,17 @@ function sameLabel(a: string, b: string): boolean {
  */
 export function draftsFromSharpened(s: {
   outcomeMetric: string;
-  outcomeType: ParameterType;
+  /** The hypothesis' own word — the engine's vocabulary, not a kind. */
+  outcomeType: "binary" | "continuous";
   trackers?: Tracker[];
 }): ParameterDraft[] {
   const primary: ParameterDraft = {
     label: s.outcomeMetric,
-    type: s.outcomeType,
+    // The Coach reports the outcome in the engine's two-value vocabulary, so a
+    // primary arrives as "continuous". Land it on `amount` — the free number
+    // input these rows already rendered — rather than guessing a rating or a
+    // stepper for a measure nobody has described yet.
+    type: s.outcomeType === "binary" ? "binary" : "amount",
     isPrimary: true,
   };
   const trackers = (s.trackers ?? [])
@@ -90,4 +95,50 @@ export function primaryBeliefRows(
     if (hit) rows.push({ phase: c.phase, value: hit.value });
   }
   return rows;
+}
+
+/**
+ * The only place a parameter kind becomes something the Bayesian engine
+ * understands. `computeBelief` takes binary or continuous; scale, count and
+ * amount are all continuous to the maths, and what separates them is how a
+ * number is asked for, not how it is analysed.
+ *
+ * This exists because four call sites used to write
+ * `primary.type as "binary" | "continuous"`. That cast stopped TypeScript
+ * checking exactly where a new kind would first arrive, and the engine would
+ * have picked its model from a string nobody had validated.
+ *
+ * Only "binary" is binary. Everything else — a legacy "continuous" row, a new
+ * kind, an unrecognised string — is continuous, because treating a real
+ * measurement as a coin flip would silently corrupt a verdict, while the
+ * reverse merely widens an interval.
+ */
+export function engineOutcomeType(
+  type: string | null | undefined,
+): "binary" | "continuous" {
+  return type === "binary" ? "binary" : "continuous";
+}
+
+/** "1-10", "1 - 5", "1–10" — a unit that is really a rating range. */
+const RATING_UNIT = /^\d+\s*[-–]\s*\d+$/;
+
+/**
+ * The kind an existing row becomes when the four kinds land. Mirrored in SQL by
+ * the parameter_kinds migration; change both together or the database and the
+ * code disagree about rows nobody has touched since.
+ *
+ * Deliberately conservative. Anything not clearly a rating becomes an `amount`,
+ * which is the free number input the row already rendered — the spec's original
+ * "count otherwise" would have turned "hours of sleep" into a stepper and
+ * changed a control under someone mid-trial.
+ */
+export function backfillKind(row: {
+  type: string;
+  unit: string | null;
+  min: number | null;
+  max: number | null;
+}): ParameterType {
+  if (row.type === "binary") return "binary";
+  if (row.unit && RATING_UNIT.test(row.unit.trim())) return "scale";
+  return "amount";
 }

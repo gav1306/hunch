@@ -28,7 +28,7 @@ describe("POST /api/hunch", () => {
       outcomeMetric: "hours of sleep from a tracker",
       outcomeType: "continuous",
       confounders: [],
-      trackers: [{ label: "stress", type: "continuous", unit: "1-10", min: 1, max: 10 }],
+      trackers: [{ label: "stress", type: "amount", unit: "1-10", min: 1, max: 10 }],
     });
     vi.mocked(db.hunch.create).mockResolvedValue({
       id: "h1",

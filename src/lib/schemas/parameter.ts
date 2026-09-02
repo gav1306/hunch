@@ -1,8 +1,25 @@
 import { z } from "zod";
 
-/** How a parameter is logged: a yes/no tap or a number. */
-export const parameterTypeSchema = z.enum(["binary", "continuous"]);
+/**
+ * How a parameter is logged. Four kinds, because a bug count, a 1-5 mood rating
+ * and a systolic reading off a cuff are not one thing: they want different
+ * controls, different validation, and different answers to the question that
+ * decides whether a trial survives — can this person actually produce this
+ * number every day?
+ *
+ * The Bayesian engine still sees only binary vs continuous. `engineOutcomeType`
+ * in src/lib/parameters.ts is the single door between the two vocabularies.
+ */
+export const parameterTypeSchema = z.enum(["binary", "scale", "count", "amount"]);
 export type ParameterType = z.infer<typeof parameterTypeSchema>;
+
+/**
+ * A rating scale is always 1-5. Five tap targets fit a phone row, and a person
+ * rating their own energy is not precise to ten points — the Coach and the
+ * Designer proved that by disagreeing about it inside a single trial.
+ */
+export const SCALE_MIN = 1;
+export const SCALE_MAX = 5;
 
 /**
  * A co-variable the Coach proposes alongside the primary outcome — the
@@ -76,9 +93,25 @@ export function validateParameterValue(
   value: number,
 ): string | null {
   if (!Number.isFinite(value)) return `${param.label} needs a number.`;
+
   if (param.type === "binary") {
     return value === 0 || value === 1 ? null : `${param.label} is a yes/no — log 1 or 0.`;
   }
+
+  // A scale's bounds belong to the kind, not the row. Rows migrated off the old
+  // free-number type can still carry min 1 / max 10, and honouring that would
+  // let a 7 through a control that only offers five taps.
+  if (param.type === "scale") {
+    return Number.isInteger(value) && value >= SCALE_MIN && value <= SCALE_MAX
+      ? null
+      : `${param.label} is a ${SCALE_MIN}-${SCALE_MAX} rating.`;
+  }
+
+  if (param.type === "count") {
+    if (!Number.isInteger(value)) return `${param.label} is a whole number.`;
+    if (value < 0) return `${param.label} can't be negative.`;
+  }
+
   if (param.min != null && value < param.min) {
     return `${param.label} can't be below ${param.min}.`;
   }
