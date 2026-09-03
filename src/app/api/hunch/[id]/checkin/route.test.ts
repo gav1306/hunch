@@ -49,6 +49,54 @@ const running = {
 };
 
 describe("POST /api/hunch/[id]/checkin", () => {
+  it("refuses a slipped digit but names the number they meant", async () => {
+    vi.mocked(db.hunch.findFirst).mockResolvedValue({
+      ...running,
+      parameters: [
+        { id: "p1", label: "Systolic", type: "amount", unit: "mmHg", min: 60, max: 200, isPrimary: true, retiredAt: null },
+      ],
+    } as never);
+
+    const res = await POST(req({ values: [{ parameterId: "p1", value: 1200 }] }), params);
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("Did you mean 120?");
+    expect(body.suggestion).toBe(120);
+    // Refused, not flagged: storing 1200 mmHg would corrupt the trial.
+    expect(db.checkInValue.upsert).not.toHaveBeenCalled();
+  });
+
+  it("flags a reading past a published limit, and still logs the day", async () => {
+    vi.mocked(db.hunch.findFirst).mockResolvedValue({
+      ...running,
+      parameters: [
+        { id: "p1", label: "Systolic", type: "amount", unit: "mmHg", min: 60, max: 200, isPrimary: true, retiredAt: null },
+      ],
+    } as never);
+
+    const res = await POST(req({ values: [{ parameterId: "p1", value: 186 }] }), params);
+
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.flags[0]).toMatchObject({ kind: "limit" });
+    expect(body.flags[0].source).toBeTruthy();
+    // The net notices; it never refuses. The day is written.
+    expect(db.checkInValue.upsert).toHaveBeenCalled();
+  });
+
+  it("returns no flags for an ordinary reading", async () => {
+    vi.mocked(db.hunch.findFirst).mockResolvedValue({
+      ...running,
+      parameters: [
+        { id: "p1", label: "Systolic", type: "amount", unit: "mmHg", min: 60, max: 200, isPrimary: true, retiredAt: null },
+      ],
+    } as never);
+
+    const res = await POST(req({ values: [{ parameterId: "p1", value: 118 }] }), params);
+    expect((await res.json()).flags).toEqual([]);
+  });
+
   it("refuses a reading for a retired tracker, and writes nothing", async () => {
     vi.mocked(db.hunch.findFirst).mockResolvedValue({
       ...running,
