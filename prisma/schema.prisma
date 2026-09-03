@@ -40,6 +40,9 @@ model Hypothesis {
   /// verdict badge compares it against the measured sign. Null on hypotheses
   /// sharpened before the Coach wrote it.
   expectedDirection String?
+  /// "self" | "other" — whose life this is about. Only consequence: a non-self
+  /// result never becomes a CausalEdge prior about the user.
+  subject       String   @default("self")
   confounders   String[] // named confounders
   createdAt     DateTime @default(now())
 

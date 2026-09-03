@@ -101,3 +101,24 @@ describe("expectedDirection", () => {
     expect(sharpenedHypothesisSchema.safeParse(base).success).toBe(true);
   });
 });
+
+describe("subject", () => {
+  const base = {
+    statement: "My houseplants droop when I play music.",
+    outcomeMetric: "droopiness rated 1-5",
+    outcomeType: "continuous" as const,
+  };
+
+  test("accepts self and other", () => {
+    expect(sharpenedHypothesisSchema.safeParse({ ...base, subject: "self" }).success).toBe(true);
+    expect(sharpenedHypothesisSchema.safeParse({ ...base, subject: "other" }).success).toBe(true);
+  });
+
+  test("rejects anything else", () => {
+    expect(sharpenedHypothesisSchema.safeParse({ ...base, subject: "plant" }).success).toBe(false);
+  });
+
+  test("defaults to self, which is what almost every hunch is", () => {
+    expect(sharpenedHypothesisSchema.parse(base).subject).toBe("self");
+  });
+});

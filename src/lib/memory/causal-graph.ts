@@ -34,7 +34,12 @@ export function writeEdgeData(input: {
   outcomeMetric: string;
   hunchId: string;
   userId: string;
+  /** "other" when the thing measured wasn't the user. Absent means self. */
+  subject?: string;
 }): CausalEdgeInput | null {
+  // A plant's result is not a fact about this person. The trial still runs and
+  // still gets its verdict; it simply never enters the model of *them*.
+  if (input.subject === "other") return null;
   const direction = DIRECTION[input.category];
   if (direction === null) return null;
   return {

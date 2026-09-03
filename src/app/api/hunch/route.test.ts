@@ -40,6 +40,7 @@ describe("POST /api/hunch", () => {
       statement: "I feel more tired on some days than others.",
       outcomeMetric: "tiredness rated 1-5",
       outcomeType: "continuous",
+      subject: "self",
       confounders: [],
       trackers: [],
     } as never);
@@ -58,6 +59,7 @@ describe("POST /api/hunch", () => {
       statement: "Coffee after lunch makes me sleep worse.",
       outcomeMetric: "hours of sleep from a tracker",
       outcomeType: "continuous",
+      subject: "self",
       confounders: [],
       trackers: [{ label: "stress", type: "amount", unit: "1-10", min: 1, max: 10 }],
     });

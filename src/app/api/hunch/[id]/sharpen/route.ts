@@ -78,6 +78,7 @@ export async function POST(
       // it is rewritten too. Null when the Coach didn't give one, rather than
       // leaving the previous statement's direction attached to a new claim.
       expectedDirection: sharpened.expectedDirection ?? null,
+            subject: sharpened.subject,
       confounders: sharpened.confounders,
     };
 

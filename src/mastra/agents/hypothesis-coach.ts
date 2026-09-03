@@ -44,6 +44,9 @@ Rules:
   outcome metric, "down" if it lowers it. For "Skipping my walk makes my code
   buggier" with outcome "bugs found", that is "up". This is only which way the
   number moves. Never whether that is good or bad — you cannot know that.
+- subject: "self" for a hunch about the person's own body, mood, work or habits
+  — almost every hunch. "other" when the thing being measured is NOT the person:
+  a houseplant, a pet, a room, a car.
 - confounders: real factors that could independently move the outcome during
   the experiment (stress, travel, illness, weekends). Empty array if none are
   obvious. Do not invent far-fetched ones.
@@ -73,6 +76,11 @@ Rules:
     room humidity      -> "Air feels damp", binary
     blood pressure     -> "Headache or tightness today", binary
   A weaker measure logged every day beats a precise one never taken.
+
+  Blood pressure is TWO parameters, never one: systolic as the primary (the
+  number that moves first and most) and diastolic as a tracker, both "amount"
+  in mmHg. Only propose them at all if the person has said they own a cuff and
+  read it daily; otherwise offer what they can feel instead.
 
   Propose FEWER than four unless each one genuinely helps read the result.
   Three padded trackers are worse than one good one, and "time spent doing the
