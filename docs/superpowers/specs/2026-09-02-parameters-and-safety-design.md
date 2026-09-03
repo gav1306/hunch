@@ -276,7 +276,9 @@ Beneath the headline, the number and its uncertainty, unchanged:
 
 ## Out of scope — logged, not fixed here
 
-- **Cadence.** Per-event outcomes ("dollars per shopping trip") counted against day-based phases. The spike surfaced this; it is a real analysis defect and needs its own spec.
+- ~~**Cadence.** Per-event outcomes ("dollars per shopping trip") counted against day-based phases.~~ **Fixed 2026-09-03, and not where this predicted.** It was a hypothesis-phrasing defect, not an analysis one: the Coach now has to phrase every outcome so it can be logged daily, with zero on the days nothing happened. "Dollars spent per shopping trip" becomes "dollars spent on groceries today", which is better statistics too — dropping the non-shopping days quietly changes what is being compared. Seven adversarial hunches all came back daily; removing the rule fails the eval on three of them.
+
+- **Intervention adherence** — found while fixing cadence, and genuinely separate. The engine compares readings by *phase label*, not by whether the change was actually applied that day. "Playing basketball makes my knee hurt" logs knee pain daily, so both arms have enough readings, but if they play once a week then six of seven phase-B days had no basketball and the contrast is diluted towards nothing. The Coach already proposes "Played basketball today" as a tracker; the engine ignores trackers. Fixing it means letting a nominated tracker gate which days count as intervention — a real design question, not a patch.
 - **Tracker padding.** The Coach returns 4 trackers every time regardless of the hunch.
 - **Agent disagreement.** Coach and Designer independently choose scale ranges and can contradict each other inside one trial.
 

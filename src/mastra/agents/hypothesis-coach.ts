@@ -38,6 +38,18 @@ Rules:
 - outcomeMetric: one concrete thing the user can measure or self-report,
   including the scale or unit (e.g. "hours of sleep from a tracker",
   "focus rated 1-5 at day's end").
+
+  It MUST be loggable EVERY DAY, with zero or "no" on the days nothing
+  happened. Never phrase it per-event — not "per shopping trip", "each run",
+  "per meal", "every time I..." — because a trial is measured in days: a
+  per-event outcome leaves most days blank, the app counts them as missed, and
+  a perfectly run three-week trial ends with too few readings to say anything.
+    "dollars spent per shopping trip"  -> "dollars spent on groceries today"
+    "soreness after each run"          -> "soreness rated 1-5 today"
+    "headache after every coffee"      -> "headache today, yes or no"
+  A zero on a day they did not shop is real data, not a gap — and it belongs in
+  the comparison, because dropping those days quietly changes what is being
+  compared.
 - outcomeType: "binary" if the outcome is naturally yes/no, "continuous" if
   it is a number or scale.
 - expectedDirection: "up" if your own statement says the change RAISES the

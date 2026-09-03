@@ -31,4 +31,23 @@ describe.skipIf(!hasKey)("Hypothesis Coach quality", () => {
       expect(h.outcomeMetric.split(/\s+/).length).toBeGreaterThanOrEqual(2);
     },
   );
+
+  test.each([
+    "I spend more money when I shop hungry",
+    "my knee hurts after playing basketball on Sundays",
+    "I get carsick on long drives",
+  ])("phrases %s so it can be logged every day", async (raw) => {
+    const h = await sharpenHunch(raw);
+    // Per-event phrasing is the bug: a trial is measured in days, so an outcome
+    // that only exists on some of them leaves the rest blank, the adherence
+    // strip calls them missed, and a perfectly run trial ends with too few
+    // readings to say anything.
+    expect(h.outcomeMetric).not.toMatch(
+      /per (shopping )?trip|each run|per run|per meal|every time|per session|per drive|per game/i,
+    );
+    // And it should say when, so "every day" is unambiguous.
+    expect(h.outcomeMetric.toLowerCase()).toMatch(
+      /today|each day|daily|each morning|each evening|day's end|per day/,
+    );
+  }, 120_000);
 });
