@@ -8,6 +8,7 @@ import { currentPhase, utcMidnight, utcToday as utcTodayFrom } from "@/lib/sched
 import { checkInValuesInputSchema, validateParameterValue } from "@/lib/schemas/parameter";
 import type { ParameterType } from "@/lib/schemas/parameter";
 import { canRun, parseStoredDesign } from "@/lib/schemas/protocol";
+import { flagReading, typoFlag } from "@/lib/safety/reading-flags";
 
 /**
  * Phase 4: log a day's readings. The server derives the phase from the schedule
@@ -75,7 +76,19 @@ export async function POST(
       row.value,
     );
     if (problem) {
-      return NextResponse.json({ error: problem }, { status: 400 });
+      // A slipped digit is the commonest way to fail validation, and "can't be
+      // above 200" doesn't help as much as naming the number they meant. The
+      // reading is still refused — storing 1200 mmHg would corrupt the trial.
+      const typo = typoFlag(
+        { label: param.label, type: param.type, unit: param.unit, min: param.min, max: param.max },
+        row.value,
+      );
+      return NextResponse.json(
+        typo
+          ? { error: `${problem} Did you mean ${typo.suggestion}?`, suggestion: typo.suggestion }
+          : { error: problem },
+        { status: 400 },
+      );
     }
   }
 
@@ -132,7 +145,36 @@ export async function POST(
 
   const all = await db.checkIn.findMany({
     where: { hunchId: hunch.id },
-    select: { phase: true, values: { select: { parameterId: true, value: true } } },
+    select: {
+      phase: true,
+      loggedOn: true,
+      values: { select: { parameterId: true, value: true } },
+    },
+  });
+
+  // The safety net, computed on the way out and never stored. That is what
+  // guarantees it cannot reach the engine, a verdict or a CausalEdge: there is
+  // nowhere for it to persist. No model call is involved — see
+  // src/lib/safety/reading-flags.ts for why that matters.
+  const flags = parsed.data.values.flatMap((row) => {
+    const param = byId.get(row.parameterId);
+    if (!param) return [];
+    const history = all
+      .filter((c) => c.loggedOn.getTime() !== loggedOn.getTime())
+      .flatMap((c) => c.values.filter((v) => v.parameterId === row.parameterId))
+      .map((v) => v.value);
+    const flag = flagReading({
+      parameter: {
+        label: param.label,
+        type: param.type,
+        unit: param.unit,
+        min: param.min,
+        max: param.max,
+      },
+      value: row.value,
+      history,
+    });
+    return flag ? [{ ...flag, parameterId: row.parameterId, label: param.label }] : [];
   });
   const primary = pickPrimary(hunch.parameters);
   const belief = computeBelief(
@@ -140,5 +182,5 @@ export async function POST(
     engineOutcomeType(primary?.type ?? hunch.hypothesis.outcomeType),
   );
 
-  return NextResponse.json({ checkIn, belief }, { status: 201 });
+  return NextResponse.json({ checkIn, belief, flags }, { status: 201 });
 }

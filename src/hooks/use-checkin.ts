@@ -6,9 +6,22 @@ import type { Belief } from "@/lib/schemas/belief";
 /** One reading the user is submitting for one parameter. */
 export type CheckInValueInput = { parameterId: string; value: number };
 
+/**
+ * The mid-trial safety net's output for a reading the app accepted. Never
+ * stored — see src/lib/safety/reading-flags.ts.
+ */
+export type ReadingFlagDto = {
+  kind: "outlier" | "limit";
+  message: string;
+  source?: string;
+  parameterId: string;
+  label: string;
+};
+
 export type CheckInResponse = {
   checkIn: { id: string; phase: string };
   belief: Belief;
+  flags?: ReadingFlagDto[];
 };
 
 /** One submission: the readings, and which day they are for. */
