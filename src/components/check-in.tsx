@@ -96,6 +96,7 @@ export function CheckIn({
   onLogged?: () => void;
 }) {
   const checkIn = useCheckIn(hunchId);
+  const [dismissed, setDismissed] = useState<string[]>([]);
   const [entries, setEntries] = useState<Record<string, string>>({});
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -142,6 +143,10 @@ export function CheckIn({
     setProblem(null);
   }
 
+  // Dismissed by parameter, so a limit the user has read doesn't reappear under
+  // every subsequent reading of the same measure in this session.
+  const flags = (checkIn.data?.flags ?? []).filter((f) => !dismissed.includes(f.parameterId));
+
   /** Collect, validate, send. The one path both shapes submit through. */
   function submit(override?: { id: string; raw: string }) {
     const values: CheckInValueInput[] = [];
@@ -182,6 +187,60 @@ export function CheckIn({
           {checkIn.error.message}
         </p>
       )}
+
+      {/* The safety net. The day is already logged — this notices, it does not
+          refuse. A limit names its source and offers a way out; an outlier says
+          only that it's unusual for this person, and nothing about what to do,
+          because that is the only claim their own data supports. */}
+      {flags.map((f) => (
+        <div
+          key={`${f.kind}-${f.parameterId}`}
+          role="status"
+          className="mt-3.5 grid gap-2.5 rounded-lg border border-rule px-3 py-3"
+        >
+          <p className="m-0 text-sm leading-relaxed text-ink">{f.message}</p>
+          {f.source && (
+            <p className="m-0 text-xs tracking-[0.04em] text-muted-foreground">{f.source}</p>
+          )}
+          {f.kind === "limit" && (
+            <>
+              <p className="m-0 text-sm text-muted-foreground">
+                Hunch isn&rsquo;t medical advice, and it can&rsquo;t tell you what this means.
+                It&rsquo;s your call whether to keep the trial running.
+              </p>
+              <div className="flex flex-wrap gap-2.5">
+                <Button
+                  type="button"
+                  variant="brand"
+                  size="touch"
+                  render={<Link href={`/hunch/${hunchId}`} />}
+                >
+                  See the trial
+                </Button>
+                <Button
+                  type="button"
+                  variant="brand"
+                  size="touch"
+                  onClick={() => setDismissed((d) => [...d, f.parameterId])}
+                >
+                  Keep going
+                </Button>
+              </div>
+            </>
+          )}
+          {f.kind === "outlier" && (
+            <Button
+              type="button"
+              variant="brand"
+              size="touch"
+              className="justify-self-start"
+              onClick={() => setDismissed((d) => [...d, f.parameterId])}
+            >
+              Got it
+            </Button>
+          )}
+        </div>
+      ))}
     </>
   );
 

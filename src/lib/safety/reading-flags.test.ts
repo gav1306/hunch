@@ -76,6 +76,7 @@ describe("personal outlier", () => {
     const flag = flagReading({ parameter: bugs, value: 40, history: steady(10, 3) });
     expect(flag?.kind).toBe("outlier");
     expect(flag?.message.toLowerCase()).toContain("unusual for you");
+    expect(flag?.message).toContain("3");
   });
 
   test("says nothing until there is enough history to have a spread", () => {

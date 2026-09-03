@@ -128,20 +128,22 @@ function outlierFlag(
   const variance =
     history.reduce((acc, x) => acc + (x - mean) ** 2, 0) / (history.length - 1);
   const sd = Math.sqrt(variance);
-  if (sd === 0) return value === mean ? null : flatHistory(p, value, mean);
+  if (sd === 0) return value === mean ? null : flatHistory(mean);
 
   if (Math.abs(value - mean) <= OUTLIER_SIGMAS * sd) return null;
   return {
     kind: "outlier",
-    message: `That's unusual for you — your other ${p.label.toLowerCase()} readings sit around ${round(mean)}.`,
+    // Not "your other coffees readings" — the label pluralises badly inside a
+    // sentence, and the parameter is named right above this anyway.
+    message: `That's unusual for you — your other readings sit around ${round(mean)}.`,
   };
 }
 
 /** Every prior reading identical: any different value is unusual by definition. */
-function flatHistory(p: FlaggableParameter, value: number, mean: number): ReadingFlag {
+function flatHistory(mean: number): ReadingFlag {
   return {
     kind: "outlier",
-    message: `That's unusual for you — every other ${p.label.toLowerCase()} reading has been ${round(mean)}.`,
+    message: `That's unusual for you — every other reading has been ${round(mean)}.`,
   };
 }
 
