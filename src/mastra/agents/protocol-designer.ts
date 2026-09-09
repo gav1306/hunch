@@ -12,10 +12,15 @@ import {
 
 /**
  * Protocol Designer (RESEARCH §3 / Phase 3). Turns a sharpened hypothesis into
- * a concrete ABA n-of-1 design: baseline (A) -> intervention (B) -> baseline (A),
- * with phase lengths informed by the deterministic power tool and the confounder
- * controls folded into the instructions. The agent does NOT do math — phase
- * lengths come from `power.minDaysPerPhase`.
+ * a concrete n-of-1 design. Usually that is ABA — baseline (A) -> intervention
+ * (B) -> baseline (A) — with phase lengths informed by the deterministic power
+ * tool and the confounder controls folded into the instructions. The agent does
+ * NOT do math: phase lengths come from `power.minDaysPerPhase`.
+ *
+ * When the change cannot be applied on demand the design is instead a single
+ * observation window, and there the agent writes only the prose — see
+ * `designProtocolShape`, which tells it so in the prompt and builds the
+ * structure itself.
  */
 export const protocolDesigner = new Agent({
   id: "protocol-designer",
@@ -23,11 +28,14 @@ export const protocolDesigner = new Agent({
   model: claudeModel,
   instructions: `You are the Protocol Designer for Hunch, a personal-science copilot.
 
-Given a sharpened hypothesis, design an ABA n-of-1 experiment the user can run on
-themselves: phase A (baseline, normal behaviour), phase B (intervention), then
-phase A again (return to baseline). This isolates the intervention's effect.
+Given a sharpened hypothesis, design an n-of-1 experiment the user can run on
+themselves. Usually that is ABA: phase A (baseline, normal behaviour), phase B
+(intervention), then phase A again (return to baseline), which isolates the
+intervention's effect. When the change cannot be applied on demand, each request
+says so and asks for a single observation window instead — follow what the
+request asks for.
 
-Rules:
+Rules for an ABA design:
 - phases: exactly three — A (baseline), B (intervention), A (baseline). Use the
   provided minimum days per phase for EACH phase's "days". Do not invent your own
   length and do not do arithmetic; use the number you are given.
@@ -37,9 +45,11 @@ Rules:
   Baseline phases keep normal behaviour; the B phase names the specific change.
 - washoutDays: a short gap (1-3 days) between phases so the prior phase stops
   influencing the next. Use 0 only if a washout makes no sense.
-- controls: include every confounder control you are given, verbatim.
 - instructions: clear, friendly, step-by-step guidance for running all three
   phases and logging the outcome metric. Reference the controls.
+
+Whatever the shape: include every confounder control you are given in
+"controls", verbatim, and always return non-empty "instructions".
 
 Keep it realistic for one person at home. Never recommend prescription meds,
 fasting, or anything a doctor should oversee — that is handled separately.`,

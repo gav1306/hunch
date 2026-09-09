@@ -83,15 +83,15 @@ export async function POST(
   const schedulable = typeof override === "boolean" ? override : storedSchedulable;
   const observational = !schedulable;
 
-  // Flipping back to a scheduled design must not leave an arm-assigning
-  // parameter behind: on a phased trial the calendar assigns the arms, and a
-  // stray exposure row would be a second, silent claim on them. Only the
-  // explicit override strips — a hunch that was always schedulable may still
-  // carry an exposure row, and there it is the adherence count, not an arm.
-  const confirmedRows =
-    override === true
-      ? confirmed.data.map((p) => ({ ...p, isExposure: false }))
-      : confirmed.data;
+  // An exposure that was assigning arms must not survive the flip to a design
+  // where the calendar assigns them: it would be a second, silent claim on the
+  // same days. Only an actual flip strips. An exposure on a hunch that was
+  // always schedulable is the adherence count — how many phase-B days the user
+  // managed — and is none of this route's business.
+  const flippedToScheduled = override === true && storedSchedulable === false;
+  const confirmedRows = flippedToScheduled
+    ? confirmed.data.map((p) => ({ ...p, isExposure: false }))
+    : confirmed.data;
 
   const exposure = pickExposure(confirmedRows);
   if (observational && !exposure) {

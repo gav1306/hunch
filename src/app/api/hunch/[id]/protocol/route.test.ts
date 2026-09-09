@@ -212,6 +212,19 @@ describe("POST /api/hunch/[id]/protocol", () => {
     });
   });
 
+  it("keeps a reporting-only exposure when the body confirms an already-scheduled hunch", async () => {
+    // Nothing flipped: the exposure here is the adherence count on a phased
+    // trial, not an arm assignment, and this route must leave it alone.
+    const res = await POST(
+      req({ schedulable: true, parameters: [primary, exposure] }),
+      params,
+    );
+    expect(res.status).toBe(201);
+    expect(createdRows()[1]).toMatchObject({ label: "played basketball", isExposure: true });
+    expect(designProtocol).toHaveBeenCalledWith(expect.objectContaining({ shape: "phased" }));
+    expect(tx.hypothesis.update).not.toHaveBeenCalled();
+  });
+
   it("leaves the stored schedulable alone when the body doesn't say", async () => {
     const res = await POST(req({ parameters: [primary] }), params);
     expect(res.status).toBe(201);
