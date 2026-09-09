@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { exportFilename, toCsv, toText, type ExportHunch } from "@/lib/export";
+import { pickExposure } from "@/lib/parameters";
 import { parseStoredDesign } from "@/lib/schemas/protocol";
 
 /**
@@ -43,7 +44,7 @@ export async function GET(
   const shape = hunch.protocol
     ? parseStoredDesign(hunch.protocol.design, hunch.hypothesis.outcomeMetric).shape
     : "phased";
-  const exposureId = hunch.parameters.find((p) => p.isExposure)?.id ?? null;
+  const exposureId = pickExposure(hunch.parameters)?.id ?? null;
 
   const data: ExportHunch = {
     statement: hunch.hypothesis.statement,
