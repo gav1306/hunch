@@ -1,11 +1,13 @@
 import { Agent } from "@mastra/core/agent";
 import { claudeModel } from "@/mastra/model";
 import {
+  observationalDesign,
   protocolDesignSchema,
   type Confounder,
   type PowerInfo,
   type ProtocolDesign,
   type ProtocolPhase,
+  type ProtocolShape,
 } from "@/lib/schemas/protocol";
 
 /**
@@ -94,21 +96,60 @@ export function composeInstructions(
   return lines.join("\n");
 }
 
+/**
+ * Design the protocol for one hypothesis.
+ *
+ * Two shapes. "phased" is the ABA trial the model designs. "observational" is
+ * a single 21-day window whose arms come from the daily exposure answer rather
+ * than the calendar — and there, the structure is taken out of the model's
+ * hands rather than negotiated with it: `phases`, `washoutDays` and `shape`
+ * are `observationalDesign`'s, and only the prose (`controls`, `instructions`)
+ * is the model's. A model that returns three phases anyway has them discarded.
+ */
 export async function designProtocolShape(input: {
   statement: string;
   outcomeMetric: string;
   outcomeType: "binary" | "continuous";
   confounders: Confounder[];
   power: PowerInfo;
+  /** Defaults to the scheduled ABA shape. */
+  shape?: ProtocolShape;
+  /** The daily yes/no, for an observational window. */
+  exposureLabel?: string;
 }): Promise<ProtocolDesign> {
   const controls = input.confounders.map((c) => c.control);
-  const prompt = `Design an ABA n-of-1 protocol for this hypothesis.
+  const controlLine = controls.length ? controls.join(" | ") : "none";
+  const observational = input.shape === "observational";
+  const exposureLabel = input.exposureLabel ?? "the change";
+
+  // Two prompts, not one with holes in it: the ABA rules ("phases: exactly
+  // three", the deterministic phase length) are wrong for a window, and the
+  // observational branch has to countermand them explicitly.
+  const prompt = observational
+    ? `Design a single observation window for this hypothesis.
+
+Hypothesis: ${input.statement}
+Outcome metric: ${input.outcomeMetric}
+Outcome type: ${input.outcomeType}
+The daily yes/no they will answer: "${exposureLabel}"
+Confounder controls to include verbatim: ${controlLine}
+
+This person CANNOT schedule the change — it depends on an opportunity that does
+not arrive on request. There are no phases to design and no washout: they live
+normally for the whole window and log, each day, whether "${exposureLabel}"
+happened. Do NOT invent phases, do NOT propose an ABA structure, and do NOT ask
+them to do the thing on particular days. Return "controls" (the confounder
+controls you are given, verbatim) and "instructions" for living normally and
+logging both questions daily. Anything you return under "phases" is discarded.
+
+Return ALL fields, especially "instructions" — it is required and must be non-empty.`
+    : `Design an ABA n-of-1 protocol for this hypothesis.
 
 Hypothesis: ${input.statement}
 Outcome metric: ${input.outcomeMetric}
 Outcome type: ${input.outcomeType}
 Minimum days per phase (use this exact number for each phase): ${input.power.minDaysPerPhase}
-Confounder controls to include verbatim: ${controls.length ? controls.join(" | ") : "none"}
+Confounder controls to include verbatim: ${controlLine}
 
 Name each phase in the user's own words (e.g. "Normal coffee" vs "No coffee after 2pm") and give a concrete action for each.
 Return ALL fields, especially "instructions" — it is required and must be non-empty.`;
@@ -119,6 +160,19 @@ Return ALL fields, especially "instructions" — it is required and must be non-
   });
 
   const raw = (response.object ?? {}) as Partial<ProtocolDesign>;
+
+  if (observational) {
+    const base = observationalDesign(input.outcomeMetric, exposureLabel);
+    return protocolDesignSchema.parse({
+      ...base,
+      controls: raw.controls?.length ? raw.controls : controls,
+      instructions:
+        typeof raw.instructions === "string" && raw.instructions.trim().length > 0
+          ? raw.instructions
+          : base.instructions,
+    });
+  }
+
   const rawPhases = (raw.phases ?? []) as Array<
     Partial<ProtocolPhase> & Pick<ProtocolPhase, "label" | "kind" | "days">
   >;

@@ -11,6 +11,7 @@ vi.mock("@/lib/db", () => {
     parameter: { deleteMany: vi.fn(), createMany: vi.fn(), findMany: vi.fn(async () => []) },
     protocol: { upsert: vi.fn(async () => ({ id: "pr1", safetyState: "approved" })) },
     hunch: { update: vi.fn() },
+    hypothesis: { update: vi.fn() },
   };
   return {
     db: {
@@ -40,9 +41,32 @@ const sharpened = {
     outcomeMetric: "hours of sleep",
     outcomeType: "continuous",
     confounders: [],
+    schedulable: true,
   },
+  protocol: null,
   _count: { checkIns: 0 },
 };
+
+/** The same hunch, but for a change that can't be applied on demand. */
+const unschedulable = {
+  ...sharpened,
+  hypothesis: { ...sharpened.hypothesis, schedulable: false },
+};
+
+const primary = { label: "hours of sleep", type: "amount", isPrimary: true };
+const exposure = {
+  label: "played basketball",
+  type: "binary",
+  isPrimary: false,
+  isExposure: true,
+};
+
+const createdRows = () =>
+  (
+    vi.mocked(tx.parameter.createMany).mock.calls[0][0] as unknown as {
+      data: { label: string; isPrimary: boolean; isExposure: boolean; sortOrder: number }[];
+    }
+  ).data;
 
 describe("POST /api/hunch/[id]/protocol", () => {
   beforeEach(() => {
@@ -109,5 +133,88 @@ describe("POST /api/hunch/[id]/protocol", () => {
       params,
     );
     expect(res.status).toBe(409);
+  });
+
+  it("409s once the trial has started, so the shape can't change underneath it", async () => {
+    vi.mocked(db.hunch.findFirst).mockResolvedValue({
+      ...sharpened,
+      protocol: { startedAt: new Date("2026-09-01") },
+    } as never);
+    const res = await POST(req({ parameters: [primary] }), params);
+    expect(res.status).toBe(409);
+    expect(designProtocol).not.toHaveBeenCalled();
+    expect(tx.parameter.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("persists the confirmed isExposure flag", async () => {
+    const res = await POST(req({ parameters: [primary, exposure] }), params);
+    expect(res.status).toBe(201);
+    expect(createdRows()[0]).toMatchObject({ isPrimary: true, isExposure: false });
+    expect(createdRows()[1]).toMatchObject({ label: "played basketball", isExposure: true });
+  });
+
+  it("designs an observational window when the change can't be scheduled", async () => {
+    vi.mocked(db.hunch.findFirst).mockResolvedValue(unschedulable as never);
+    const res = await POST(req({ parameters: [primary, exposure] }), params);
+    expect(res.status).toBe(201);
+    expect(designProtocol).toHaveBeenCalledWith(
+      expect.objectContaining({ shape: "observational", exposureLabel: "played basketball" }),
+    );
+  });
+
+  it("designs a phased trial when the change can be scheduled", async () => {
+    const res = await POST(req({ parameters: [primary] }), params);
+    expect(res.status).toBe(201);
+    expect(designProtocol).toHaveBeenCalledWith(
+      expect.objectContaining({ shape: "phased", exposureLabel: undefined }),
+    );
+  });
+
+  it("400s when an unschedulable hunch confirms no daily yes/no", async () => {
+    vi.mocked(db.hunch.findFirst).mockResolvedValue(unschedulable as never);
+    const res = await POST(req({ parameters: [primary] }), params);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+      error: "Tell us the one yes/no we should ask each day — it's how we tell your days apart.",
+    });
+    expect(designProtocol).not.toHaveBeenCalled();
+    expect(tx.parameter.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("takes the body's schedulable: false over the stored value, and stores it", async () => {
+    const res = await POST(
+      req({ schedulable: false, parameters: [primary, exposure] }),
+      params,
+    );
+    expect(res.status).toBe(201);
+    expect(designProtocol).toHaveBeenCalledWith(
+      expect.objectContaining({ shape: "observational" }),
+    );
+    expect(tx.hypothesis.update).toHaveBeenCalledWith({
+      where: { hunchId: "h1" },
+      data: { schedulable: false },
+    });
+  });
+
+  it("drops the exposure flag when the body flips back to schedulable", async () => {
+    vi.mocked(db.hunch.findFirst).mockResolvedValue(unschedulable as never);
+    const res = await POST(
+      req({ schedulable: true, parameters: [primary, exposure] }),
+      params,
+    );
+    expect(res.status).toBe(201);
+    expect(designProtocol).toHaveBeenCalledWith(expect.objectContaining({ shape: "phased" }));
+    expect(createdRows().some((r) => r.isExposure)).toBe(false);
+    expect(createdRows()).toHaveLength(2);
+    expect(tx.hypothesis.update).toHaveBeenCalledWith({
+      where: { hunchId: "h1" },
+      data: { schedulable: true },
+    });
+  });
+
+  it("leaves the stored schedulable alone when the body doesn't say", async () => {
+    const res = await POST(req({ parameters: [primary] }), params);
+    expect(res.status).toBe(201);
+    expect(tx.hypothesis.update).not.toHaveBeenCalled();
   });
 });
