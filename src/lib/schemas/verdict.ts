@@ -41,3 +41,20 @@ export const verdictSchema = z.object({
   model: z.enum(["beta-binomial", "normal-normal"]),
 });
 export type Verdict = z.infer<typeof verdictSchema>;
+
+/**
+ * The exposure counts for a hunch that carries a daily yes/no. `observational`
+ * is true when those counts assigned the arms (an observational trial), and
+ * false when they merely report adherence to a schedule that already did
+ * (a phased or diary trial) — the copy layer reads this to decide whether it
+ * can say anything about correlation.
+ */
+export const exposureReportSchema = z.object({
+  label: z.string().trim().min(1),
+  exposed: z.number().int().min(0),
+  unexposed: z.number().int().min(0),
+  unknown: z.number().int().min(0),
+  /** True when these counts assigned the arms, rather than the schedule. */
+  observational: z.boolean(),
+});
+export type ExposureReport = z.infer<typeof exposureReportSchema>;

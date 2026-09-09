@@ -5,6 +5,7 @@ import {
   backfillKind,
   draftsFromSharpened,
   engineOutcomeType,
+  exposureReport,
   pickPrimary,
   toParameterDto,
 } from "@/lib/parameters";
@@ -243,6 +244,74 @@ describe("armRows", () => {
     expect(armRows(after, "primary", { shape: "observational", exposureId: "exp" })).toEqual([
       { phase: "A", value: 4 },
     ]);
+  });
+});
+
+describe("exposureReport", () => {
+  const exposure = { id: "exp", label: "Played basketball" };
+
+  test("null when there is no exposure — a hunch without one reports nothing", () => {
+    const checkIns = [{ phase: "A", values: [{ parameterId: "exp", value: 1 }] }];
+    expect(exposureReport(checkIns, null, "observational")).toBe(null);
+    expect(exposureReport(checkIns, undefined, "observational")).toBe(null);
+  });
+
+  test("observational: counts over the whole window, unknown for logged days with no reading", () => {
+    const checkIns = [
+      ...Array.from({ length: 6 }, () => ({
+        phase: "A",
+        values: [{ parameterId: "exp", value: 1 }],
+      })),
+      ...Array.from({ length: 12 }, () => ({
+        phase: "A",
+        values: [{ parameterId: "exp", value: 0 }],
+      })),
+      ...Array.from({ length: 3 }, () => ({ phase: "A", values: [] })),
+    ];
+    expect(exposureReport(checkIns, exposure, "observational")).toEqual({
+      label: "Played basketball",
+      exposed: 6,
+      unexposed: 12,
+      unknown: 3,
+      observational: true,
+    });
+  });
+
+  test("phased: counts over phase-B days only — an A day with exposure 1 doesn't count", () => {
+    const checkIns = [
+      { phase: "A", values: [{ parameterId: "exp", value: 1 }] },
+      { phase: "B", values: [{ parameterId: "exp", value: 1 }] },
+      { phase: "B", values: [{ parameterId: "exp", value: 0 }] },
+      { phase: "B", values: [] },
+    ];
+    expect(exposureReport(checkIns, exposure, "phased")).toEqual({
+      label: "Played basketball",
+      exposed: 1,
+      unexposed: 1,
+      unknown: 1,
+      observational: false,
+    });
+  });
+
+  test("diary: same rule as phased — no B days, so all zeroes", () => {
+    const checkIns = [
+      { phase: "A", values: [{ parameterId: "exp", value: 1 }] },
+      { phase: "A", values: [{ parameterId: "exp", value: 0 }] },
+    ];
+    expect(exposureReport(checkIns, exposure, "diary")).toEqual({
+      label: "Played basketball",
+      exposed: 0,
+      unexposed: 0,
+      unknown: 0,
+      observational: false,
+    });
+  });
+
+  test("carries the label through verbatim", () => {
+    const checkIns = [{ phase: "B", values: [{ parameterId: "exp", value: 1 }] }];
+    expect(exposureReport(checkIns, { id: "exp", label: "Hours in the sun" }, "phased")?.label).toBe(
+      "Hours in the sun",
+    );
   });
 });
 

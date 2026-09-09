@@ -6,6 +6,7 @@ import type {
   Tracker,
 } from "@/lib/schemas/parameter";
 import type { ProtocolShape } from "@/lib/schemas/protocol";
+import type { ExposureReport } from "@/lib/schemas/verdict";
 
 /** A day's check-in with its per-parameter readings, as read from the DB. */
 export type CheckInWithValues = {
@@ -138,6 +139,44 @@ export function armRows(
     }
   }
   return rows;
+}
+
+/**
+ * Count the days the exposure happened, over the days the count is actually
+ * answering a question about.
+ *
+ * On an observational trial the exposure assigned the arms, so the count is
+ * over the whole window: "how many days did this happen at all?" On a phased
+ * or diary trial the schedule already assigned the arms, so a reading logged
+ * during phase A says nothing about adherence — only phase-B days count, and
+ * the question the count answers is "was phase B adhered to?"
+ *
+ * `unknown` is a logged day carrying no exposure reading at all — never
+ * folded into `unexposed`, for the same reason `armRows` drops it: treating
+ * silence as "no" would bias the count towards whatever a lazy check-in
+ * defaults to.
+ */
+export function exposureReport(
+  checkIns: CheckInWithValues[],
+  exposure: { id: string; label: string } | null | undefined,
+  shape: ProtocolShape,
+): ExposureReport | null {
+  if (!exposure) return null;
+
+  const observational = shape === "observational";
+  const days = observational ? checkIns : checkIns.filter((c) => c.phase === "B");
+
+  let exposed = 0;
+  let unexposed = 0;
+  let unknown = 0;
+  for (const day of days) {
+    const hit = day.values.find((v) => v.parameterId === exposure.id);
+    if (!hit) unknown++;
+    else if (hit.value === 1) exposed++;
+    else unexposed++;
+  }
+
+  return { label: exposure.label, exposed, unexposed, unknown, observational };
 }
 
 /**
