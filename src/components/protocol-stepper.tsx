@@ -1,11 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
 import { useState } from "react";
-import { useStartTrial } from "@/hooks/use-start-trial";
-import type { StartOn } from "@/lib/schedule";
 import type { Confounder, PowerInfo, ProtocolDesign } from "@/lib/schemas/protocol";
+import { TrialStart } from "@/components/trial-start";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -38,8 +36,6 @@ export function ProtocolStepper({
   confounders: Confounder[];
 }) {
   const phases = design.phases;
-  const router = useRouter();
-  const start = useStartTrial(hunchId);
   const [idx, setIdx] = useState(0);
   const [dir, setDir] = useState(0);
   const phase = phases[idx];
@@ -183,16 +179,7 @@ export function ProtocolStepper({
         )}
       </div>
 
-      {last && (
-        <StartBlock
-          firstPhase={phases[0]}
-          pending={start.isPending}
-          error={start.error?.message ?? null}
-          onStart={(startOn) =>
-            start.mutate(startOn, { onSuccess: () => router.push(`/hunch/${hunchId}`) })
-          }
-        />
-      )}
+      {last && <TrialStart hunchId={hunchId} firstPhase={phases[0]} />}
 
       {/* Why this design */}
       <details className="group border-t border-rule pt-1">
@@ -239,70 +226,3 @@ export function ProtocolStepper({
     </section>
   );
 }
-
-/**
- * The only place a trial begins. Two choices rather than one button, because
- * the anchor is a calendar day: reading the plan at 11pm and starting "now"
- * spends a baseline day on an hour of sleep.
- */
-function StartBlock({
-  firstPhase,
-  pending,
-  error,
-  onStart,
-}: {
-  firstPhase: ProtocolDesign["phases"][number];
-  pending: boolean;
-  error: string | null;
-  onStart: (startOn: StartOn) => void;
-}) {
-  return (
-    <div className="grid gap-3.5 border-t border-rule pt-[18px]">
-      <div>
-        <p className={cn(LABEL, "mt-0 mb-1.5")}>Ready when you are</p>
-        <p className="m-0 text-sm leading-relaxed text-ink [overflow-wrap:anywhere]">
-          Day 1 is {firstPhase.name.toLowerCase()}. {firstPhase.action} Nothing is
-          running until you pick a day — starting tomorrow gives you a full first
-          day instead of whatever is left of this one.
-        </p>
-      </div>
-
-      {error && (
-        <p role="alert" className="m-0 text-sm leading-normal text-s1">
-          {error}
-        </p>
-      )}
-
-      <div className="flex flex-wrap gap-2.5">
-        <Button
-          type="button"
-          variant="brand"
-          size="touch"
-          disabled={pending}
-          onClick={() => onStart("today")}
-          className="border-s1 bg-s1 font-bold text-paper hover:bg-s1"
-        >
-          {pending ? (
-            "Starting…"
-          ) : (
-            <>
-              Start today
-              <ArrowRightIcon aria-hidden className="ml-1.5 inline-block size-(--icon) align-[-0.15em]" />
-            </>
-          )}
-        </Button>
-        <Button
-          type="button"
-          variant="brand"
-          size="touch"
-          disabled={pending}
-          onClick={() => onStart("tomorrow")}
-          className="border-rule font-bold"
-        >
-          Start tomorrow
-        </Button>
-      </div>
-    </div>
-  );
-}
-

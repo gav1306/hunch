@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRightIcon, RotateCcwIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { ProtocolStepper } from "@/components/protocol-stepper";
+import { ObservationalPlan } from "@/components/observational-plan";
 import { AbandonHunch } from "@/components/hunch/abandon-hunch";
 import { GHOST, ParameterEditor } from "@/components/hunch/parameter-editor";
 import { useDesignProtocol } from "@/hooks/use-design-protocol";
@@ -257,13 +258,17 @@ export function ProtocolView({ id }: { id: string }) {
       )}
 
       {approved && hypothesis && protocol && !design.isPending && (
-        <ProtocolStepper
-          hunchId={id}
-          hypothesis={hypothesis}
-          design={protocol.design}
-          powerInfo={protocol.powerInfo}
-          confounders={protocol.confounders}
-        />
+        protocol.design.shape === "observational" ? (
+          <ObservationalPlan hunchId={id} hypothesis={hypothesis} design={protocol.design} />
+        ) : (
+          <ProtocolStepper
+            hunchId={id}
+            hypothesis={hypothesis}
+            design={protocol.design}
+            powerInfo={protocol.powerInfo}
+            confounders={protocol.confounders}
+          />
+        )
       )}
 
       {refused && !design.isPending && (
