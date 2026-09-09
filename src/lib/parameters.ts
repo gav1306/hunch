@@ -5,6 +5,7 @@ import type {
   ParameterType,
   Tracker,
 } from "@/lib/schemas/parameter";
+import type { ProtocolShape } from "@/lib/schemas/protocol";
 
 /** A day's check-in with its per-parameter readings, as read from the DB. */
 export type CheckInWithValues = {
@@ -101,18 +102,40 @@ export function pickPrimary<T extends { isPrimary: boolean }>(rows: T[]): T | nu
 
 /**
  * Project day-buckets down to what the Bayesian engine consumes: the primary
- * parameter's reading per day, tagged with that day's phase. Secondary trackers
- * are dropped here — they never reach the statistics.
+ * reading per day, tagged with the arm that day belongs to.
+ *
+ * The arm is derived here and never stored. `CheckIn.phase` is the calendar's
+ * answer — the check-in route writes whatever the schedule says the date is —
+ * and on an observational trial that label carries no arm meaning at all.
+ * Deriving is also what makes a correction work: the adherence strip lets a
+ * user fix yesterday's "did I play?", and a stored arm would go stale the
+ * moment they did.
+ *
+ * Secondary trackers are dropped here — they never reach the statistics.
  */
-export function primaryBeliefRows(
+export function armRows(
   checkIns: CheckInWithValues[],
   primaryId: string | null | undefined,
+  opts: { shape: ProtocolShape; exposureId?: string | null } = { shape: "phased" },
 ): CheckInRow[] {
   if (!primaryId) return [];
+  if (opts.shape === "observational" && !opts.exposureId) return [];
+
   const rows: CheckInRow[] = [];
   for (const c of checkIns) {
-    const hit = c.values.find((v) => v.parameterId === primaryId);
-    if (hit) rows.push({ phase: c.phase, value: hit.value });
+    const primaryHit = c.values.find((v) => v.parameterId === primaryId);
+    if (!primaryHit) continue;
+
+    if (opts.shape === "observational") {
+      const exposureHit = c.values.find((v) => v.parameterId === opts.exposureId);
+      // An unanswered exposure is not a "no" — treating it as one would stuff
+      // every lazy check-in into the baseline arm and bias the result towards
+      // whatever the user does when they cannot be bothered to log.
+      if (!exposureHit) continue;
+      rows.push({ phase: exposureHit.value === 1 ? "B" : "A", value: primaryHit.value });
+    } else {
+      rows.push({ phase: c.phase, value: primaryHit.value });
+    }
   }
   return rows;
 }

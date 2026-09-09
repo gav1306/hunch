@@ -5,9 +5,9 @@ import { db } from "@/lib/db";
 import { computeBelief } from "@/lib/bayes";
 import {
   activeParameters,
+  armRows,
   engineOutcomeType,
   pickPrimary,
-  primaryBeliefRows,
   toParameterDto,
 } from "@/lib/parameters";
 import { currentPhase } from "@/lib/schedule";
@@ -46,11 +46,19 @@ export async function GET(
 
   const primary = pickPrimary(hunch.parameters);
   const outcomeType = engineOutcomeType(primary?.type ?? hunch.hypothesis.outcomeType);
-  const belief = computeBelief(primaryBeliefRows(hunch.checkIns, primary?.id), outcomeType);
+  // A hunch with no protocol yet has no shape to speak of — treat it as
+  // "phased" so the belief falls back to today's byte-for-byte behaviour.
+  const design = hunch.protocol
+    ? parseStoredDesign(hunch.protocol.design, hunch.hypothesis.outcomeMetric)
+    : null;
+  const exposureId = hunch.parameters.find((p) => p.isExposure)?.id ?? null;
+  const belief = computeBelief(
+    armRows(hunch.checkIns, primary?.id, { shape: design?.shape ?? "phased", exposureId }),
+    outcomeType,
+  );
 
   let schedule = null;
-  if (hunch.protocol?.startedAt) {
-    const design = parseStoredDesign(hunch.protocol.design, hunch.hypothesis.outcomeMetric);
+  if (hunch.protocol?.startedAt && design) {
     schedule = currentPhase(hunch.protocol.startedAt, design, new Date());
   }
 

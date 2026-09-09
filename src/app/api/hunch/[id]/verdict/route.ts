@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { computeBelief } from "@/lib/bayes";
-import { engineOutcomeType, pickPrimary, primaryBeliefRows } from "@/lib/parameters";
+import { armRows, engineOutcomeType, pickPrimary } from "@/lib/parameters";
 import { currentPhase } from "@/lib/schedule";
 import { classifyVerdict } from "@/lib/verdict";
 import { writeEdgeData } from "@/lib/memory/causal-graph";
@@ -93,8 +93,12 @@ export async function GET(
   }
 
   const outcomeType = engineOutcomeType(primary?.type ?? hunch.hypothesis.outcomeType);
-  const belief = computeBelief(primaryBeliefRows(hunch.checkIns, primary?.id), outcomeType);
   const design = parseStoredDesign(hunch.protocol.design, hunch.hypothesis.outcomeMetric);
+  const exposureId = hunch.parameters.find((p) => p.isExposure)?.id ?? null;
+  const belief = computeBelief(
+    armRows(hunch.checkIns, primary?.id, { shape: design.shape, exposureId }),
+    outcomeType,
+  );
   const schedule = currentPhase(hunch.protocol.startedAt, design, new Date());
 
   const category = classifyVerdict(belief, schedule);

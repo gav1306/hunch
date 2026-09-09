@@ -1,11 +1,11 @@
 import { describe, expect, test } from "vitest";
 import {
   activeParameters,
+  armRows,
   backfillKind,
   draftsFromSharpened,
   engineOutcomeType,
   pickPrimary,
-  primaryBeliefRows,
   toParameterDto,
 } from "@/lib/parameters";
 import { parameterSchema } from "@/lib/schemas/parameter";
@@ -169,26 +169,80 @@ describe("pickPrimary", () => {
   });
 });
 
-describe("primaryBeliefRows", () => {
+describe("armRows", () => {
   const checkIns = [
     { phase: "A", values: [{ parameterId: "p1", value: 7 }, { parameterId: "p2", value: 1 }] },
     { phase: "B", values: [{ parameterId: "p2", value: 0 }] },
     { phase: "B", values: [{ parameterId: "p1", value: 5 }] },
   ];
 
-  test("keeps only the primary parameter's readings, with their phase", () => {
-    expect(primaryBeliefRows(checkIns, "p1")).toEqual([
+  test("phased passthrough: one row per day carrying a primary reading, phase as stored", () => {
+    expect(armRows(checkIns, "p1", { shape: "phased" })).toEqual([
       { phase: "A", value: 7 },
       { phase: "B", value: 5 },
     ]);
   });
 
-  test("returns nothing when there is no primary", () => {
-    expect(primaryBeliefRows(checkIns, null)).toEqual([]);
+  test("observational sorting: exposure 1 -> B, exposure 0 -> A, regardless of stored phase", () => {
+    const rows = [
+      { phase: "A", values: [{ parameterId: "primary", value: 7 }, { parameterId: "exp", value: 1 }] },
+      { phase: "A", values: [{ parameterId: "primary", value: 3 }, { parameterId: "exp", value: 0 }] },
+    ];
+    expect(armRows(rows, "primary", { shape: "observational", exposureId: "exp" })).toEqual([
+      { phase: "B", value: 7 },
+      { phase: "A", value: 3 },
+    ]);
   });
 
-  test("skips days where the primary was not logged", () => {
-    expect(primaryBeliefRows([{ phase: "A", values: [] }], "p1")).toEqual([]);
+  test("stored phase ignored: an observational day stored as B with exposure 0 comes back as A", () => {
+    const rows = [
+      { phase: "B", values: [{ parameterId: "primary", value: 4 }, { parameterId: "exp", value: 0 }] },
+    ];
+    expect(armRows(rows, "primary", { shape: "observational", exposureId: "exp" })).toEqual([
+      { phase: "A", value: 4 },
+    ]);
+  });
+
+  test("unknown exposure dropped: a primary reading with no exposure reading produces no row", () => {
+    const rows = [
+      { phase: "A", values: [{ parameterId: "primary", value: 4 }] },
+    ];
+    expect(armRows(rows, "primary", { shape: "observational", exposureId: "exp" })).toEqual([]);
+  });
+
+  test("missing primary: a day with no primary reading produces no row, either shape", () => {
+    const rows = [{ phase: "A", values: [{ parameterId: "exp", value: 1 }] }];
+    expect(armRows(rows, "primary", { shape: "phased" })).toEqual([]);
+    expect(armRows(rows, "primary", { shape: "observational", exposureId: "exp" })).toEqual([]);
+  });
+
+  test("no primaryId: returns []", () => {
+    expect(armRows(checkIns, null, { shape: "phased" })).toEqual([]);
+    expect(armRows(checkIns, undefined, { shape: "observational", exposureId: "p2" })).toEqual([]);
+  });
+
+  test("observational with no exposureId: returns [], not phase-sorted rows", () => {
+    const rows = [
+      { phase: "A", values: [{ parameterId: "primary", value: 7 }] },
+      { phase: "B", values: [{ parameterId: "primary", value: 3 }] },
+    ];
+    expect(armRows(rows, "primary", { shape: "observational" })).toEqual([]);
+    expect(armRows(rows, "primary", { shape: "observational", exposureId: null })).toEqual([]);
+  });
+
+  test("a corrected exposure moves the day: flipping exposure 1 -> 0 flips the arm B -> A", () => {
+    const before = [
+      { phase: "A", values: [{ parameterId: "primary", value: 4 }, { parameterId: "exp", value: 1 }] },
+    ];
+    const after = [
+      { phase: "A", values: [{ parameterId: "primary", value: 4 }, { parameterId: "exp", value: 0 }] },
+    ];
+    expect(armRows(before, "primary", { shape: "observational", exposureId: "exp" })).toEqual([
+      { phase: "B", value: 4 },
+    ]);
+    expect(armRows(after, "primary", { shape: "observational", exposureId: "exp" })).toEqual([
+      { phase: "A", value: 4 },
+    ]);
   });
 });
 
