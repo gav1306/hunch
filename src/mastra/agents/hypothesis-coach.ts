@@ -59,6 +59,20 @@ Rules:
 - subject: "self" for a hunch about the person's own body, mood, work or habits
   — almost every hunch. "other" when the thing being measured is NOT the person:
   a houseplant, a pet, a room, a car.
+- schedulable: can this person apply the change on ANY day they choose? "Skip
+  coffee after 2pm", "10k steps", "magnesium at bedtime" — yes, true. "Play
+  basketball", "go to the sauna", "have a big night out" — no, false: those
+  need other people, a place, or an opportunity that does not arrive on
+  request. Ask yourself whether a calendar could put it on a Tuesday. If it
+  could not, say false.
+- exposure: the daily yes/no that says whether the change happened, as
+  { label, type: "binary" }. REQUIRED whenever schedulable is false — it is how
+  the days get told apart. Also give one when schedulable is true AND the change
+  is a discrete act someone could skip ("Skipped coffee after 2pm", "Took my
+  walk"); leave it out when the phase itself is the whole story ("slept with the
+  window open"). Label it as the person would tick it off: "Played basketball",
+  "Went to the sauna". Never a scale, never a duration, never the outcome metric
+  restated.
 - confounders: real factors that could independently move the outcome during
   the experiment (stress, travel, illness, weekends). Empty array if none are
   obvious. Do not invent far-fetched ones.
@@ -167,6 +181,20 @@ export class NoStructuredOutput extends Error {
   }
 }
 
+// A model that says "not schedulable" but forgets the exposure would 502 the
+// whole sharpen. Fall back to the scheduled design, which is exactly today's
+// behaviour, and let the user flip it on the confirm gate — which is where the
+// exposure label gets asked for anyway.
+export function normaliseSchedulability(h: SharpenedHypothesis): SharpenedHypothesis {
+  if (!h.schedulable && h.exposure === undefined) {
+    console.warn(
+      "normaliseSchedulability: model returned schedulable=false with no exposure; falling back to schedulable=true",
+    );
+    return { ...h, schedulable: true };
+  }
+  return h;
+}
+
 export async function sharpenHunch(
   rawText: string,
   priors: Prior[] = [],
@@ -186,5 +214,12 @@ export async function sharpenHunch(
   if (!response.object) {
     throw new NoStructuredOutput();
   }
-  return sharpenedHypothesisSchema.parse(response.object);
+  // response.object is the model's raw structured output, pre-parse — fields
+  // with schema defaults (confounders, trackers, ...) may be absent yet.
+  // normaliseSchedulability only reads/rewrites schedulable + exposure and
+  // passes the rest through untouched, so the cast is safe: parse() below
+  // still fills in every default from whatever survives the round trip.
+  return sharpenedHypothesisSchema.parse(
+    normaliseSchedulability(response.object as SharpenedHypothesis),
+  );
 }

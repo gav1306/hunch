@@ -9,7 +9,22 @@ vi.mock("@mastra/core/agent", () => ({
 }));
 vi.mock("@/mastra/model", () => ({ claudeModel: {} }));
 
-import { buildSharpenPrompt } from "@/mastra/agents/hypothesis-coach";
+import { buildSharpenPrompt, normaliseSchedulability } from "@/mastra/agents/hypothesis-coach";
+import type { SharpenedHypothesis } from "@/lib/schemas/hypothesis";
+
+function baseHypothesis(overrides: Partial<SharpenedHypothesis> = {}): SharpenedHypothesis {
+  return {
+    statement: "Coffee after lunch makes me sleep worse.",
+    outcomeMetric: "hours of sleep from a tracker",
+    outcomeType: "continuous",
+    confounders: [],
+    subject: "self",
+    trackers: [],
+    schedulable: true,
+    exposure: undefined,
+    ...overrides,
+  };
+}
 
 describe("buildSharpenPrompt", () => {
   it("includes the raw hunch", () => {
@@ -47,5 +62,28 @@ describe("buildSharpenPrompt for a log", () => {
     expect(buildSharpenPrompt("coffee wrecks my sleep", [], [], true)).toContain(
       "coffee wrecks my sleep",
     );
+  });
+});
+
+describe("normaliseSchedulability", () => {
+  it("falls back to schedulable when the model forgets the exposure", () => {
+    const h = baseHypothesis({ schedulable: false, exposure: undefined });
+    const result = normaliseSchedulability(h);
+    expect(result.schedulable).toBe(true);
+    expect(result.exposure).toBeUndefined();
+  });
+
+  it("leaves a well-formed opportunity-dependent hypothesis unchanged", () => {
+    const exposure = { label: "Played basketball", type: "binary" as const };
+    const h = baseHypothesis({ schedulable: false, exposure });
+    const result = normaliseSchedulability(h);
+    expect(result).toEqual(h);
+  });
+
+  it("leaves a schedulable hypothesis with an exposure unchanged", () => {
+    const exposure = { label: "Skipped coffee after 2pm", type: "binary" as const };
+    const h = baseHypothesis({ schedulable: true, exposure });
+    const result = normaliseSchedulability(h);
+    expect(result).toEqual(h);
   });
 });

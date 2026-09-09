@@ -50,4 +50,24 @@ describe.skipIf(!hasKey)("Hypothesis Coach quality", () => {
       /today|each day|daily|each morning|each evening|day's end|per day/,
     );
   }, 120_000);
+
+  test.each([
+    "i think skipping coffee after lunch helps me sleep",
+    "magnesium before bed settles me down",
+  ])("keeps %s schedulable", async (raw) => {
+    const h = await sharpenHunch(raw);
+    expect(h.schedulable).toBe(true);
+  }, 120_000);
+
+  test.each([
+    "my knee hurts after playing basketball",
+    "the sauna wrecks my sleep that night",
+  ])("marks %s as opportunity-dependent, with an exposure", async (raw) => {
+    const h = await sharpenHunch(raw);
+    expect(h.schedulable).toBe(false);
+    expect(h.exposure?.type).toBe("binary");
+    expect(h.exposure?.label.trim().length ?? 0).toBeGreaterThan(2);
+    // The exposure is the change, not the outcome restated.
+    expect(h.exposure?.label.toLowerCase()).not.toBe(h.outcomeMetric.toLowerCase());
+  }, 120_000);
 });
