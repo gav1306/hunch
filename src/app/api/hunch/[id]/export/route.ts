@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { exportFilename, toCsv, toText, type ExportHunch } from "@/lib/export";
+import { parseStoredDesign } from "@/lib/schemas/protocol";
 
 /**
  * Hand the experiment over as a file — `?format=csv` for the raw days,
@@ -39,11 +40,18 @@ export async function GET(
     return NextResponse.json({ error: "Hunch not found." }, { status: 404 });
   }
 
+  const shape = hunch.protocol
+    ? parseStoredDesign(hunch.protocol.design, hunch.hypothesis.outcomeMetric).shape
+    : "phased";
+  const exposureId = hunch.parameters.find((p) => p.isExposure)?.id ?? null;
+
   const data: ExportHunch = {
     statement: hunch.hypothesis.statement,
     outcomeMetric: hunch.hypothesis.outcomeMetric,
     rawText: hunch.rawText,
     startedAt: hunch.protocol?.startedAt ?? null,
+    shape,
+    exposureId,
     parameters: hunch.parameters.map((p) => ({
       id: p.id,
       label: p.label,

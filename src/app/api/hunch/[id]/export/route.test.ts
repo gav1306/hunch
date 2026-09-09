@@ -25,7 +25,19 @@ const row = {
     statement: "Coffee after 2pm reduces my sleep quality.",
     outcomeMetric: "sleep quality",
   },
-  protocol: { startedAt: new Date("2026-07-01T00:00:00.000Z") },
+  protocol: {
+    startedAt: new Date("2026-07-01T00:00:00.000Z"),
+    design: {
+      shape: "phased",
+      phases: [
+        { label: "A", kind: "baseline", days: 7, name: "Normal coffee", action: "Keep usual coffee." },
+        { label: "B", kind: "intervention", days: 7, name: "No coffee after 2pm", action: "Skip afternoon caffeine." },
+      ],
+      washoutDays: 0,
+      controls: [],
+      instructions: "Log each day.",
+    },
+  },
   verdict: {
     category: "hurt",
     narrative: "Sleep was worse on the coffee days.",
@@ -147,5 +159,32 @@ describe("GET /api/hunch/[id]/export", () => {
     vi.mocked(db.hunch.findFirst).mockResolvedValue({ ...row, protocol: null } as never);
     const body = await (await GET(req("?format=txt"), params)).text();
     expect(body).toContain("Started: not started");
+  });
+
+  it("writes the derived arm, not the stored phase, on an observational hunch", async () => {
+    const observational = {
+      ...row,
+      protocol: { ...row.protocol, design: { ...row.protocol.design, shape: "observational" } },
+      parameters: [
+        { id: "p1", label: "sleep quality", unit: "1-10", sortOrder: 0, isPrimary: true },
+        { id: "exp", label: "played basketball", unit: null, sortOrder: 1, isExposure: true },
+      ],
+      checkIns: [
+        {
+          // Stored phase "A" but exposure says it happened → arm B.
+          loggedOn: new Date("2026-07-01T00:00:00.000Z"),
+          phase: "A",
+          values: [
+            { parameterId: "p1", value: 7 },
+            { parameterId: "exp", value: 1 },
+          ],
+        },
+      ],
+    };
+    vi.mocked(db.hunch.findFirst).mockResolvedValue(observational as never);
+    const res = await GET(req(), params);
+    expect(await res.text()).toBe(
+      ["date,arm,sleep quality (1-10),played basketball", "2026-07-01,B,7,1", ""].join("\n"),
+    );
   });
 });
