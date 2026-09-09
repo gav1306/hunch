@@ -7,6 +7,8 @@ import {
   activeParameters,
   armRows,
   engineOutcomeType,
+  exposureReport,
+  pickExposure,
   pickPrimary,
   toParameterDto,
 } from "@/lib/parameters";
@@ -51,9 +53,10 @@ export async function GET(
   const design = hunch.protocol
     ? parseStoredDesign(hunch.protocol.design, hunch.hypothesis.outcomeMetric)
     : null;
-  const exposureId = hunch.parameters.find((p) => p.isExposure)?.id ?? null;
+  const shape = design?.shape ?? "phased";
+  const exposureParam = pickExposure(hunch.parameters);
   const belief = computeBelief(
-    armRows(hunch.checkIns, primary?.id, { shape: design?.shape ?? "phased", exposureId }),
+    armRows(hunch.checkIns, primary?.id, { shape, exposureId: exposureParam?.id ?? null }),
     outcomeType,
   );
 
@@ -80,5 +83,9 @@ export async function GET(
     // The anchor itself, so a trial the user scheduled for tomorrow can say
     // when it begins rather than just reporting that it hasn't.
     startsOn: hunch.protocol?.startedAt?.toISOString() ?? null,
+    // Computed from the check-ins on every request, exactly like the belief
+    // above it — a frozen count would disagree the moment a user corrects a
+    // day through the adherence strip.
+    exposure: exposureReport(hunch.checkIns, exposureParam, shape),
   });
 }

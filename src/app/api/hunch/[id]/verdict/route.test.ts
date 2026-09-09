@@ -21,7 +21,17 @@ const diary = {
   id: "h1",
   userId: "u1",
   hypothesis: { statement: "I feel tired some days.", outcomeMetric: "tiredness 1-5", outcomeType: "continuous" },
-  protocol: { startedAt: new Date("2026-08-01T00:00:00.000Z"), safetyState: "observe-only", design: {} },
+  protocol: {
+    startedAt: new Date("2026-08-01T00:00:00.000Z"),
+    safetyState: "observe-only",
+    design: {
+      phases: [{ label: "A", kind: "baseline", days: 21, name: "Baseline", action: "Log it each day." }],
+      washoutDays: 0,
+      controls: [],
+      instructions: "Log it each day.",
+      shape: "diary",
+    },
+  },
   verdict: null,
   parameters: [],
   checkIns: [],

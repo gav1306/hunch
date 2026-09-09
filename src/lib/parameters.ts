@@ -101,6 +101,11 @@ export function pickPrimary<T extends { isPrimary: boolean }>(rows: T[]): T | nu
   return rows.find((r) => r.isPrimary) ?? null;
 }
 
+/** The daily yes/no an observational trial derives its arms from, or null when the hunch carries none. */
+export function pickExposure<T extends { isExposure: boolean }>(rows: T[]): T | null {
+  return rows.find((r) => r.isExposure) ?? null;
+}
+
 /**
  * Project day-buckets down to what the Bayesian engine consumes: the primary
  * reading per day, tagged with the arm that day belongs to.

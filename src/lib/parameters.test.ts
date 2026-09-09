@@ -6,6 +6,7 @@ import {
   draftsFromSharpened,
   engineOutcomeType,
   exposureReport,
+  pickExposure,
   pickPrimary,
   toParameterDto,
 } from "@/lib/parameters";
@@ -170,6 +171,20 @@ describe("pickPrimary", () => {
   });
 });
 
+describe("pickExposure", () => {
+  test("returns the exposure row", () => {
+    const rows = [
+      { id: "a", isExposure: false },
+      { id: "b", isExposure: true },
+    ];
+    expect(pickExposure(rows)?.id).toBe("b");
+  });
+
+  test("returns null when there is none", () => {
+    expect(pickExposure([{ id: "a", isExposure: false }])).toBeNull();
+  });
+});
+
 describe("armRows", () => {
   const checkIns = [
     { phase: "A", values: [{ parameterId: "p1", value: 7 }, { parameterId: "p2", value: 1 }] },
@@ -179,6 +194,13 @@ describe("armRows", () => {
 
   test("phased passthrough: one row per day carrying a primary reading, phase as stored", () => {
     expect(armRows(checkIns, "p1", { shape: "phased" })).toEqual([
+      { phase: "A", value: 7 },
+      { phase: "B", value: 5 },
+    ]);
+  });
+
+  test("phased with a reporting-only exposureId still sorts by the stored phase", () => {
+    expect(armRows(checkIns, "p1", { shape: "phased", exposureId: "some-id" })).toEqual([
       { phase: "A", value: 7 },
       { phase: "B", value: 5 },
     ]);

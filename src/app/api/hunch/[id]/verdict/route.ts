@@ -3,12 +3,12 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { computeBelief } from "@/lib/bayes";
-import { armRows, engineOutcomeType, pickPrimary } from "@/lib/parameters";
+import { armRows, engineOutcomeType, exposureReport, pickExposure, pickPrimary } from "@/lib/parameters";
 import { currentPhase } from "@/lib/schedule";
 import { classifyVerdict } from "@/lib/verdict";
 import { writeEdgeData } from "@/lib/memory/causal-graph";
 import { runAnalysis } from "@/mastra/workflows/analysis";
-import { verdictSchema, type Verdict } from "@/lib/schemas/verdict";
+import { verdictSchema, type ExposureReport, type Verdict } from "@/lib/schemas/verdict";
 import { parseStoredDesign } from "@/lib/schemas/protocol";
 
 /**
@@ -17,6 +17,8 @@ import { parseStoredDesign } from "@/lib/schemas/protocol";
  * `outcome` is not stored on the verdict: it is the primary parameter, read
  * from the hunch on every request. The headline names what moved, and the
  * label the user sees on the check-in screen is the name they know it by.
+ * `exposure` isn't stored either, and for the same reason — see
+ * `exposureReport` below.
  */
 function toDto(
   row: {
@@ -24,6 +26,7 @@ function toDto(
     ciLow: number; ciHigh: number; nA: number; nB: number; model: string;
   },
   outcome: { label: string; unit?: string } | null,
+  exposure: ExposureReport | null,
 ): Verdict {
   return verdictSchema.parse({
     category: row.category,
@@ -35,6 +38,7 @@ function toDto(
     nA: row.nA,
     nB: row.nB,
     model: row.model,
+    exposure,
   });
 }
 
@@ -75,12 +79,22 @@ export async function GET(
   const outcome = primary
     ? { label: primary.label, unit: primary.unit ?? undefined }
     : null;
+  const exposureParam = pickExposure(hunch.parameters);
+  // The report is read from the check-ins on every request, like `outcome` —
+  // never frozen into the row, so a correction through the adherence strip
+  // moves it immediately instead of leaving a stale count under the verdict.
+  // A hunch with no protocol at all has no shape to speak of; treat it as
+  // "phased" (mirrors the belief route's fallback).
+  const design = hunch.protocol
+    ? parseStoredDesign(hunch.protocol.design, hunch.hypothesis.outcomeMetric)
+    : null;
+  const report = exposureReport(hunch.checkIns, exposureParam, design?.shape ?? "phased");
 
   if (hunch.verdict) {
-    return NextResponse.json({ verdict: toDto(hunch.verdict, outcome) });
+    return NextResponse.json({ verdict: toDto(hunch.verdict, outcome, report) });
   }
 
-  if (!hunch.protocol?.startedAt) {
+  if (!hunch.protocol?.startedAt || !design) {
     return NextResponse.json({ error: "This trial hasn't started." }, { status: 409 });
   }
   // A diary has one arm. The engine compares two, and inventing a contrast the
@@ -93,10 +107,8 @@ export async function GET(
   }
 
   const outcomeType = engineOutcomeType(primary?.type ?? hunch.hypothesis.outcomeType);
-  const design = parseStoredDesign(hunch.protocol.design, hunch.hypothesis.outcomeMetric);
-  const exposureId = hunch.parameters.find((p) => p.isExposure)?.id ?? null;
   const belief = computeBelief(
-    armRows(hunch.checkIns, primary?.id, { shape: design.shape, exposureId }),
+    armRows(hunch.checkIns, primary?.id, { shape: design.shape, exposureId: exposureParam?.id ?? null }),
     outcomeType,
   );
   const schedule = currentPhase(hunch.protocol.startedAt, design, new Date());
@@ -159,7 +171,7 @@ export async function GET(
     // both requests see the same frozen verdict instead of a 500.
     const existing = await db.verdict.findUnique({ where: { hunchId: hunch.id } });
     if (existing) {
-      return NextResponse.json({ verdict: toDto(existing, outcome) });
+      return NextResponse.json({ verdict: toDto(existing, outcome, report) });
     }
     return NextResponse.json(
       { error: "Could not save your verdict. Please try again." },
@@ -167,5 +179,5 @@ export async function GET(
     );
   }
 
-  return NextResponse.json({ verdict });
+  return NextResponse.json({ verdict: { ...verdict, exposure: report } });
 }
