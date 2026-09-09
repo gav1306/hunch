@@ -23,5 +23,8 @@ export function diaryFallback(rawText: string): SharpenedHypothesis {
     subject: "self",
     confounders: [],
     trackers: [],
+    // A diary is never derived from a hunch that couldn't be scheduled — it's
+    // the fallback for a model that declined to answer, not for basketball.
+    schedulable: true,
   };
 }

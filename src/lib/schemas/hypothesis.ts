@@ -44,6 +44,28 @@ export const sharpenedHypothesisSchema = z.object({
    * the result. Never verdicted. Empty when nothing obvious applies.
    */
   trackers: z.array(trackerSchema).max(4).default([]),
-});
+  /**
+   * Can the person apply this change on any day they choose? "Skip coffee
+   * after 2pm" — yes. "Play basketball" — no: it needs other people, a court,
+   * and a body that feels like playing. A false here means the trial gets one
+   * observation window and its arms come from what actually happened, because
+   * scheduling a pickup game is asking the user to fake it.
+   */
+  schedulable: z.boolean().default(true),
+  /**
+   * The daily yes/no that says whether the change happened. Required when the
+   * hunch is not schedulable — it is the arm assignment. Optional on a
+   * schedulable one, where it is the adherence count and never touches an arm.
+   */
+  exposure: trackerSchema.optional(),
+})
+  .refine((h) => h.schedulable || h.exposure !== undefined, {
+    message: "A change that can't be scheduled needs a daily yes/no to tell its days apart.",
+    path: ["exposure"],
+  })
+  .refine((h) => h.exposure === undefined || h.exposure.type === "binary", {
+    message: "An exposure is a yes/no — did it happen today?",
+    path: ["exposure", "type"],
+  });
 
 export type SharpenedHypothesis = z.infer<typeof sharpenedHypothesisSchema>;
