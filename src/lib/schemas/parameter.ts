@@ -62,7 +62,16 @@ export const parameterListSchema = z
   .refine(
     (rows) => rows.every((r) => r.min === undefined || r.max === undefined || r.min < r.max),
     { message: "A parameter's lowest value must be below its highest." },
-  );
+  )
+  .refine((rows) => rows.filter((r) => r.isExposure).length <= 1, {
+    message: "Only one daily yes/no can split your days.",
+  })
+  .refine((rows) => rows.every((r) => !r.isExposure || r.type === "binary"), {
+    message: "The question that splits your days is a yes/no.",
+  })
+  .refine((rows) => rows.every((r) => !(r.isExposure && r.isPrimary)), {
+    message: "Your main measure can't also be the thing it's compared across.",
+  });
 
 /**
  * One primary plus four trackers. Retired rows don't count against it — they

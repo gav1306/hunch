@@ -70,6 +70,55 @@ describe("parameterListSchema", () => {
     expect(r.success).toBe(true);
     if (r.success) expect(r.data.isPrimary).toBe(false);
   });
+
+  test("accepts one primary and one binary exposure", () => {
+    const r = parameterListSchema.safeParse([
+      primary,
+      { label: "played basketball", type: "binary" as const, isPrimary: false, isExposure: true },
+    ]);
+    expect(r.success).toBe(true);
+  });
+
+  test("rejects two rows with isExposure: true", () => {
+    const r = parameterListSchema.safeParse([
+      { ...primary, isExposure: false },
+      { label: "played basketball", type: "binary" as const, isPrimary: false, isExposure: true },
+      { label: "went to gym", type: "binary" as const, isPrimary: false, isExposure: true },
+    ]);
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues[0].message).toBe("Only one daily yes/no can split your days.");
+    }
+  });
+
+  test("rejects an exposure with type: scale", () => {
+    const r = parameterListSchema.safeParse([
+      primary,
+      { label: "activity level", type: "scale" as const, isPrimary: false, isExposure: true },
+    ]);
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues[0].message).toBe("The question that splits your days is a yes/no.");
+    }
+  });
+
+  test("rejects a row with both isPrimary and isExposure", () => {
+    const r = parameterListSchema.safeParse([
+      { label: "played basketball", type: "binary" as const, isPrimary: true, isExposure: true },
+    ]);
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues[0].message).toBe("Your main measure can't also be the thing it's compared across.");
+    }
+  });
+
+  test("accepts a list with no exposure", () => {
+    const r = parameterListSchema.safeParse([
+      primary,
+      { label: "caffeine", type: "binary" as const, isPrimary: false, isExposure: false },
+    ]);
+    expect(r.success).toBe(true);
+  });
 });
 
 describe("checkInValuesInputSchema", () => {
