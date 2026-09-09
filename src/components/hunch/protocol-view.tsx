@@ -6,7 +6,7 @@ import { ArrowRightIcon, RotateCcwIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { ProtocolStepper } from "@/components/protocol-stepper";
 import { AbandonHunch } from "@/components/hunch/abandon-hunch";
-import { ParameterEditor } from "@/components/hunch/parameter-editor";
+import { GHOST, ParameterEditor } from "@/components/hunch/parameter-editor";
 import { useDesignProtocol } from "@/hooks/use-design-protocol";
 import { useHunchInfo } from "@/hooks/use-hunch-info";
 import { draftsFromSharpened } from "@/lib/parameters";
@@ -93,8 +93,37 @@ export function ProtocolView({ id }: { id: string }) {
   const [edited, setEdited] = useState<ParameterDraft[] | null>(null);
   const drafts = edited ?? seeded;
 
+  // The Coach's guess at whether this change can be scheduled — and the
+  // user's override of it. Mirrors `edited ?? seeded`: null means "hasn't
+  // touched the line yet," and the server's answer stands until they do.
+  const [schedulable, setSchedulable] = useState<boolean | null>(null);
+  const isSchedulable = schedulable ?? info.data?.hypothesis.schedulable ?? true;
+
+  /**
+   * The user overruling the Coach's shape guess. Flipping to observational
+   * adds the daily yes/no the arms will be derived from, empty and focused,
+   * so the user names it; flipping back to schedulable drops that row
+   * entirely — it has no place in a trial the calendar already splits.
+   */
+  function changeShape(nextSchedulable: boolean) {
+    setSchedulable(nextSchedulable);
+    const base = drafts ?? [];
+    setEdited(
+      nextSchedulable
+        ? base.filter((d) => !d.isExposure)
+        : base.some((d) => d.isExposure)
+          ? base
+          : [...base, { label: "", type: "binary", isPrimary: false, isExposure: true }],
+    );
+  }
+
   const cleaned = (drafts ?? []).filter((d) => d.label.trim() !== "");
-  const canDesign = parameterListSchema.safeParse(cleaned).success;
+  const exposureRow = (drafts ?? []).find((d) => d.isExposure) ?? null;
+  // The one reason the confirm gate currently blocks with an explanation
+  // rather than just going inert — an observational trial with nothing to
+  // tell its days apart is a plan the server will refuse anyway.
+  const missingExposure = !isSchedulable && (!exposureRow || exposureRow.label.trim() === "");
+  const canDesign = !missingExposure && parameterListSchema.safeParse(cleaned).success;
 
   // Prefer a freshly-designed result; fall back to an already-stored protocol.
   const protocol = design.data?.protocol ?? info.data?.protocol ?? null;
@@ -130,7 +159,33 @@ export function ProtocolView({ id }: { id: string }) {
             </p>
           </div>
 
+          {/* The Coach's guess at whether this can run on a schedule — the
+              user knows their own week better than the model does, so it's
+              never final. */}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2.5 rounded-lg border border-rule bg-card px-3 py-3">
+            <p className="m-0 text-sm leading-relaxed text-ink [overflow-wrap:anywhere]">
+              {isSchedulable
+                ? "We'll ask you to do it on a schedule — some days on, some days off."
+                : "We'll watch the days you do it, rather than ask you to do it on a schedule."}
+            </p>
+            <Button
+              type="button"
+              variant="brand"
+              size="touch"
+              onClick={() => changeShape(!isSchedulable)}
+              className={cn(GHOST, "shrink-0")}
+            >
+              change
+            </Button>
+          </div>
+
           {drafts && <ParameterEditor value={drafts} onChange={setEdited} />}
+
+          {missingExposure && (
+            <p role="alert" className="mt-2.5 mb-0 text-xs leading-relaxed text-s1 [overflow-wrap:anywhere]">
+              Name the one yes/no we&apos;ll ask each day.
+            </p>
+          )}
 
           <div className="mt-4 flex gap-2.5">
             {/* Re-sharpens this hunch, pre-filled with the words it started
@@ -151,7 +206,7 @@ export function ProtocolView({ id }: { id: string }) {
               disabled={!canDesign}
               variant="brand"
               size="touch"
-              onClick={() => design.mutate(cleaned)}
+              onClick={() => design.mutate({ parameters: cleaned, schedulable: isSchedulable })}
               className={cn(
                 "flex-1 border-s1 font-bold",
                 canDesign ? "bg-s1 text-paper hover:bg-s1" : "text-muted-foreground",
@@ -192,7 +247,7 @@ export function ProtocolView({ id }: { id: string }) {
             type="button"
             variant="brand"
             size="touch"
-            onClick={() => design.mutate(cleaned)}
+            onClick={() => design.mutate({ parameters: cleaned, schedulable: isSchedulable })}
             className="mt-2 ml-[14px] border-transparent text-s1 hover:border-transparent hover:bg-transparent hover:text-s1"
           >
             <RotateCcwIcon data-icon="inline-start" aria-hidden />

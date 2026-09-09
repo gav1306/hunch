@@ -21,7 +21,7 @@ const LABEL = "text-xs tracking-[0.16em] uppercase";
  * buttons at the 44px touch size now, drawn borderless so the row still reads
  * as quiet.
  */
-const GHOST =
+export const GHOST =
   "justify-self-start border-transparent px-1 font-mono text-xs tracking-[0.08em] text-muted-foreground hover:border-transparent hover:bg-transparent hover:text-ink";
 
 const KINDS = ["binary", "scale", "count", "amount"] as const;
@@ -47,7 +47,19 @@ function nextRow(row: ParameterDraft, type: ParameterType): ParameterDraft {
   return { ...row, type, unit: undefined, min: undefined, max: undefined };
 }
 
-/** One editable row: label, kind picker, and (for amounts) unit + bounds. */
+/** The row's heading, in the user's words — never "exposure". */
+function headingFor(row: ParameterDraft): string {
+  if (row.isPrimary) return "main measure";
+  if (row.isExposure) return "days we compare";
+  return "also tracking";
+}
+
+/**
+ * One editable row: label, kind picker, and (for amounts) unit + bounds. The
+ * exposure row is the one exception to the kind picker — it is always a daily
+ * yes/no, so there is nothing to pick, and it hides the control rather than
+ * showing one locked option.
+ */
 function Row({
   row,
   onChange,
@@ -57,6 +69,9 @@ function Row({
   onChange: (next: ParameterDraft) => void;
   onRemove: (() => void) | null;
 }) {
+  const heading = headingFor(row);
+  const highlighted = row.isPrimary || row.isExposure;
+
   return (
     <div
       className={cn(
@@ -65,8 +80,8 @@ function Row({
       )}
     >
       <div className="flex flex-wrap items-center gap-2.5">
-        <span className={cn(LABEL, row.isPrimary ? "text-s1" : "text-muted-foreground")}>
-          {row.isPrimary ? "main measure" : "also tracking"}
+        <span className={cn(LABEL, highlighted ? "text-s1" : "text-muted-foreground")}>
+          {heading}
         </span>
         {onRemove && (
           <Button
@@ -84,67 +99,79 @@ function Row({
       <Input
         value={row.label}
         onChange={(e) => onChange({ ...row, label: e.target.value })}
-        placeholder="what you'll log"
-        aria-label={row.isPrimary ? "Main measure" : "Tracker"}
+        placeholder={row.isExposure ? "the yes/no you'll answer each day" : "what you'll log"}
+        aria-label={row.isPrimary ? "Main measure" : row.isExposure ? "Days we compare" : "Tracker"}
         className="w-full font-mono"
+        // Only ever true right after the shape line adds this row with
+        // nothing in it yet — a remount of an already-named row (or any
+        // other row) never fires this, since autoFocus only acts on mount.
+        autoFocus={row.isExposure && row.label.trim() === ""}
       />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <ToggleGroup
-          value={[row.type]}
-          onValueChange={(v: string[]) => {
-            const next = v[v.length - 1] as ParameterType | undefined;
-            if (!next || next === row.type) return;
-            onChange(nextRow(row, next));
-          }}
-          aria-label="How this is logged"
-        >
-          {KINDS.map((k) => (
-            <ToggleGroupItem
-              key={k}
-              value={k}
-              aria-label={KIND_LABEL[k]}
-              className="min-h-11 border border-rule px-3 font-mono text-xs lowercase aria-pressed:border-ink aria-pressed:bg-ink aria-pressed:text-paper"
-            >
-              {KIND_LABEL[k]}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
+      {!row.isExposure && (
+        <div className="flex flex-wrap items-center gap-2">
+          <ToggleGroup
+            value={[row.type]}
+            onValueChange={(v: string[]) => {
+              const next = v[v.length - 1] as ParameterType | undefined;
+              if (!next || next === row.type) return;
+              onChange(nextRow(row, next));
+            }}
+            aria-label="How this is logged"
+          >
+            {KINDS.map((k) => (
+              <ToggleGroupItem
+                key={k}
+                value={k}
+                aria-label={KIND_LABEL[k]}
+                className="min-h-11 border border-rule px-3 font-mono text-xs lowercase aria-pressed:border-ink aria-pressed:bg-ink aria-pressed:text-paper"
+              >
+                {KIND_LABEL[k]}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
 
-        {row.type === "amount" && (
-          <>
-            <Input
-              value={row.unit ?? ""}
-              onChange={(e) => onChange({ ...row, unit: e.target.value || undefined })}
-              placeholder="unit"
-              aria-label="Unit"
-              className="w-24 font-mono"
-            />
-            <Input
-              type="number"
-              step="any"
-              value={row.min ?? ""}
-              onChange={(e) =>
-                onChange({ ...row, min: e.target.value === "" ? undefined : Number(e.target.value) })
-              }
-              placeholder="min"
-              aria-label="Lowest value"
-              className="w-20 font-mono"
-            />
-            <Input
-              type="number"
-              step="any"
-              value={row.max ?? ""}
-              onChange={(e) =>
-                onChange({ ...row, max: e.target.value === "" ? undefined : Number(e.target.value) })
-              }
-              placeholder="max"
-              aria-label="Highest value"
-              className="w-20 font-mono"
-            />
-          </>
-        )}
-      </div>
+          {row.type === "amount" && (
+            <>
+              <Input
+                value={row.unit ?? ""}
+                onChange={(e) => onChange({ ...row, unit: e.target.value || undefined })}
+                placeholder="unit"
+                aria-label="Unit"
+                className="w-24 font-mono"
+              />
+              <Input
+                type="number"
+                step="any"
+                value={row.min ?? ""}
+                onChange={(e) =>
+                  onChange({
+                    ...row,
+                    min: e.target.value === "" ? undefined : Number(e.target.value),
+                  })
+                }
+                placeholder="min"
+                aria-label="Lowest value"
+                className="w-20 font-mono"
+              />
+              <Input
+                type="number"
+                step="any"
+                value={row.max ?? ""}
+                onChange={(e) =>
+                  onChange({
+                    ...row,
+                    max: e.target.value === "" ? undefined : Number(e.target.value),
+                  })
+                }
+                placeholder="max"
+                aria-label="Highest value"
+                className="w-20 font-mono"
+              />
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -162,7 +189,8 @@ export function ParameterEditor({
   onChange: (next: ParameterDraft[]) => void;
 }) {
   const primaryIndex = value.findIndex((p) => p.isPrimary);
-  const trackers = value.filter((p) => !p.isPrimary);
+  const exposureIndex = value.findIndex((p) => p.isExposure);
+  const trackers = value.filter((p) => !p.isPrimary && !p.isExposure);
   const [open, setOpen] = useState(trackers.length > 0);
 
   const replaceAt = (i: number, next: ParameterDraft) =>
@@ -174,6 +202,16 @@ export function ParameterEditor({
         <Row
           row={value[primaryIndex]}
           onChange={(next) => replaceAt(primaryIndex, next)}
+          onRemove={null}
+        />
+      )}
+
+      {/* The exposure row is only ever added or removed by the shape line
+          above this editor — it has no "remove" of its own. */}
+      {exposureIndex >= 0 && (
+        <Row
+          row={value[exposureIndex]}
+          onChange={(next) => replaceAt(exposureIndex, next)}
           onRemove={null}
         />
       )}
@@ -209,7 +247,7 @@ export function ParameterEditor({
           )}
 
           {value.map((row, i) =>
-            row.isPrimary ? null : (
+            row.isPrimary || row.isExposure ? null : (
               <Row
                 key={i}
                 row={row}
