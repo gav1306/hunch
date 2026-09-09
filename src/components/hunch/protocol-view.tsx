@@ -259,7 +259,12 @@ export function ProtocolView({ id }: { id: string }) {
 
       {approved && hypothesis && protocol && !design.isPending && (
         protocol.design.shape === "observational" ? (
-          <ObservationalPlan hunchId={id} hypothesis={hypothesis} design={protocol.design} />
+          <ObservationalPlan
+            hunchId={id}
+            hypothesis={hypothesis}
+            design={protocol.design}
+            exposureLabel={exposureRow?.label.trim() || null}
+          />
         ) : (
           <ProtocolStepper
             hunchId={id}

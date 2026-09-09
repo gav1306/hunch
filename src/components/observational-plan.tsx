@@ -18,10 +18,19 @@ export function ObservationalPlan({
   hunchId,
   hypothesis,
   design,
+  exposureLabel,
 }: {
   hunchId: string;
   hypothesis: { statement: string; outcomeMetric: string };
   design: ProtocolDesign;
+  /**
+   * The daily yes/no the arms are derived from, in the user's own words — the
+   * confirm gate calls this row "days we compare". Only absent if a legacy or
+   * malformed row slipped past the route's own requirement that an
+   * observational trial always have one; falls back to a label-free line
+   * rather than rendering a dangling sentence.
+   */
+  exposureLabel: string | null;
 }) {
   const phase = design.phases[0];
 
@@ -56,8 +65,14 @@ export function ObservationalPlan({
         <div className="mt-4 border-t border-rule pt-3.5">
           <p className={cn(LABEL, "mt-0 mb-1.5")}>What to log</p>
           <p className="m-0 text-sm leading-relaxed text-ink [overflow-wrap:anywhere]">
-            Each day: {hypothesis.outcomeMetric}, and the yes/no this window is
-            comparing against.
+            {exposureLabel ? (
+              <>
+                Each day: {hypothesis.outcomeMetric}, and &ldquo;{exposureLabel}&rdquo; — the
+                days we compare.
+              </>
+            ) : (
+              <>Each day: {hypothesis.outcomeMetric}, and the yes/no this window compares.</>
+            )}
           </p>
         </div>
 
