@@ -37,6 +37,52 @@ const diary = {
   checkIns: [],
 };
 
+// A concluded observational hunch: a stored verdict, a valid design, and an
+// exposure parameter with a known mix of exposed/unexposed/unknown days —
+// exercises the stored-verdict early return, which now sits *below* the
+// design parse.
+const storedVerdictRow = {
+  category: "helped",
+  narrative: "Playing basketball lifted your mood.",
+  pEffect: 0.9,
+  effect: 1.5,
+  ciLow: 0.5,
+  ciHigh: 2.5,
+  nA: 5,
+  nB: 5,
+  model: "normal-normal",
+};
+
+const concludedObservational = {
+  id: "h1",
+  userId: "u1",
+  hypothesis: { statement: "Playing basketball lifts my mood.", outcomeMetric: "evening mood", outcomeType: "continuous" },
+  protocol: {
+    startedAt: new Date("2026-08-01T00:00:00.000Z"),
+    safetyState: "approved",
+    design: {
+      phases: [{ label: "A", kind: "baseline", days: 21, name: "Just live normally", action: "Log it each day." }],
+      washoutDays: 0,
+      controls: [],
+      instructions: "Log it each day.",
+      shape: "observational",
+    },
+  },
+  verdict: storedVerdictRow,
+  parameters: [
+    { id: "primary", label: "Evening mood", isPrimary: true, isExposure: false },
+    { id: "exp", label: "Played basketball", isPrimary: false, isExposure: true },
+  ],
+  checkIns: [
+    { phase: "A", values: [{ parameterId: "primary", value: 8 }, { parameterId: "exp", value: 1 }] },
+    { phase: "A", values: [{ parameterId: "primary", value: 7 }, { parameterId: "exp", value: 1 }] },
+    { phase: "A", values: [{ parameterId: "primary", value: 8 }, { parameterId: "exp", value: 1 }] },
+    { phase: "A", values: [{ parameterId: "primary", value: 4 }, { parameterId: "exp", value: 0 }] },
+    { phase: "A", values: [{ parameterId: "primary", value: 5 }, { parameterId: "exp", value: 0 }] },
+    { phase: "A", values: [{ parameterId: "primary", value: 6 }] }, // unknown: no exposure reading
+  ],
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getSession).mockResolvedValue({ user: { id: "u1" } } as never);
@@ -74,5 +120,43 @@ describe("GET /api/hunch/[id]/verdict", () => {
   it("404s a hunch that isn't theirs", async () => {
     vi.mocked(db.hunch.findFirst).mockResolvedValue(null as never);
     expect((await GET(request(), params)).status).toBe(404);
+  });
+
+  it("returns 200 with the stored verdict and its exposure counts, not a throw or a 409", async () => {
+    vi.mocked(db.hunch.findFirst).mockResolvedValue(concludedObservational as never);
+
+    const res = await GET(request(), params);
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.verdict).toMatchObject({
+      category: "helped",
+      narrative: "Playing basketball lifted your mood.",
+    });
+    // Not merely "the key is present" — the actual counts, computed fresh from
+    // the check-ins above (3 exposed, 2 unexposed, 1 with no exposure reading).
+    expect(body.verdict.exposure).toEqual({
+      label: "Played basketball",
+      exposed: 3,
+      unexposed: 2,
+      unknown: 1,
+      observational: true,
+    });
+    // The stored path never touches the engine or the Analyst.
+    expect(runAnalysis).not.toHaveBeenCalled();
+    expect(db.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("stored verdict, no exposure parameter: exposure is null, not a throw", async () => {
+    vi.mocked(db.hunch.findFirst).mockResolvedValue({
+      ...concludedObservational,
+      parameters: [{ id: "primary", label: "Evening mood", isPrimary: true, isExposure: false }],
+    } as never);
+
+    const res = await GET(request(), params);
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.verdict.exposure).toBeNull();
   });
 });
