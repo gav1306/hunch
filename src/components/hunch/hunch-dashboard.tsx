@@ -11,6 +11,7 @@ import { VerdictView } from "@/components/verdict";
 import { Button } from "@/components/ui/button";
 import { useBelief } from "@/hooks/use-belief";
 import { useHunchInfo } from "@/hooks/use-hunch-info";
+import { exposureSummary } from "@/lib/verdict";
 import { cn } from "@/lib/utils";
 
 /**
@@ -76,7 +77,18 @@ export function HunchDashboard({
             A log, not a trial. Nothing to change — just the record.
           </p>
         ) : (
-          <BeliefMeter belief={belief} />
+          <>
+            <BeliefMeter belief={belief} />
+            {/* An observational trial can starve quietly — a verdict that
+                says "not enough days" at the end is too late to act on. A
+                phased trial that also carries an exposure gets the same
+                line, computed over its phase-B days. */}
+            {query.data.exposure && (
+              <p className="m-0 text-sm text-muted-foreground">
+                {exposureSummary(query.data.exposure)}
+              </p>
+            )}
+          </>
         )}
         {/* The days behind the meter. Without it, a five-day gap and a perfect
             week look identical on every screen the app has. */}

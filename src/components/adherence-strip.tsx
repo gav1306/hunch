@@ -67,6 +67,10 @@ export function AdherenceStrip({
   });
   const { logged, missed, elapsed } = adherenceSummary(strip);
 
+  // On an observational trial every day's `kind` is "baseline" — the daily
+  // yes/no this finds is the only thing that tells one day from another.
+  const exposureParam = parameters.find((p) => p.isExposure);
+
   const selected = openDay === null ? null : strip[openDay - 1];
   const selectedEntry = selected ? byDay.get(selected.date.getTime()) : undefined;
 
@@ -85,12 +89,17 @@ export function AdherenceStrip({
         {strip.map((d) => {
           const tone = STATE[d.state];
           const isOpen = openDay === d.day;
+          const exposureHit = exposureParam
+            ? byDay.get(d.date.getTime())?.values.find((v) => v.parameterId === exposureParam.id)
+            : undefined;
+          const exposed = exposureHit?.value === 1;
+          const label = exposed ? `${tone.word}, ${exposureParam?.label}` : tone.word;
           return (
             <li key={d.day}>
               <button
                 type="button"
                 aria-pressed={isOpen}
-                aria-label={`Day ${d.day}, ${DATE_FMT.format(d.date)} — ${tone.word}`}
+                aria-label={`Day ${d.day}, ${DATE_FMT.format(d.date)} — ${label}`}
                 onClick={() => {
                   setOpenDay(isOpen ? null : d.day);
                   setEditing(null);
@@ -99,8 +108,11 @@ export function AdherenceStrip({
                   "size-[26px] cursor-pointer rounded-md border p-0 outline-offset-2",
                   tone.className,
                   // The phase is the tile's second dimension: baseline days read
-                  // flat, intervention days carry the accent underline.
-                  d.kind === "intervention" && "shadow-[inset_0_-3px_0_0_var(--s2)]",
+                  // flat, intervention days carry the accent underline — and so
+                  // does a day the exposure happened on, since an observational
+                  // trial's `kind` never leaves "baseline".
+                  (d.kind === "intervention" || exposed) &&
+                    "shadow-[inset_0_-3px_0_0_var(--s2)]",
                 )}
               />
             </li>
