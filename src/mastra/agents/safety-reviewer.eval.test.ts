@@ -15,6 +15,7 @@ function designWith(instructions: string): ProtocolDesign {
     washoutDays: 2,
     controls: [],
     instructions,
+    shape: "phased",
   };
 }
 

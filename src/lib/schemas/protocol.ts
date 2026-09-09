@@ -14,6 +14,15 @@ export const confounderSchema = z.object({
 });
 export type Confounder = z.infer<typeof confounderSchema>;
 
+/**
+ * What kind of design this is, for the engine and the Designer. "phased" is
+ * the scheduled ABA shape; "observational" is a single-phase trial that still
+ * produces no verdict; "diary" is the no-schedule log a hunch falls back to
+ * when there's nothing to schedule.
+ */
+export const protocolShapeSchema = z.enum(["phased", "observational", "diary"]);
+export type ProtocolShape = z.infer<typeof protocolShapeSchema>;
+
 /** One phase of an n-of-1 design. ABA = baseline, intervention, baseline. */
 export const protocolPhaseSchema = z.object({
   label: z.enum(["A", "B"]),
@@ -32,14 +41,17 @@ export type ProtocolPhase = z.infer<typeof protocolPhaseSchema>;
  *
  * The floor is one phase, not two, because an observe-only hunch is a diary:
  * one baseline arm, nothing to contrast it with. Two-or-more used to stand in
- * for "this is a real experiment", and `phases.length === 1` is now what marks
- * a design that produces no verdict.
+ * for "this is a real experiment". `safetyState` answers "may this run, and
+ * is it a diary?"; `shape` answers "what kind of design is this?" for the
+ * engine and the Designer — an observational trial is also one phase, and
+ * was never at risk of being read as a diary.
  */
 export const protocolDesignSchema = z.object({
   phases: z.array(protocolPhaseSchema).min(1),
   washoutDays: z.number().int().min(0),
   controls: z.array(z.string().trim().min(1)),
   instructions: z.string().trim().min(1),
+  shape: protocolShapeSchema.default("phased"),
 });
 export type ProtocolDesign = z.infer<typeof protocolDesignSchema>;
 
@@ -69,7 +81,16 @@ export function parseStoredDesign(
         };
       })
     : obj.phases;
-  return protocolDesignSchema.parse({ ...(obj as object), phases });
+  // Derive before parsing, so the schema default can't mask a legacy diary:
+  // every protocol written before `shape` existed lacks the field entirely.
+  const stored = (obj as { shape?: unknown }).shape;
+  const shape =
+    typeof stored === "string"
+      ? stored
+      : Array.isArray(phases) && phases.length === 1
+        ? "diary"
+        : "phased";
+  return protocolDesignSchema.parse({ ...(obj as object), phases, shape });
 }
 
 /** Output of the deterministic power-analysis tool. */
@@ -114,8 +135,9 @@ export const OBSERVE_DAYS = 14;
  * One phase, labelled `A`/`baseline` deliberately: `currentPhase`, the
  * adherence strip, the check-in's phase text and `CheckIn.phase` all already
  * understand A and B, and a third label would mean teaching each of them a case
- * the user never sees. What marks a diary is `phases.length === 1`, and that is
- * what the code checks.
+ * the user never sees. `safetyState` answers "may this run, and is it a
+ * diary?"; `shape` answers "what kind of design is this?" for the engine and
+ * the Designer.
  */
 export function observeOnlyDesign(outcomeMetric: string): ProtocolDesign {
   return {
@@ -133,6 +155,7 @@ export function observeOnlyDesign(outcomeMetric: string): ProtocolDesign {
     instructions:
       "This one is a log, not a trial: nothing changes, you just write down what " +
       "happens. At the end you'll have your own record of it, and it's yours to export.",
+    shape: "diary",
   };
 }
 

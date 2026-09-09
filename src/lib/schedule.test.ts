@@ -14,6 +14,7 @@ const design: ProtocolDesign = {
   washoutDays: 1,
   controls: [],
   instructions: "x",
+  shape: "phased",
 };
 
 const start = new Date(Date.UTC(2026, 0, 1)); // Jan 1 2026 UTC
@@ -72,6 +73,7 @@ const noWashoutDesign: ProtocolDesign = {
   washoutDays: 0,
   controls: [],
   instructions: "x",
+  shape: "phased",
 };
 
 describe("currentPhase with no washout", () => {

@@ -65,6 +65,11 @@ describe("protocol schemas", () => {
       designResultSchema.safeParse({ confounders: [confounder], design, powerInfo, safety }).success,
     ).toBe(true);
   });
+
+  it("defaults shape to \"phased\" when absent, so every existing writer stays valid", () => {
+    const parsed = protocolDesignSchema.parse(design);
+    expect(parsed.shape).toBe("phased");
+  });
 });
 
 describe("protocolPhaseSchema name/action", () => {
@@ -121,6 +126,23 @@ describe("parseStoredDesign (tolerates pre-name/action rows)", () => {
     expect(design.phases[1].name).toBe("Phase 1");
     expect(design.phases[1].action).toBe("Do thing 1.");
   });
+
+  it("derives shape \"phased\" for a legacy three-phase row with no shape key", () => {
+    const design = parseStoredDesign(legacy);
+    expect(design.shape).toBe("phased");
+  });
+
+  it("derives shape \"diary\" for a legacy one-phase row with no shape key", () => {
+    const oneRow = { ...legacy, phases: [legacy.phases[0]] };
+    const design = parseStoredDesign(oneRow);
+    expect(design.shape).toBe("diary");
+  });
+
+  it("keeps an explicit shape rather than overwriting it with the derivation", () => {
+    const observational = { ...legacy, phases: [legacy.phases[0]], shape: "observational" };
+    const design = parseStoredDesign(observational);
+    expect(design.shape).toBe("observational");
+  });
 });
 
 describe("observeOnlyDesign", () => {
@@ -156,6 +178,10 @@ describe("observeOnlyDesign", () => {
 
   it("still rejects an empty phase list", () => {
     expect(protocolDesignSchema.safeParse({ ...design, phases: [] }).success).toBe(false);
+  });
+
+  it("is shaped as a diary", () => {
+    expect(design.shape).toBe("diary");
   });
 });
 
