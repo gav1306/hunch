@@ -161,6 +161,47 @@ export function observeOnlyDesign(outcomeMetric: string): ProtocolDesign {
 }
 
 /**
+ * How long an observational window runs.
+ *
+ * 21 days is chosen against MIN_PER_ARM (3) in src/lib/verdict.ts: a
+ * once-a-week exposure clears the floor with a day to spare, twice a week
+ * clears it comfortably. Shorter windows make "not enough days" the common
+ * verdict for trials that were run perfectly.
+ */
+export const OBSERVATION_DAYS = 21;
+
+/**
+ * The protocol for a hunch whose change cannot be scheduled. One window, no
+ * washout — the user is living normally throughout — and the arms come from
+ * the daily exposure answer rather than from the calendar. See armRows().
+ */
+export function observationalDesign(
+  outcomeMetric: string,
+  exposureLabel: string,
+): ProtocolDesign {
+  return {
+    phases: [
+      {
+        label: "A",
+        kind: "baseline",
+        days: OBSERVATION_DAYS,
+        name: "Just live normally",
+        action:
+          `Live as you normally would. Each day, log "${exposureLabel}", and ` +
+          `log ${outcomeMetric}.`,
+      },
+    ],
+    washoutDays: 0,
+    controls: [],
+    instructions:
+      `Nothing about your routine changes for this one. Each day you answer one ` +
+      `yes/no question — "${exposureLabel}" — and log ${outcomeMetric}. At the end ` +
+      `we compare the days it happened against the days it didn't.`,
+    shape: "observational",
+  };
+}
+
+/**
  * May this protocol be started and logged against? A diary may — nothing about
  * it needs approving, because it schedules no change at all. Pending and refused
  * may not.

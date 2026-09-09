@@ -9,6 +9,8 @@ import {
   protocolPhaseSchema,
   observeOnlyDesign,
   OBSERVE_DAYS,
+  observationalDesign,
+  OBSERVATION_DAYS,
   safetyVerdictSchema,
 } from "@/lib/schemas/protocol";
 
@@ -182,6 +184,55 @@ describe("observeOnlyDesign", () => {
 
   it("is shaped as a diary", () => {
     expect(design.shape).toBe("diary");
+  });
+});
+
+describe("observationalDesign", () => {
+  const design = observationalDesign("sleep quality", "played basketball");
+
+  it("has exactly one phase — the observation window", () => {
+    expect(design.phases).toHaveLength(1);
+  });
+
+  it("labels the phase A/baseline so the schedule needs no third case", () => {
+    expect(design.phases[0]).toMatchObject({
+      label: "A",
+      kind: "baseline",
+      days: OBSERVATION_DAYS,
+    });
+  });
+
+  it("has a 21-day observation window", () => {
+    expect(design.phases[0].days).toBe(21);
+  });
+
+  it("has no washout — a washout separates arms, and there is one arm", () => {
+    expect(design.washoutDays).toBe(0);
+  });
+
+  it("contains the exposure label verbatim in the action", () => {
+    expect(design.phases[0].action).toContain("played basketball");
+  });
+
+  it("contains the outcome metric verbatim in the action", () => {
+    expect(design.phases[0].action).toContain("sleep quality");
+  });
+
+  it("has non-empty instructions", () => {
+    expect(design.instructions).toBeTruthy();
+    expect(design.instructions.length).toBeGreaterThan(0);
+  });
+
+  it("is shaped as observational", () => {
+    expect(design.shape).toBe("observational");
+  });
+
+  it("passes protocolDesignSchema validation", () => {
+    expect(protocolDesignSchema.safeParse(design).success).toBe(true);
+  });
+
+  it("passes the stored-design parser the dashboard reads through", () => {
+    expect(() => parseStoredDesign(design, "sleep quality")).not.toThrow();
   });
 });
 
