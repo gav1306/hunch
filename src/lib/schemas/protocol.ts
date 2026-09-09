@@ -16,9 +16,10 @@ export type Confounder = z.infer<typeof confounderSchema>;
 
 /**
  * What kind of design this is, for the engine and the Designer. "phased" is
- * the scheduled ABA shape; "observational" is a single-phase trial that still
- * produces no verdict; "diary" is the no-schedule log a hunch falls back to
- * when there's nothing to schedule.
+ * the scheduled ABA shape. "observational" is also one phase, but its arm
+ * each day comes from a yes/no exposure reading rather than the calendar,
+ * and it still produces a verdict. "diary" is the deliberate shape for an
+ * observe-only hunch — one arm, and by design no verdict at all.
  */
 export const protocolShapeSchema = z.enum(["phased", "observational", "diary"]);
 export type ProtocolShape = z.infer<typeof protocolShapeSchema>;
