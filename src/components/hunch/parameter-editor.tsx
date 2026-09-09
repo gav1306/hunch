@@ -225,7 +225,10 @@ export function ParameterEditor({
               variant="brand"
               size="touch"
               onClick={() =>
-                onChange([...value, { label: "", type: "amount", isPrimary: false }])
+                onChange([
+                  ...value,
+                  { label: "", type: "amount", isPrimary: false, isExposure: false },
+                ])
               }
               className={GHOST}
             >

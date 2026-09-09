@@ -139,6 +139,7 @@ export function NewHunchForm({
         statement: hunch.hypothesis.statement,
         outcomeMetric: hunch.hypothesis.outcomeMetric,
         outcomeType: hunch.hypothesis.outcomeType,
+        schedulable: hunch.hypothesis.schedulable,
       },
       parameters: hunch.parameters ?? [],
       protocol: null,

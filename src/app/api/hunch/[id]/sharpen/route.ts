@@ -80,6 +80,7 @@ export async function POST(
       expectedDirection: sharpened.expectedDirection ?? null,
             subject: sharpened.subject,
       confounders: sharpened.confounders,
+      schedulable: sharpened.schedulable,
     };
 
     const updated = await db.$transaction(async (tx) => {
@@ -105,6 +106,7 @@ export async function POST(
               min: d.min ?? null,
               max: d.max ?? null,
               isPrimary: d.isPrimary,
+              isExposure: d.isExposure ?? false,
               sortOrder: i,
             })),
           },

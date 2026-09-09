@@ -39,6 +39,12 @@ export type Tracker = z.infer<typeof trackerSchema>;
 export const parameterDraftSchema = trackerSchema.extend({
   /** The one parameter that drives the Bayesian verdict. */
   isPrimary: z.boolean().default(false),
+  /**
+   * The daily yes/no that tells this trial's days apart. At most one per
+   * hunch, always binary, never the primary — the refinements that police
+   * that are on the list schema, not here.
+   */
+  isExposure: z.boolean().default(false),
 });
 export type ParameterDraft = z.infer<typeof parameterDraftSchema>;
 

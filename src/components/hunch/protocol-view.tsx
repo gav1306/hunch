@@ -82,6 +82,7 @@ export function ProtocolView({ id }: { id: string }) {
           min: p.min,
           max: p.max,
           isPrimary: p.isPrimary,
+          isExposure: p.isExposure,
         }))
       : draftsFromSharpened({
           outcomeMetric: info.data.hypothesis.outcomeMetric,

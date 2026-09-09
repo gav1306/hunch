@@ -70,6 +70,7 @@ export async function POST(request: Request) {
             subject: sharpened.subject,
             outcomeType: sharpened.outcomeType,
             confounders: sharpened.confounders,
+            schedulable: sharpened.schedulable,
           },
         },
         // The proposed set the confirm gate edits. Persisted now so a reload
@@ -82,6 +83,7 @@ export async function POST(request: Request) {
             min: d.min ?? null,
             max: d.max ?? null,
             isPrimary: d.isPrimary,
+            isExposure: d.isExposure ?? false,
             sortOrder: i,
           })),
         },

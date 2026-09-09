@@ -21,6 +21,7 @@ export type ParameterRow = {
   min: number | null;
   max: number | null;
   isPrimary: boolean;
+  isExposure: boolean;
   sortOrder: number;
   retiredAt: Date | null;
 };
@@ -39,6 +40,7 @@ export function toParameterDto(row: ParameterRow): Parameter {
     min: row.min ?? undefined,
     max: row.max ?? undefined,
     isPrimary: row.isPrimary,
+    isExposure: row.isExposure,
     sortOrder: row.sortOrder,
     retired: row.retiredAt !== null,
   };
@@ -51,14 +53,20 @@ function sameLabel(a: string, b: string): boolean {
 
 /**
  * The starting parameter set for a freshly sharpened hunch: the outcome metric
- * as the primary, then the Coach's proposed trackers. Capped at four trackers;
- * duplicates of the primary are dropped so the user never sees the same row twice.
+ * as the primary, then (when the hunch carries one) the exposure — the daily
+ * yes/no an observational trial derives its arms from — then the Coach's
+ * proposed trackers. Duplicates of the primary, and of the exposure, are
+ * dropped so the user never sees the same row twice. Trackers are capped at
+ * four normally, three when an exposure is present, so the total never
+ * exceeds `MAX_ACTIVE_PARAMETERS`.
  */
 export function draftsFromSharpened(s: {
   outcomeMetric: string;
   /** The hypothesis' own word — the engine's vocabulary, not a kind. */
   outcomeType: "binary" | "continuous";
   trackers?: Tracker[];
+  /** The daily yes/no, present only for a hunch that can't be scheduled. */
+  exposure?: Tracker;
 }): ParameterDraft[] {
   const primary: ParameterDraft = {
     label: s.outcomeMetric,
@@ -68,12 +76,22 @@ export function draftsFromSharpened(s: {
     // stepper for a measure nobody has described yet.
     type: s.outcomeType === "binary" ? "binary" : "amount",
     isPrimary: true,
+    isExposure: false,
   };
+
+  const exposure: ParameterDraft | null =
+    s.exposure && !sameLabel(s.exposure.label, s.outcomeMetric)
+      ? { ...s.exposure, isPrimary: false, isExposure: true }
+      : null;
+
+  const trackerCap = exposure ? 3 : 4;
   const trackers = (s.trackers ?? [])
     .filter((t) => !sameLabel(t.label, s.outcomeMetric))
-    .slice(0, 4)
-    .map((t) => ({ ...t, isPrimary: false }));
-  return [primary, ...trackers];
+    .filter((t) => !exposure || !sameLabel(t.label, exposure.label))
+    .slice(0, trackerCap)
+    .map((t) => ({ ...t, isPrimary: false, isExposure: false }));
+
+  return exposure ? [primary, exposure, ...trackers] : [primary, ...trackers];
 }
 
 /** The one parameter that drives the verdict, or null when the set has none. */

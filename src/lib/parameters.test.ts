@@ -58,6 +58,73 @@ describe("draftsFromSharpened", () => {
     });
     expect(rows[1]).toMatchObject({ unit: "1-10", min: 1, max: 10 });
   });
+
+  test("with no exposure, output is unchanged from today", () => {
+    const rows = draftsFromSharpened({
+      outcomeMetric: "hours of sleep",
+      outcomeType: "continuous",
+      trackers: [{ label: "caffeine after 2pm", type: "binary" }],
+    });
+    expect(rows).toHaveLength(2);
+    expect(rows.some((r) => "isExposure" in r && r.isExposure)).toBe(false);
+  });
+
+  test("with an exposure, the second row is the exposure and the primary is still first", () => {
+    const rows = draftsFromSharpened({
+      outcomeMetric: "hours of sleep",
+      outcomeType: "continuous",
+      trackers: [{ label: "stress", type: "amount" }],
+      exposure: { label: "played basketball today", type: "binary" },
+    });
+    expect(rows[0]).toMatchObject({ label: "hours of sleep", isPrimary: true });
+    expect(rows[1]).toMatchObject({
+      label: "played basketball today",
+      type: "binary",
+      isPrimary: false,
+      isExposure: true,
+    });
+  });
+
+  test("drops an exposure whose label matches the primary's", () => {
+    const rows = draftsFromSharpened({
+      outcomeMetric: "hours of sleep",
+      outcomeType: "continuous",
+      exposure: { label: "hours of sleep", type: "binary" },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows.some((r) => r.isExposure)).toBe(false);
+  });
+
+  test("drops a tracker whose label matches the exposure's", () => {
+    const rows = draftsFromSharpened({
+      outcomeMetric: "hours of sleep",
+      outcomeType: "continuous",
+      trackers: [{ label: "played basketball today", type: "binary" }],
+      exposure: { label: "played basketball today", type: "binary" },
+    });
+    // Primary + the exposure row only — the duplicate tracker is dropped.
+    expect(rows).toHaveLength(2);
+    const matches = rows.filter((r) => r.label === "played basketball today");
+    expect(matches).toHaveLength(1);
+    expect(matches[0].isExposure).toBe(true);
+  });
+
+  test("with an exposure, trackers are capped at three so the total stays inside five", () => {
+    const trackers = Array.from({ length: 6 }, (_, i) => ({
+      label: `t${i}`,
+      type: "binary" as const,
+    }));
+    const rows = draftsFromSharpened({
+      outcomeMetric: "m",
+      outcomeType: "binary",
+      trackers,
+      exposure: { label: "exposure", type: "binary" },
+    });
+    // primary + exposure + 3 trackers = 5
+    expect(rows).toHaveLength(5);
+    expect(rows.filter((r) => r.isExposure)).toHaveLength(1);
+    expect(rows.filter((r) => !r.isPrimary && !r.isExposure)).toHaveLength(3);
+  });
 });
 
 describe("toParameterDto", () => {
@@ -69,6 +136,7 @@ describe("toParameterDto", () => {
     min: null,
     max: null,
     isPrimary: true,
+    isExposure: false,
     sortOrder: 0,
     retiredAt: null,
   };
@@ -197,6 +265,7 @@ describe("toParameterDto retirement", () => {
     min: 1,
     max: 5,
     isPrimary: false,
+    isExposure: false,
     sortOrder: 1,
   };
 
