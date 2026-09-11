@@ -120,7 +120,9 @@ export function CheckIn({
           startsOn={schedule ? (startsOn ?? null) : null}
           hasPlan={hasPlan ?? false}
           firstPhaseAction={firstPhaseAction}
-          observational={observational}
+          // Undefined while `design` hasn't loaded yet — neither "phased" nor
+          // "observational" is known, so NotStartedYet must not guess either.
+          observational={design === undefined ? undefined : observational}
         />
       );
     }
@@ -423,9 +425,15 @@ export function CheckIn({
 
   return (
     <section className={PANEL}>
-      {/* An observational window is one phase whose arms come from the daily
+      {/* `design` comes off a separate query that can resolve after the
+          schedule does — until it has, we don't yet know whether this trial
+          is observational or phased, so naming a phase would sometimes be a
+          guess. Say nothing phase-shaped rather than guess wrong. An
+          observational window is one phase whose arms come from the daily
           yes/no, so "Phase A (baseline)" would name an arm the day isn't in. */}
-      {observational ? (
+      {design === undefined ? (
+        <p className={cn(LABEL, "mt-0 mb-0")}>Log today</p>
+      ) : observational ? (
         <p className={cn(LABEL, "mt-0 mb-0")}>
           Log today · day {schedule!.dayInPhase + 1} of{" "}
           {design!.phases.reduce((sum, p) => sum + p.days, 0)}
@@ -486,8 +494,13 @@ function NotStartedYet({
   startsOn: string | null;
   hasPlan: boolean;
   firstPhaseAction?: string;
-  /** No day of an observational window is a baseline day — don't call it one. */
-  observational: boolean;
+  /**
+   * No day of an observational window is a baseline day — don't call it one.
+   * Undefined while the design hasn't loaded and the shape isn't known yet;
+   * treated the same as `true` so the sentence stays neutral rather than
+   * guessing "baseline" for a trial that turns out to be observational.
+   */
+  observational: boolean | undefined;
 }) {
   const scheduled = startsOn !== null;
   const eyebrowText = scheduled
@@ -503,9 +516,9 @@ function NotStartedYet({
       <p className="m-0 text-sm leading-relaxed text-ink [overflow-wrap:anywhere]">
         {scheduled
           ? firstPhaseAction
-            ? observational
-              ? firstPhaseAction
-              : `Day 1 is a baseline day. ${firstPhaseAction}`
+            ? observational === false
+              ? `Day 1 is a baseline day. ${firstPhaseAction}`
+              : firstPhaseAction
             : "Day 1 hasn't come round yet — nothing to log until it does."
           : hasPlan
             ? "Your plan is designed and waiting. Nothing runs until you start it."
