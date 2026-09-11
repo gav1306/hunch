@@ -125,6 +125,8 @@ export async function GET(
       belief,
       statement: hunch.hypothesis.statement,
       outcomeMetric: hunch.hypothesis.outcomeMetric,
+      observational: design.shape === "observational",
+      exposureLabel: exposureParam?.label ?? null,
     });
   } catch {
     // The Analyst call (or its structured-output parse) failed. Nothing is

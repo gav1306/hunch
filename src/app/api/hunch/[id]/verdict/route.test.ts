@@ -1,18 +1,30 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/db", () => ({
-  db: { hunch: { findFirst: vi.fn() }, verdict: { findUnique: vi.fn() }, $transaction: vi.fn() },
+  db: {
+    hunch: { findFirst: vi.fn(), update: vi.fn() },
+    verdict: { findUnique: vi.fn(), create: vi.fn() },
+    causalEdge: { create: vi.fn() },
+    $transaction: vi.fn(),
+  },
 }));
 vi.mock("@/lib/session", () => ({ getSession: vi.fn() }));
 vi.mock("next/headers", () => ({ headers: vi.fn(async () => new Headers()) }));
 // The Analyst is a live model call; this suite never reaches it, and must not
 // import it for real.
 vi.mock("@/mastra/workflows/analysis", () => ({ runAnalysis: vi.fn() }));
+// The real engine, watched: the fresh path's arms are only observable as what
+// the route hands to it.
+vi.mock("@/lib/bayes", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/bayes")>();
+  return { ...actual, computeBelief: vi.fn(actual.computeBelief) };
+});
 
 import { GET } from "./route";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { runAnalysis } from "@/mastra/workflows/analysis";
+import { computeBelief } from "@/lib/bayes";
 
 const params = { params: Promise.resolve({ id: "h1" }) };
 const request = () => new Request("http://localhost/api/hunch/h1/verdict");
@@ -158,5 +170,56 @@ describe("GET /api/hunch/[id]/verdict", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.verdict.exposure).toBeNull();
+  });
+
+  it("fresh path, observational: splits the arms by the yes/no, never by the stored phase", async () => {
+    // Every stored `CheckIn.phase` is "A" — the calendar's label for a
+    // one-window design. If the route fell back to phased wiring, every day
+    // would land in one arm and the verdict could never be reached.
+    const days: [mood: number, played: number | null][] = [
+      [8, 1], [7, 1], [8, 1], [9, 1], [4, 0], [5, 0], [4, 0], [6, null],
+    ];
+    vi.mocked(db.hunch.findFirst).mockResolvedValue({
+      ...concludedObservational,
+      verdict: null,
+      checkIns: days.map(([mood, played]) => ({
+        phase: "A",
+        values: [
+          { parameterId: "primary", value: mood },
+          ...(played === null ? [] : [{ parameterId: "exp", value: played }]),
+        ],
+      })),
+    } as never);
+    vi.mocked(runAnalysis).mockImplementation(async ({ category, belief }) => ({
+      category,
+      narrative: "Mood was higher on the days you played.",
+      pEffect: belief.pEffect,
+      effect: belief.effect,
+      ci: belief.ci,
+      nA: belief.nA,
+      nB: belief.nB,
+      model: belief.model,
+    }));
+    vi.mocked(db.$transaction).mockResolvedValue([] as never);
+
+    const res = await GET(request(), params);
+
+    expect(res.status).toBe(200);
+    expect(computeBelief).toHaveBeenCalledTimes(1);
+    // Yes-days are arm B, no-days arm A; the unanswered day is in neither.
+    expect(vi.mocked(computeBelief).mock.calls[0][0]).toEqual([
+      { phase: "B", value: 8 },
+      { phase: "B", value: 7 },
+      { phase: "B", value: 8 },
+      { phase: "B", value: 9 },
+      { phase: "A", value: 4 },
+      { phase: "A", value: 5 },
+      { phase: "A", value: 4 },
+    ]);
+    // The Analyst is told what it is narrating: a comparison of yes-days and
+    // no-days on the user's own question, not an intervention.
+    expect(runAnalysis).toHaveBeenCalledWith(
+      expect.objectContaining({ observational: true, exposureLabel: "Played basketball" }),
+    );
   });
 });

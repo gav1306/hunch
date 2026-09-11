@@ -12,6 +12,14 @@ export async function runAnalysis(input: {
   belief: Belief;
   statement: string;
   outcomeMetric: string;
+  /**
+   * Whether the arms came from the daily yes/no rather than the schedule.
+   * Required so a new caller can't silently narrate an observational trial as
+   * an intervention.
+   */
+  observational: boolean;
+  /** The daily yes/no as the user labelled it; null when the hunch has none. */
+  exposureLabel: string | null;
 }): Promise<Verdict> {
   const narrative = await narrateVerdict({
     category: input.category,
@@ -20,6 +28,8 @@ export async function runAnalysis(input: {
     ci: input.belief.ci,
     statement: input.statement,
     outcomeMetric: input.outcomeMetric,
+    observational: input.observational,
+    exposureLabel: input.exposureLabel,
   });
 
   return verdictSchema.parse({
