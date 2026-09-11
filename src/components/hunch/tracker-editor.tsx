@@ -31,16 +31,30 @@ const KIND_LABEL: Record<ParameterType, string> = {
 const KIND_ITEM =
   "min-h-11 border border-rule px-3 font-mono text-xs lowercase aria-pressed:border-ink aria-pressed:bg-ink aria-pressed:text-paper";
 
-/** One tracker, with the door out of it. The primary gets no door. */
-function TrackerRow({ hunchId, p }: { hunchId: string; p: Parameter }) {
+/**
+ * One tracker, with the door out of it. The primary gets no door, and neither
+ * does the yes/no an observational trial's days are compared by — without it
+ * there is no comparison, and the route refuses to retire it.
+ */
+function TrackerRow({
+  hunchId,
+  p,
+  observational,
+}: {
+  hunchId: string;
+  p: Parameter;
+  observational: boolean;
+}) {
   const retire = useRetireTracker(hunchId);
   const panel = useConfirmPanel();
 
-  if (p.isPrimary) {
+  if (p.isPrimary || (observational && p.isExposure)) {
     return (
       <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1 border-b border-rule py-3">
         <span className="text-sm text-ink">{p.label}</span>
-        <span className={LABEL}>main measure · runs the whole trial</span>
+        <span className={LABEL}>
+          {p.isPrimary ? "main measure" : "days we compare"} · runs the whole trial
+        </span>
       </div>
     );
   }
@@ -189,9 +203,12 @@ function AddTracker({ hunchId }: { hunchId: string }) {
 export function TrackerEditor({
   hunchId,
   parameters,
+  observational,
 }: {
   hunchId: string;
   parameters: Parameter[];
+  /** The trial's arms come from its daily yes/no, which is then not retirable. */
+  observational: boolean;
 }) {
   const atCap = parameters.length >= MAX_ACTIVE_PARAMETERS;
 
@@ -205,7 +222,7 @@ export function TrackerEditor({
       <p className={cn(LABEL, "m-0")}>What you&rsquo;re tracking</p>
       <div className="grid">
         {parameters.map((p) => (
-          <TrackerRow key={p.id} hunchId={hunchId} p={p} />
+          <TrackerRow key={p.id} hunchId={hunchId} p={p} observational={observational} />
         ))}
       </div>
       {atCap ? (

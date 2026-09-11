@@ -70,6 +70,7 @@ export function AdherenceStrip({
   // On an observational trial every day's `kind` is "baseline" — the daily
   // yes/no this finds is the only thing that tells one day from another.
   const exposureParam = parameters.find((p) => p.isExposure);
+  const observational = design.shape === "observational";
 
   const selected = openDay === null ? null : strip[openDay - 1];
   const selectedEntry = selected ? byDay.get(selected.date.getTime()) : undefined;
@@ -107,11 +108,13 @@ export function AdherenceStrip({
                 className={cn(
                   "size-[26px] cursor-pointer rounded-md border p-0 outline-offset-2",
                   tone.className,
-                  // The phase is the tile's second dimension: baseline days read
-                  // flat, intervention days carry the accent underline — and so
-                  // does a day the exposure happened on, since an observational
-                  // trial's `kind` never leaves "baseline".
-                  (d.kind === "intervention" || exposed) &&
+                  // The arm is the tile's second dimension: baseline days read
+                  // flat, intervention days carry the accent underline. On an
+                  // observational trial `kind` never leaves "baseline", so a day
+                  // the yes/no was answered yes carries it instead. On a phased
+                  // trial the schedule sets the arm — a baseline day answered
+                  // yes is still a baseline day.
+                  (observational ? exposed : d.kind === "intervention") &&
                     "shadow-[inset_0_-3px_0_0_var(--s2)]",
                 )}
               />

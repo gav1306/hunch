@@ -117,7 +117,11 @@ export function HunchDashboard({
             verdict was computed from it, so editing it would misdescribe what
             was actually measured. */}
         {schedule?.started && !schedule.done && (
-          <TrackerEditor hunchId={id} parameters={parameters} />
+          <TrackerEditor
+            hunchId={id}
+            parameters={parameters}
+            observational={info.data?.protocol?.design.shape === "observational"}
+          />
         )}
       </div>
     );
