@@ -49,10 +49,18 @@ function midSentence(label: string): string {
   return isAcronym(first) ? label : label.charAt(0).toLowerCase() + label.slice(1);
 }
 
-/** "Played basketball on 6 of 21 logged days." */
-export function exposureSummary(e: ExposureReport): string {
+/**
+ * "Played basketball on 6 of 21 logged days." on an observational trial, where
+ * every logged day is counted. A phased report counts phase-B days only, so
+ * there it reads "Took magnesium on 5 of 7 intervention days." Null until a
+ * day has been counted — a phased trial's whole first baseline would otherwise
+ * read "on 0 of 0".
+ */
+export function exposureSummary(e: ExposureReport): string | null {
   const days = e.exposed + e.unexposed + e.unknown;
-  return `${sentenceStart(e.label)} on ${e.exposed} of ${days} logged days.`;
+  if (days === 0) return null;
+  const which = e.observational ? "logged" : "intervention";
+  return `${sentenceStart(e.label)} on ${e.exposed} of ${days} ${which} days.`;
 }
 
 /** Named only when days fell out of the comparison. */

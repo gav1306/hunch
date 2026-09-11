@@ -63,7 +63,10 @@ export function VerdictView({
   const title = verdictHeadline(v.category, v.outcome ?? null, v.exposure ?? null);
   const Icon = ICON[v.category];
   const hasStats = v.category !== "inconclusive_insufficient";
-  const dropped = v.exposure ? exposureDropped(v.exposure) : null;
+  const summary = v.exposure ? exposureSummary(v.exposure) : null;
+  // Only an observational trial drops unanswered days. On a phased trial the
+  // schedule assigns every day, so those days are compared all the same.
+  const dropped = v.exposure?.observational ? exposureDropped(v.exposure) : null;
 
   return (
     <section className="grid max-w-full min-w-0 gap-[18px] rounded-lg border border-rule bg-card p-[clamp(20px,2.4vw,28px)]">
@@ -74,11 +77,13 @@ export function VerdictView({
           {Icon && <Icon aria-hidden className="size-[0.8em]" strokeWidth={2.5} />}
         </h2>
       </div>
-      {v.exposure && (
+      {(summary || dropped) && (
         <div className="grid gap-1">
-          <p className="m-0 text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
-            {exposureSummary(v.exposure)}
-          </p>
+          {summary && (
+            <p className="m-0 text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
+              {summary}
+            </p>
+          )}
           {dropped && (
             <p className="m-0 text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
               {dropped}

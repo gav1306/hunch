@@ -57,6 +57,10 @@ export function HunchDashboard({
     // either would promise a comparison the data cannot make.
     const isDiary = info.data?.protocol?.safetyState === "observe-only";
 
+    // Null until a day has been counted, so a phased trial's first baseline
+    // doesn't show "on 0 of 0".
+    const exposureLine = query.data.exposure ? exposureSummary(query.data.exposure) : null;
+
     if (isDiary && concluded) {
       return (
         <section className="rounded-lg border border-rule bg-card p-[clamp(20px,2.4vw,28px)]">
@@ -83,10 +87,8 @@ export function HunchDashboard({
                 says "not enough days" at the end is too late to act on. A
                 phased trial that also carries an exposure gets the same
                 line, computed over its phase-B days. */}
-            {schedule?.started && query.data.exposure && (
-              <p className="m-0 text-sm text-muted-foreground">
-                {exposureSummary(query.data.exposure)}
-              </p>
+            {schedule?.started && exposureLine && (
+              <p className="m-0 text-sm text-muted-foreground">{exposureLine}</p>
             )}
           </>
         )}

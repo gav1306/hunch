@@ -147,6 +147,26 @@ describe("exposureSummary", () => {
     };
     expect(exposureSummary(e)).toBe("Played basketball on 6 of 21 logged days.");
   });
+
+  it("counts intervention days on a phased trial, where only phase-B days are counted", () => {
+    // The report's denominator on a phased trial is the phase-B days alone, so
+    // "logged days" would undercount every baseline day the user logged.
+    const e: ExposureReport = {
+      label: "Took magnesium",
+      exposed: 5,
+      unexposed: 1,
+      unknown: 1,
+      observational: false,
+    };
+    expect(exposureSummary(e)).toBe("Took magnesium on 5 of 7 intervention days.");
+  });
+
+  it("says nothing while no day has been counted yet", () => {
+    // A phased trial spends its whole first baseline here: "on 0 of 0" is noise.
+    const zero = { label: "Took magnesium", exposed: 0, unexposed: 0, unknown: 0 };
+    expect(exposureSummary({ ...zero, observational: false })).toBe(null);
+    expect(exposureSummary({ ...zero, observational: true })).toBe(null);
+  });
 });
 
 describe("exposureDropped", () => {
