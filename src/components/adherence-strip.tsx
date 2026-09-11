@@ -5,6 +5,7 @@ import { PencilIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CheckIn } from "@/components/check-in";
 import { adherenceStrip, adherenceSummary, type AdherenceDay } from "@/lib/adherence";
+import { isExposedReading } from "@/lib/parameters";
 import { cn } from "@/lib/utils";
 import type { ProtocolDesign } from "@/lib/schemas/protocol";
 import type { Parameter } from "@/lib/schemas/parameter";
@@ -93,7 +94,7 @@ export function AdherenceStrip({
           const exposureHit = exposureParam
             ? byDay.get(d.date.getTime())?.values.find((v) => v.parameterId === exposureParam.id)
             : undefined;
-          const exposed = exposureHit?.value === 1;
+          const exposed = isExposedReading(exposureHit?.value);
           const label = exposed ? `${tone.word}, ${exposureParam?.label}` : tone.word;
           return (
             <li key={d.day}>

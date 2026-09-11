@@ -107,6 +107,17 @@ export function pickExposure<T extends { isExposure: boolean }>(rows: T[]): T | 
 }
 
 /**
+ * Whether a single reading of the exposure parameter says the change
+ * happened that day. `1` is yes; anything else — `0`, a stray non-binary
+ * number, or a missing reading — is not. The one place this comparison is
+ * made, so the four call sites that used to write `value === 1` by hand
+ * can't quietly drift from each other.
+ */
+export function isExposedReading(value: number | null | undefined): boolean {
+  return value === 1;
+}
+
+/**
  * Project day-buckets down to what the Bayesian engine consumes: the primary
  * reading per day, tagged with the arm that day belongs to.
  *
@@ -142,7 +153,7 @@ export function armRows(
       // every lazy check-in into the baseline arm and bias the result towards
       // whatever the user does when they cannot be bothered to log.
       if (!exposureHit) continue;
-      rows.push({ phase: exposureHit.value === 1 ? "B" : "A", value: primaryHit.value });
+      rows.push({ phase: isExposedReading(exposureHit.value) ? "B" : "A", value: primaryHit.value });
     } else {
       rows.push({ phase: c.phase, value: primaryHit.value });
     }
@@ -181,7 +192,7 @@ export function exposureReport(
   for (const day of days) {
     const hit = day.values.find((v) => v.parameterId === exposure.id);
     if (!hit) unknown++;
-    else if (hit.value === 1) exposed++;
+    else if (isExposedReading(hit.value)) exposed++;
     else unexposed++;
   }
 

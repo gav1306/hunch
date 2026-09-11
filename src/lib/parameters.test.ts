@@ -6,6 +6,7 @@ import {
   draftsFromSharpened,
   engineOutcomeType,
   exposureReport,
+  isExposedReading,
   pickExposure,
   pickPrimary,
   toParameterDto,
@@ -182,6 +183,20 @@ describe("pickExposure", () => {
 
   test("returns null when there is none", () => {
     expect(pickExposure([{ id: "a", isExposure: false }])).toBeNull();
+  });
+});
+
+describe("isExposedReading", () => {
+  test("1 is exposed", () => {
+    expect(isExposedReading(1)).toBe(true);
+  });
+
+  test("0, null, undefined and other numbers are not exposed", () => {
+    expect(isExposedReading(0)).toBe(false);
+    expect(isExposedReading(null)).toBe(false);
+    expect(isExposedReading(undefined)).toBe(false);
+    expect(isExposedReading(2)).toBe(false);
+    expect(isExposedReading(0.5)).toBe(false);
   });
 });
 

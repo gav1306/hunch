@@ -11,6 +11,7 @@
  */
 
 import { verdictHeadline } from "@/lib/verdict";
+import { isExposedReading } from "@/lib/parameters";
 import type { VerdictCategory } from "@/lib/schemas/verdict";
 import type { ProtocolShape } from "@/lib/schemas/protocol";
 
@@ -83,7 +84,7 @@ function armOf(h: ExportHunch, c: ExportCheckIn): string | null {
   if (h.shape !== "observational" || !h.exposureId) return c.phase;
   const hit = c.values.find((v) => v.parameterId === h.exposureId);
   if (hit === undefined) return null;
-  return hit.value === 1 ? "B" : "A";
+  return isExposedReading(hit.value) ? "B" : "A";
 }
 
 /** One row per logged day, one column per parameter. Unlogged cells stay empty. */
