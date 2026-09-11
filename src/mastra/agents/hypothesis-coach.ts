@@ -1,8 +1,10 @@
 import { Agent } from "@mastra/core/agent";
 import { claudeModel } from "@/mastra/model";
 import {
+  sharpenedHypothesisObjectSchema,
   sharpenedHypothesisSchema,
   type SharpenedHypothesis,
+  type SharpenedHypothesisDraft,
 } from "@/lib/schemas/hypothesis";
 import type { Prior } from "@/lib/schemas/prior";
 import type { ClarifyingAnswer } from "@/lib/schemas/clarify";
@@ -185,8 +187,9 @@ export class NoStructuredOutput extends Error {
 // whole sharpen. Fall back to the scheduled design, which is exactly today's
 // behaviour, and let the user flip it on the confirm gate — which is where the
 // exposure label gets asked for anyway.
-export function normaliseSchedulability(h: SharpenedHypothesis): SharpenedHypothesis {
-  if (!h.schedulable && h.exposure === undefined) {
+export function normaliseSchedulability(h: SharpenedHypothesisDraft): SharpenedHypothesisDraft {
+  // `=== false`, not `!`: an absent field means the schema default, true.
+  if (h.schedulable === false && h.exposure === undefined) {
     console.warn(
       "normaliseSchedulability: model returned schedulable=false with no exposure; falling back to schedulable=true",
     );
@@ -204,7 +207,10 @@ export async function sharpenHunch(
   const response = await hypothesisCoach.generate(
     buildSharpenPrompt(rawText, priors, answers, observeOnly),
     {
-      structuredOutput: { schema: sharpenedHypothesisSchema },
+      // The unrefined shape: Mastra validates with the refinements too, so the
+      // refined schema would throw on "unschedulable, no yes/no" here, before
+      // normaliseSchedulability below could repair it.
+      structuredOutput: { schema: sharpenedHypothesisObjectSchema },
       // The output is a small object; cap tokens to stay within budget and
       // avoid the provider's large default.
       modelSettings: { maxOutputTokens: 1024 },
@@ -214,12 +220,7 @@ export async function sharpenHunch(
   if (!response.object) {
     throw new NoStructuredOutput();
   }
-  // response.object is the model's raw structured output, pre-parse — fields
-  // with schema defaults (confounders, trackers, ...) may be absent yet.
-  // normaliseSchedulability only reads/rewrites schedulable + exposure and
-  // passes the rest through untouched, so the cast is safe: parse() below
-  // still fills in every default from whatever survives the round trip.
-  return sharpenedHypothesisSchema.parse(
-    normaliseSchedulability(response.object as SharpenedHypothesis),
-  );
+  // response.object has already been validated against the unrefined shape,
+  // defaults filled. The cross-field rules run here, after the fallback.
+  return sharpenedHypothesisSchema.parse(normaliseSchedulability(response.object));
 }

@@ -13,8 +13,15 @@ export type HunchInput = z.infer<typeof hunchInputSchema>;
 /**
  * The Hypothesis Coach's output: a vague hunch sharpened into a falsifiable,
  * measurable hypothesis. Mirrors the Hypothesis Prisma model (RESEARCH §5).
+ *
+ * This is the shape without the cross-field rules. It is what the Coach's
+ * structured output is validated against: Mastra validates through the
+ * standard-schema interface, which runs zod refinements, so handing it the
+ * refined schema would throw on "unschedulable, no yes/no" before the Coach's
+ * fallback could repair it. Everything else should use
+ * `sharpenedHypothesisSchema`.
  */
-export const sharpenedHypothesisSchema = z.object({
+export const sharpenedHypothesisObjectSchema = z.object({
   /** A single falsifiable claim. */
   statement: z.string().trim().min(1),
   /** What gets measured, and how. */
@@ -58,7 +65,17 @@ export const sharpenedHypothesisSchema = z.object({
    * schedulable one, where it is the adherence count and never touches an arm.
    */
   exposure: trackerSchema.optional(),
-})
+});
+
+/**
+ * The Coach's output before the cross-field rules. The input side of the
+ * shape, because that is how Mastra types `response.object`: at runtime it has
+ * been validated and its defaults filled, but the type leaves them optional.
+ */
+export type SharpenedHypothesisDraft = z.input<typeof sharpenedHypothesisObjectSchema>;
+
+/** A sharpened hypothesis, with the rules that tie `schedulable` and `exposure` together. */
+export const sharpenedHypothesisSchema = sharpenedHypothesisObjectSchema
   .refine((h) => h.schedulable || h.exposure !== undefined, {
     message: "A change that can't be scheduled needs a daily yes/no to tell its days apart.",
     path: ["exposure"],
