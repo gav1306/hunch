@@ -180,7 +180,9 @@ export function ProtocolView({ id }: { id: string }) {
             </Button>
           </div>
 
-          {drafts && <ParameterEditor value={drafts} onChange={setEdited} />}
+          {drafts && (
+            <ParameterEditor value={drafts} schedulable={isSchedulable} onChange={setEdited} />
+          )}
 
           {missingExposure && (
             <p role="alert" className="mt-2.5 mb-0 text-xs leading-relaxed text-s1 [overflow-wrap:anywhere]">

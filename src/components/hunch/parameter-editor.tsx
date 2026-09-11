@@ -40,37 +40,49 @@ const KIND_LABEL: Record<ParameterType, string> = {
  * check-in control and the validator agree about what five taps mean.
  */
 function nextRow(row: ParameterDraft, type: ParameterType): ParameterDraft {
+  // The yes/no that counts intervention days on a scheduled trial is only
+  // that while it is a yes/no; switched to anything else it is a plain tracker.
+  const isExposure = row.isExposure && type === "binary";
   if (type === "scale") {
-    return { ...row, type, unit: `${SCALE_MIN}-${SCALE_MAX}`, min: SCALE_MIN, max: SCALE_MAX };
+    return {
+      ...row,
+      type,
+      unit: `${SCALE_MIN}-${SCALE_MAX}`,
+      min: SCALE_MIN,
+      max: SCALE_MAX,
+      isExposure,
+    };
   }
-  if (type === "amount") return { ...row, type, unit: undefined, min: undefined, max: undefined };
-  return { ...row, type, unit: undefined, min: undefined, max: undefined };
+  return { ...row, type, unit: undefined, min: undefined, max: undefined, isExposure };
 }
 
 /** The row's heading, in the user's words — never "exposure". */
-function headingFor(row: ParameterDraft): string {
+function headingFor(row: ParameterDraft, splitsDays: boolean): string {
   if (row.isPrimary) return "main measure";
-  if (row.isExposure) return "days we compare";
+  if (splitsDays) return "days we compare";
   return "also tracking";
 }
 
 /**
  * One editable row: label, kind picker, and (for amounts) unit + bounds. The
- * exposure row is the one exception to the kind picker — it is always a daily
- * yes/no, so there is nothing to pick, and it hides the control rather than
- * showing one locked option.
+ * row that splits an observational trial's days is the one exception to the
+ * kind picker — it is always a daily yes/no, so there is nothing to pick, and
+ * it hides the control rather than showing one locked option.
  */
 function Row({
   row,
+  splitsDays = false,
   onChange,
   onRemove,
 }: {
   row: ParameterDraft;
+  /** This is the yes/no an observational trial's arms come from. */
+  splitsDays?: boolean;
   onChange: (next: ParameterDraft) => void;
   onRemove: (() => void) | null;
 }) {
-  const heading = headingFor(row);
-  const highlighted = row.isPrimary || row.isExposure;
+  const heading = headingFor(row, splitsDays);
+  const highlighted = row.isPrimary || splitsDays;
 
   return (
     <div
@@ -99,16 +111,16 @@ function Row({
       <Input
         value={row.label}
         onChange={(e) => onChange({ ...row, label: e.target.value })}
-        placeholder={row.isExposure ? "the yes/no you'll answer each day" : "what you'll log"}
-        aria-label={row.isPrimary ? "Main measure" : row.isExposure ? "Days we compare" : "Tracker"}
+        placeholder={splitsDays ? "the yes/no you'll answer each day" : "what you'll log"}
+        aria-label={row.isPrimary ? "Main measure" : splitsDays ? "Days we compare" : "Tracker"}
         className="w-full font-mono"
         // Only ever true right after the shape line adds this row with
         // nothing in it yet — a remount of an already-named row (or any
         // other row) never fires this, since autoFocus only acts on mount.
-        autoFocus={row.isExposure && row.label.trim() === ""}
+        autoFocus={splitsDays && row.label.trim() === ""}
       />
 
-      {!row.isExposure && (
+      {!splitsDays && (
         <div className="flex flex-wrap items-center gap-2">
           <ToggleGroup
             value={[row.type]}
@@ -180,17 +192,26 @@ function Row({
  * The confirm gate's parameter list: the primary measure (always shown, never
  * removable) plus the trackers the Coach proposed, all editable. Trackers live
  * behind a disclosure so the default view stays about the hypothesis.
+ *
+ * On an observational trial the daily yes/no is pinned under the primary: its
+ * answers are the comparison, so it is locked to a yes/no and only the shape
+ * line can take it away. On a scheduled trial the calendar splits the days and
+ * that yes/no only counts intervention days, so it is an ordinary tracker.
  */
 export function ParameterEditor({
   value,
+  schedulable,
   onChange,
 }: {
   value: ParameterDraft[];
+  /** The gate's current shape — the Coach's guess or the user's override. */
+  schedulable: boolean;
   onChange: (next: ParameterDraft[]) => void;
 }) {
+  const splitsDays = (p: ParameterDraft) => !schedulable && p.isExposure;
   const primaryIndex = value.findIndex((p) => p.isPrimary);
-  const exposureIndex = value.findIndex((p) => p.isExposure);
-  const trackers = value.filter((p) => !p.isPrimary && !p.isExposure);
+  const exposureIndex = value.findIndex(splitsDays);
+  const trackers = value.filter((p) => !p.isPrimary && !splitsDays(p));
   const [open, setOpen] = useState(trackers.length > 0);
 
   const replaceAt = (i: number, next: ParameterDraft) =>
@@ -206,11 +227,13 @@ export function ParameterEditor({
         />
       )}
 
-      {/* The exposure row is only ever added or removed by the shape line
-          above this editor — it has no "remove" of its own. */}
+      {/* The row that splits an observational trial's days is only ever
+          added or removed by the shape line above this editor — it has no
+          "remove" of its own. */}
       {exposureIndex >= 0 && (
         <Row
           row={value[exposureIndex]}
+          splitsDays
           onChange={(next) => replaceAt(exposureIndex, next)}
           onRemove={null}
         />
@@ -247,7 +270,7 @@ export function ParameterEditor({
           )}
 
           {value.map((row, i) =>
-            row.isPrimary || row.isExposure ? null : (
+            row.isPrimary || splitsDays(row) ? null : (
               <Row
                 key={i}
                 row={row}
