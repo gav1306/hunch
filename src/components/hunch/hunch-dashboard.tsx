@@ -111,6 +111,7 @@ export function HunchDashboard({
           startsOn={startsOn}
           hasPlan={info.data?.protocol != null}
           firstPhaseAction={info.data?.protocol?.design.phases[0]?.action}
+          design={info.data?.protocol?.design}
         />
         {/* Only while it's running. A concluded trial's set is history — the
             verdict was computed from it, so editing it would misdescribe what
