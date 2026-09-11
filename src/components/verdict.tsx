@@ -6,7 +6,7 @@ import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 import { useVerdict } from "@/hooks/use-verdict";
 import type { Belief } from "@/lib/schemas/belief";
 import type { Verdict } from "@/lib/schemas/verdict";
-import { verdictHeadline } from "@/lib/verdict";
+import { exposureDropped, exposureSummary, observationalCaveat, verdictHeadline } from "@/lib/verdict";
 
 /**
  * The icon per category — direction only, and nothing at all when there is no
@@ -60,9 +60,10 @@ export function VerdictView({
   }
 
   const v = query.data.verdict;
-  const title = verdictHeadline(v.category, v.outcome ?? null);
+  const title = verdictHeadline(v.category, v.outcome ?? null, v.exposure ?? null);
   const Icon = ICON[v.category];
   const hasStats = v.category !== "inconclusive_insufficient";
+  const dropped = v.exposure ? exposureDropped(v.exposure) : null;
 
   return (
     <section className="grid max-w-full min-w-0 gap-[18px] rounded-lg border border-rule bg-card p-[clamp(20px,2.4vw,28px)]">
@@ -73,10 +74,27 @@ export function VerdictView({
           {Icon && <Icon aria-hidden className="size-[0.8em]" strokeWidth={2.5} />}
         </h2>
       </div>
+      {v.exposure && (
+        <div className="grid gap-1">
+          <p className="m-0 text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
+            {exposureSummary(v.exposure)}
+          </p>
+          {dropped && (
+            <p className="m-0 text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
+              {dropped}
+            </p>
+          )}
+        </div>
+      )}
       <p className="m-0 text-sm leading-relaxed text-ink [overflow-wrap:anywhere]">
         {v.narrative}
       </p>
       {hasStats && <BeliefMeter belief={beliefFrom(v)} />}
+      {v.exposure?.observational && (
+        <p className="m-0 text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
+          {observationalCaveat(v.exposure)}
+        </p>
+      )}
       {statement && (
         <VerdictActions hunchId={hunchId} statement={statement} archived={archived} />
       )}
