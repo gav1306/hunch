@@ -78,7 +78,7 @@ export function exposureDropped(e: ExposureReport): string | null {
  */
 export function observationalCaveat(e: ExposureReport): string {
   return (
-    `These are the days you logged ${midSentence(e.label)} compared with the days ` +
+    `These are the days you answered yes to "${e.label}", compared with the days ` +
     `you didn't — you chose which were which, so this shows what went together, ` +
     `not what caused what.`
   );

@@ -198,9 +198,11 @@ describe("observationalCaveat", () => {
       unknown: 3,
       observational: true,
     };
-    const caveat = observationalCaveat(e);
-    expect(caveat).toContain("played basketball");
-    expect(caveat).toContain("what went together, not what caused what");
+    expect(observationalCaveat(e)).toBe(
+      'These are the days you answered yes to "Played basketball", compared with the days ' +
+        "you didn't — you chose which were which, so this shows what went together, " +
+        "not what caused what.",
+    );
   });
 });
 
