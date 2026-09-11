@@ -92,6 +92,51 @@ describe("POST /api/hunch/[id]/repeat", () => {
     expect(data.parameters.create.filter((p) => p.isPrimary)).toHaveLength(1);
   });
 
+  it("carries the trial's shape across: schedulable, the daily yes/no, subject and direction", async () => {
+    // An observational trial: its design says "observational", its hypothesis
+    // says the change can't be scheduled, and its arms come from the yes/no.
+    // Dropping any of those leaves a clone whose verdict can never be reached.
+    vi.mocked(db.hunch.findFirst).mockResolvedValue({
+      ...source,
+      hypothesis: {
+        ...source.hypothesis,
+        schedulable: false,
+        subject: "other",
+        expectedDirection: "down",
+      },
+      protocol: {
+        ...source.protocol,
+        design: { ...source.protocol.design, shape: "observational" },
+      },
+      parameters: [
+        { ...source.parameters[0], isExposure: false },
+        { ...source.parameters[1], isExposure: true },
+      ],
+    } as never);
+
+    expect((await POST(req(), params)).status).toBe(201);
+    const arg = vi.mocked(db.hunch.create).mock.calls[0][0] as {
+      data: Record<string, unknown>;
+    };
+    const data = arg.data as {
+      hypothesis: {
+        create: { schedulable: boolean; subject: string; expectedDirection: string | null };
+      };
+      protocol: { create: { design: { shape: string } } };
+      parameters: { create: { label: string; isExposure: boolean }[] };
+    };
+    expect(data.hypothesis.create.schedulable).toBe(false);
+    expect(data.hypothesis.create.subject).toBe("other");
+    expect(data.hypothesis.create.expectedDirection).toBe("down");
+    expect(data.protocol.create.design.shape).toBe("observational");
+    expect(
+      data.parameters.create.map((p) => [p.label, p.isExposure]),
+    ).toEqual([
+      ["sleep quality", false],
+      ["caffeine", true],
+    ]);
+  });
+
   it("reads nothing it must not copy", async () => {
     await POST(req(), params);
     const arg = vi.mocked(db.hunch.create).mock.calls[0][0] as { data: object };
