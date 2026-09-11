@@ -12,7 +12,7 @@ The engine sorts a day's reading into an arm by `CheckIn.phase` (`src/lib/parame
 
 For most trials that is fine. "No coffee after 2pm" is something a person can do on every day of phase B, so the phase label and the exposure are the same fact.
 
-For some trials it is a fiction. Take the hunch the previous spec found this with: *playing basketball makes my knee hurt*. Knee pain is loggable daily, so both arms fill up with readings and nothing looks wrong. But the user plays once a week. Six of the seven phase-B days had no basketball on them, and their knee pain sits in the B arm diluting the contrast towards nothing. The trial produces a clean, well-populated, wrong answer — the worst kind, because "not enough days" at least tells the truth.
+For some trials it is a fiction. Take the hunch the previous spec found this with: _playing basketball makes my knee hurt_. Knee pain is loggable daily, so both arms fill up with readings and nothing looks wrong. But the user plays once a week. Six of the seven phase-B days had no basketball on them, and their knee pain sits in the B arm diluting the contrast towards nothing. The trial produces a clean, well-populated, wrong answer — the worst kind, because "not enough days" at least tells the truth.
 
 Scheduling harder does not fix it. The app cannot put basketball on a Tuesday; a pickup game needs other people, a court, and a body that feels like playing. The intervention is not on demand, and a protocol that pretends otherwise is asking the user to fake it.
 
@@ -22,10 +22,10 @@ Scheduling harder does not fix it. The app cannot put basketball on a Tuesday; a
 
 One bit, knowable before the trial starts, and it decides which of two honest designs a hunch gets:
 
-| Answer | Design | Arms come from |
-|---|---|---|
-| Yes — "skip coffee after 2pm", "10k steps", "magnesium at bedtime" | ABA phases, as today | The schedule |
-| No — "play basketball", "go to the sauna", "have a big night out" | One observation window | Whether it happened that day |
+| Answer                                                             | Design                 | Arms come from               |
+| ------------------------------------------------------------------ | ---------------------- | ---------------------------- |
+| Yes — "skip coffee after 2pm", "10k steps", "magnesium at bedtime" | ABA phases, as today   | The schedule                 |
+| No — "play basketball", "go to the sauna", "have a big night out"  | One observation window | Whether it happened that day |
 
 This spec builds the second shape and leaves the first exactly as it is.
 
@@ -33,7 +33,7 @@ This spec builds the second shape and leaves the first exactly as it is.
 
 Three alternatives were weighed:
 
-- **Drop the diluted B days.** Keep ABA; throw away phase-B days where the intervention did not happen. Plays once a week, so a 7-day phase B yields one reading, and every sporadic trial dies as "not enough days". It also discards real signal — the baseline days they *did* play carry exactly the contrast being looked for.
+- **Drop the diluted B days.** Keep ABA; throw away phase-B days where the intervention did not happen. Plays once a week, so a 7-day phase B yields one reading, and every sporadic trial dies as "not enough days". It also discards real signal — the baseline days they _did_ play carry exactly the contrast being looked for.
 - **Re-sort every day but keep showing the schedule.** Same arithmetic as what is proposed here, but the phases, washouts and adherence strip stay on screen while the verdict quietly ignores them. Two stories in one interface, and the one the user is looking at is the wrong one.
 - **Report the dilution and analyse nothing differently.** Honest and cheap, but leaves a diluted number standing as the result.
 
@@ -66,7 +66,7 @@ with a refine: `schedulable: false` and no `exposure` is not a valid sharpening.
 
 The Coach composes the statement, so it already holds the intervention verb and is the cheapest place to ask the question. It is also the place most likely to be wrong about someone's life — a person with a home sauna can use it daily and a person with a gym membership cannot — so the answer is never final. The confirm gate renders it as one editable line:
 
-> **We'll watch the days you play, rather than ask you to play on a schedule.** — *change*
+> **We'll watch the days you play, rather than ask you to play on a schedule.** — _change_
 
 Flipping it to schedulable drops the exposure parameter and restores the ABA design; flipping the other way asks for the exposure label. No new step in the flow: the gate already exists and already lists editable parameters.
 
@@ -78,14 +78,14 @@ Persisted as `Hypothesis.schedulable Boolean @default(true)`. Existing rows are 
 
 `Parameter.isExposure Boolean @default(false)`, mirroring `isPrimary`.
 
-| Rule | Why |
-|---|---|
-| At most one per hunch, either shape | It is the arm assignment where the shape is observational. Two of them is not a design this engine has. |
-| Required on an observational hunch | Without it there are no arms at all. |
-| Optional on a phased one, where it is reporting-only | "Did you actually skip the coffee?" never moves a day between arms on a scheduled trial — the schedule assigns those — but it is how a user learns their phase B was adhered to on nine days out of fourteen. §6. |
-| Always `binary` | "Did it happen today?" A dose or a duration is a different experiment, and a `scale` exposure has no arm boundary. |
-| Never also the primary | The primary is what gets compared; the exposure is what it is compared across. One row cannot be both sides of the contrast. |
-| Cannot be retired on an observational hunch | `src/app/api/hunch/[id]/parameters/[parameterId]/route.ts` already refuses to retire the primary, with "This is the measure your result is built on — it has to keep running." An arm-assigning exposure gets the same 409: *This is how we tell your days apart — it has to keep running.* On a phased hunch it retires like any other tracker, because losing it costs a count, not the result. |
+| Rule                                                 | Why                                                                                                                                                                                                                                                                                                                                                                                               |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| At most one per hunch, either shape                  | It is the arm assignment where the shape is observational. Two of them is not a design this engine has.                                                                                                                                                                                                                                                                                           |
+| Required on an observational hunch                   | Without it there are no arms at all.                                                                                                                                                                                                                                                                                                                                                              |
+| Optional on a phased one, where it is reporting-only | "Did you actually skip the coffee?" never moves a day between arms on a scheduled trial — the schedule assigns those — but it is how a user learns their phase B was adhered to on nine days out of fourteen. §6.                                                                                                                                                                                 |
+| Always `binary`                                      | "Did it happen today?" A dose or a duration is a different experiment, and a `scale` exposure has no arm boundary.                                                                                                                                                                                                                                                                                |
+| Never also the primary                               | The primary is what gets compared; the exposure is what it is compared across. One row cannot be both sides of the contrast.                                                                                                                                                                                                                                                                      |
+| Cannot be retired on an observational hunch          | `src/app/api/hunch/[id]/parameters/[parameterId]/route.ts` already refuses to retire the primary, with "This is the measure your result is built on — it has to keep running." An arm-assigning exposure gets the same 409: _This is how we tell your days apart — it has to keep running._ On a phased hunch it retires like any other tracker, because losing it costs a count, not the result. |
 
 It is created at confirm time from the Coach's `exposure`, like any other parameter, and it appears in the daily check-in as a normal binary control. The user sees a yes/no question; nothing in the interface calls it "the exposure".
 
@@ -118,7 +118,7 @@ observationalDesign(outcomeMetric, exposureLabel): ProtocolDesign
 
 - One phase entry, `label: "A"`, `kind: "baseline"`, `days: OBSERVATION_DAYS` (21). Twenty-one is chosen against `MIN_PER_ARM = 3` (`src/lib/verdict.ts:6`): a once-a-week exposure clears the floor with a day to spare, and a twice-a-week one clears it comfortably. Shorter windows make the insufficiency verdict the common case.
 - `washoutDays: 0`. There is nothing to wash out of — the user is living normally throughout.
-- `action` names both logs: *Live as you normally would. Each day, log whether you played basketball, and log your knee pain.*
+- `action` names both logs: _Live as you normally would. Each day, log whether you played basketball, and log your knee pain._
 - `shape: "observational"`.
 
 The Protocol Designer still runs and still supplies confounders, controls, instructions and the safety review; only the phase structure is taken out of its hands. Its prompt (`src/mastra/agents/protocol-designer.ts:29`, "phases: exactly three") gains the observational branch.
@@ -135,12 +135,12 @@ exposure: { exposed: number; unexposed: number; unknown: number } | null
 
 `null` when the hunch has no exposure parameter.
 
-- **On the verdict page**, stated plainly under the headline: *You played on 6 of 21 days.* And when days were dropped: *3 days had no answer either way, so they aren't in the comparison.*
+- **On the verdict page**, stated plainly under the headline: _You played on 6 of 21 days._ And when days were dropped: _3 days had no answer either way, so they aren't in the comparison._
 - **While running**, the same count on the dashboard, so a user whose exposure arm is starving finds out on day 9 rather than at the end.
-- **When an arm is thin**, `classifyVerdict` already returns `inconclusive_insufficient` below three per arm. The badge stays "Not enough days"; the headline names the actual cause — *Too few days with basketball to tell* — because "not enough days" is false when the user logged all twenty-one of them.
+- **When an arm is thin**, `classifyVerdict` already returns `inconclusive_insufficient` below three per arm. The badge stays "Not enough days"; the headline names the actual cause — _Too few days with basketball to tell_ — because "not enough days" is false when the user logged all twenty-one of them.
 - **Phased trials get the same counts** whenever they carry an exposure (§3). It changes nothing about their arms — the schedule assigns those — and it is how a user learns their scheduled trial was adhered to on nine of fourteen intervention days. There the count is over the phase-B days only; on an observational trial it is over the whole window.
 
-The observational verdict copy also carries the correlational caveat once, in the user's own words rather than a disclaimer: *These are the days you played compared with the days you didn't — you chose which were which, so this shows what went together, not what caused what.*
+The observational verdict copy also carries the correlational caveat once, in the user's own words rather than a disclaimer: _These are the days you played compared with the days you didn't — you chose which were which, so this shows what went together, not what caused what._
 
 ## 7. What the user sees
 
