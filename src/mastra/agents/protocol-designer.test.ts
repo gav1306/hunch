@@ -16,6 +16,7 @@ import {
   protocolDesigner,
 } from "./protocol-designer";
 import {
+  OBSERVATION_DAYS,
   observationalDesign,
   protocolDesignSchema,
   type PowerInfo,
@@ -117,7 +118,7 @@ describe("designProtocolShape", () => {
     generate.mockReset();
   });
 
-  const lastPrompt = () => generate.mock.calls[0][0] as string;
+  const lastPrompt = () => generate.mock.calls[generate.mock.calls.length - 1][0] as string;
 
   describe("observational", () => {
     const observational = {
@@ -163,7 +164,23 @@ describe("designProtocolShape", () => {
     });
 
     it("falls back to the deterministic prose when the model returns no instructions", async () => {
-      generate.mockResolvedValue({ object: { phases: [], controls: [] } });
+      // The one-phase window the prompt asks for — `phases: []` could never
+      // get past the schema Mastra validates against.
+      generate.mockResolvedValue({
+        object: {
+          phases: [
+            {
+              label: "A",
+              kind: "baseline",
+              days: OBSERVATION_DAYS,
+              name: "Just live normally",
+              action: "Live normally and log both questions.",
+            },
+          ],
+          washoutDays: 0,
+          controls: [],
+        },
+      });
 
       const design = await designProtocolShape(observational);
 
@@ -181,13 +198,19 @@ describe("designProtocolShape", () => {
       expect(design.phases[0].days).toBe(21);
     });
 
-    it("tells the model not to invent phases, and drops the ABA rules", async () => {
+    it("asks for the one phase its schema requires, and drops the ABA rules", async () => {
       generate.mockResolvedValue({ object: {} });
 
       await designProtocolShape(observational);
 
       const prompt = lastPrompt();
-      expect(prompt).toContain("Do NOT invent phases");
+      // The schema passed to the model needs at least one phase; a prompt that
+      // asked for none would have an obedient model fail validation.
+      expect(prompt).toContain(
+        `exactly ONE phase covering the whole window: label "A", kind "baseline", days ${OBSERVATION_DAYS}`,
+      );
+      expect(prompt).not.toContain("Do NOT invent phases");
+      expect(prompt).not.toContain("discarded");
       expect(prompt).toContain('"played basketball"');
       expect(prompt).not.toContain("Minimum days per phase");
     });
@@ -249,7 +272,7 @@ describe("designProtocolShape", () => {
       await designProtocolShape(input);
 
       expect(lastPrompt()).toContain("Minimum days per phase (use this exact number for each phase): 7");
-      expect(lastPrompt()).not.toContain("Do NOT invent phases");
+      expect(lastPrompt()).not.toContain("exactly ONE phase");
     });
   });
 });

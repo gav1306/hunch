@@ -1,6 +1,7 @@
 import { Agent } from "@mastra/core/agent";
 import { claudeModel } from "@/mastra/model";
 import {
+  OBSERVATION_DAYS,
   observationalDesign,
   protocolDesignSchema,
   type Confounder,
@@ -145,12 +146,13 @@ The daily yes/no they will answer: "${exposureLabel}"
 Confounder controls to include verbatim: ${controlLine}
 
 This person CANNOT schedule the change — it depends on an opportunity that does
-not arrive on request. There are no phases to design and no washout: they live
-normally for the whole window and log, each day, whether "${exposureLabel}"
-happened. Do NOT invent phases, do NOT propose an ABA structure, and do NOT ask
-them to do the thing on particular days. Return "controls" (the confounder
-controls you are given, verbatim) and "instructions" for living normally and
-logging both questions daily. Anything you return under "phases" is discarded.
+not arrive on request. They live normally for the whole window and log, each
+day, whether "${exposureLabel}" happened. Do NOT propose an ABA structure, do
+NOT add a washout, and do NOT ask them to do the thing on particular days.
+
+"phases" must hold exactly ONE phase covering the whole window: label "A", kind "baseline", days ${OBSERVATION_DAYS}, a short name, and an action for living normally and logging both questions. Set "washoutDays" to 0.
+Return "controls" (the confounder controls you are given, verbatim) and
+"instructions" for living normally and logging both questions daily.
 
 Return ALL fields, especially "instructions" — it is required and must be non-empty.`
     : `Design an ABA n-of-1 protocol for this hypothesis.
