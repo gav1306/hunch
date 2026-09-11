@@ -83,7 +83,7 @@ export function HunchDashboard({
                 says "not enough days" at the end is too late to act on. A
                 phased trial that also carries an exposure gets the same
                 line, computed over its phase-B days. */}
-            {query.data.exposure && (
+            {schedule?.started && query.data.exposure && (
               <p className="m-0 text-sm text-muted-foreground">
                 {exposureSummary(query.data.exposure)}
               </p>
