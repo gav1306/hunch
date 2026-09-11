@@ -118,11 +118,15 @@ export function pickExposure<T extends { isExposure: boolean }>(rows: T[]): T | 
  * moment they did.
  *
  * Secondary trackers are dropped here — they never reach the statistics.
+ *
+ * `opts` is required on purpose: a defaulted shape let a caller forget it and
+ * silently sort an observational trial by the calendar, which puts every day
+ * in one arm and makes the verdict unreachable.
  */
 export function armRows(
   checkIns: CheckInWithValues[],
   primaryId: string | null | undefined,
-  opts: { shape: ProtocolShape; exposureId?: string | null } = { shape: "phased" },
+  opts: { shape: ProtocolShape; exposureId?: string | null },
 ): CheckInRow[] {
   if (!primaryId) return [];
   if (opts.shape === "observational" && !opts.exposureId) return [];
