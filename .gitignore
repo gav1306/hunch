@@ -45,3 +45,6 @@ coverage/
 *.pem
 .vercel
 next-env.d.ts
+
+# benchmark output (scripts/bench-hunch-flow.ts)
+scripts/.bench-results/
