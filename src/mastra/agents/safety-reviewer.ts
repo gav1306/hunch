@@ -1,5 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { claudeModel } from "@/mastra/model";
+import { llmUsage, timed } from "@/lib/timing";
 import {
   safetyVerdictSchema,
   type ProtocolDesign,
@@ -46,10 +47,15 @@ Hypothesis: ${input.statement}
 Intervention & instructions: ${input.design.instructions}
 Controls: ${input.design.controls.join(" | ") || "none"}`;
 
-  const response = await safetyReviewer.generate(prompt, {
-    structuredOutput: { schema: safetyVerdictSchema },
-    modelSettings: { maxOutputTokens: 512 },
-  });
+  const response = await timed(
+    "safety",
+    () =>
+      safetyReviewer.generate(prompt, {
+        structuredOutput: { schema: safetyVerdictSchema },
+        modelSettings: { maxOutputTokens: 512 },
+      }),
+    llmUsage,
+  );
 
   return safetyVerdictSchema.parse(response.object);
 }

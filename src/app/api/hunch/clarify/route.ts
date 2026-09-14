@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+import { withTiming } from "@/lib/timing";
 import { getSession } from "@/lib/session";
 import { recallPriors } from "@/lib/memory/recall";
 import { hunchInputSchema } from "@/lib/schemas/hypothesis";
@@ -11,7 +12,7 @@ import { MEDICATION_REFUSAL, medicationIntent } from "@/lib/safety/medication";
  * Creates nothing — the Hunch row is written later by POST /api/hunch once the
  * user has answered and the coach commits a hypothesis.
  */
-export async function POST(request: Request) {
+async function clarify(request: Request) {
   const session = await getSession(await headers());
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -44,3 +45,5 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export const POST = withTiming(clarify);

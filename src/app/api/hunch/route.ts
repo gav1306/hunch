@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+import { withTiming } from "@/lib/timing";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { recallPriors } from "@/lib/memory/recall";
@@ -13,7 +14,7 @@ import { diaryFallback } from "@/lib/safety/diary-fallback";
  * Core loop, step one: drop a hunch -> Hypothesis Coach sharpens it -> persist
  * the Hunch and its Hypothesis, then return the pair for the Hunch Card.
  */
-export async function POST(request: Request) {
+async function createHunch(request: Request) {
   const session = await getSession(await headers());
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -105,3 +106,5 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export const POST = withTiming(createHunch);

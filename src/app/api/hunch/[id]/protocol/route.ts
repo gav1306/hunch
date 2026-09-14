@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+import { timed, withTiming } from "@/lib/timing";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { engineOutcomeType, pickExposure, toParameterDto } from "@/lib/parameters";
@@ -25,7 +26,7 @@ import { designProtocol, resolveSafetyState } from "@/mastra/workflows/design";
  * with a designed plan until POST /api/hunch/[id]/start, which is now the only
  * writer of `startedAt`.
  */
-export async function POST(
+async function designHunch(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -35,10 +36,12 @@ export async function POST(
   }
 
   const { id } = await params;
-  const hunch = await db.hunch.findFirst({
-    where: { id, userId: session.user.id },
-    include: { hypothesis: true, protocol: true, _count: { select: { checkIns: true } } },
-  });
+  const hunch = await timed("db-load", () =>
+    db.hunch.findFirst({
+      where: { id, userId: session.user.id },
+      include: { hypothesis: true, protocol: true, _count: { select: { checkIns: true } } },
+    }),
+  );
   if (!hunch) {
     return NextResponse.json({ error: "Hunch not found." }, { status: 404 });
   }
@@ -175,3 +178,5 @@ export async function POST(
     { status: 201 },
   );
 }
+
+export const POST = withTiming(designHunch);

@@ -1,5 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { claudeModel } from "@/mastra/model";
+import { llmUsage, timed } from "@/lib/timing";
 import {
   OBSERVATION_DAYS,
   observationalDesign,
@@ -166,10 +167,15 @@ Confounder controls to include verbatim: ${controlLine}
 Name each phase in the user's own words (e.g. "Normal coffee" vs "No coffee after 2pm") and give a concrete action for each.
 Return ALL fields, especially "instructions" — it is required and must be non-empty.`;
 
-  const response = await protocolDesigner.generate(prompt, {
-    structuredOutput: { schema: protocolDesignSchema },
-    modelSettings: { maxOutputTokens: 2048 },
-  });
+  const response = await timed(
+    "designer",
+    () =>
+      protocolDesigner.generate(prompt, {
+        structuredOutput: { schema: protocolDesignSchema },
+        modelSettings: { maxOutputTokens: 2048 },
+      }),
+    llmUsage,
+  );
 
   const raw = (response.object ?? {}) as Partial<ProtocolDesign>;
 
