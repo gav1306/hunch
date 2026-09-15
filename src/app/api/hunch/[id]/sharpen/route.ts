@@ -62,7 +62,11 @@ export async function POST(
   }
 
   try {
-    const priors = await recallPriors(session.user.id, parsed.data.rawText);
+    const priors = await recallPriors(
+      session.user.id,
+      parsed.data.rawText,
+      parsed.data.priorIds,
+    );
     const sharpened = await sharpenHunch(
       parsed.data.rawText,
       priors,

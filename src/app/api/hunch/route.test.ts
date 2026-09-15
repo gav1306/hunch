@@ -12,6 +12,7 @@ import { POST } from "./route";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sharpenHunch } from "@/mastra/agents/hypothesis-coach";
+import { recallPriors } from "@/lib/memory/recall";
 
 const req = (body: unknown) =>
   new Request("http://t/api/hunch", { method: "POST", body: JSON.stringify(body) });
@@ -86,6 +87,23 @@ describe("POST /api/hunch", () => {
     });
     expect(created[1]).toMatchObject({ label: "stress", isPrimary: false, sortOrder: 1 });
     expect(arg.include.parameters).toBeTruthy();
+  });
+
+  it("reuses the priors clarify already recalled for this text", async () => {
+    vi.mocked(sharpenHunch).mockResolvedValue({
+      statement: "Coffee after lunch makes me sleep worse.",
+      outcomeMetric: "hours of sleep from a tracker",
+      outcomeType: "continuous",
+      subject: "self",
+      confounders: [],
+      trackers: [],
+      schedulable: true,
+    });
+    vi.mocked(db.hunch.create).mockResolvedValue({ id: "h1", parameters: [] } as never);
+
+    await POST(req({ rawText: "coffee wrecks sleep", answers: [], priorIds: ["h_caf"] }));
+
+    expect(recallPriors).toHaveBeenCalledWith("u1", "coffee wrecks sleep", ["h_caf"]);
   });
 
   it("502s when the coach throws", async () => {

@@ -4,7 +4,13 @@ import { useMutation } from "@tanstack/react-query";
 import type { ClarifyingQuestion } from "@/lib/schemas/clarify";
 import { BlockedHunchError } from "@/hooks/use-create-hunch";
 
-async function postClarify(rawText: string): Promise<ClarifyingQuestion[]> {
+export type ClarifyResult = {
+  questions: ClarifyingQuestion[];
+  /** Prior ids recall picked for this text; hand them to sharpen to skip a repeat. */
+  priorIds?: string[];
+};
+
+async function postClarify(rawText: string): Promise<ClarifyResult> {
   const res = await fetch("/api/hunch/clarify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -20,7 +26,10 @@ async function postClarify(rawText: string): Promise<ClarifyingQuestion[]> {
   if (!res.ok || !Array.isArray(body?.questions)) {
     throw new Error(body?.error ?? "Couldn't think of questions right now.");
   }
-  return body.questions as ClarifyingQuestion[];
+  return {
+    questions: body.questions as ClarifyingQuestion[],
+    priorIds: Array.isArray(body.priorIds) ? (body.priorIds as string[]) : undefined,
+  };
 }
 
 /** Ask the coach's clarifying questions for a raw hunch. */

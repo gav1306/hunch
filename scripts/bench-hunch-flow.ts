@@ -286,7 +286,11 @@ async function chain(run: number, shape: Shape, user: UserType) {
   const fires = await recallWouldFire(text);
 
   checkStop();
-  const w1 = await call<{ questions?: Question[] }>("POST", "/api/hunch/clarify", { rawText: text });
+  const w1 = await call<{ questions?: Question[]; priorIds?: string[] }>(
+    "POST",
+    "/api/hunch/clarify",
+    { rawText: text },
+  );
   record(run, "W1", scenario, w1, fires);
   if (w1.status !== 200 || !w1.body.questions) return;
 
@@ -294,7 +298,12 @@ async function chain(run: number, shape: Shape, user: UserType) {
   const answers = w1.body.questions.map((q) => ({ id: q.id, prompt: q.prompt, answer: q.options[0] }));
 
   checkStop();
-  const w2 = await call<HunchBody>("POST", "/api/hunch", { rawText: text, answers });
+  // Forward clarify's recall the way the form does, so W2 times what users get.
+  const w2 = await call<HunchBody>("POST", "/api/hunch", {
+    rawText: text,
+    answers,
+    priorIds: w1.body.priorIds,
+  });
   const hunch = w2.status === 201 ? w2.body.hunch : null;
   if (hunch) created.hunchIds.add(hunch.id);
   record(

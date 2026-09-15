@@ -38,7 +38,11 @@ async function createHunch(request: Request) {
   }
 
   try {
-    const priors = await recallPriors(session.user.id, parsed.data.rawText);
+    const priors = await recallPriors(
+      session.user.id,
+      parsed.data.rawText,
+      parsed.data.priorIds,
+    );
     let sharpened;
     try {
       sharpened = await sharpenHunch(

@@ -40,5 +40,10 @@ export const sharpenRequestSchema = z.object({
    * cannot schedule a medication change: its single phase says change nothing.
    */
   observeOnly: z.boolean().default(false),
+  /**
+   * The prior ids clarify's recall already picked for this same text. Left
+   * unset (not defaulted to []) when clarify didn't run, so recall still does.
+   */
+  priorIds: z.array(z.string()).max(20).optional(),
 });
 export type SharpenRequest = z.infer<typeof sharpenRequestSchema>;

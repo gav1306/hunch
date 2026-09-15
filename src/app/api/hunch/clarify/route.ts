@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { withTiming } from "@/lib/timing";
 import { getSession } from "@/lib/session";
-import { recallPriors } from "@/lib/memory/recall";
+import { recallPriorsForReuse } from "@/lib/memory/recall";
 import { hunchInputSchema } from "@/lib/schemas/hypothesis";
 import { askClarifying } from "@/mastra/agents/clarifier";
 import { MEDICATION_REFUSAL, medicationIntent } from "@/lib/safety/medication";
@@ -34,9 +34,14 @@ async function clarify(request: Request) {
   }
 
   try {
-    const priors = await recallPriors(session.user.id, parsed.data.rawText);
+    // priorIds go back so sharpen can reuse this recall rather than repeat it;
+    // absent when recall failed, so sharpen tries again.
+    const { priors, priorIds } = await recallPriorsForReuse(
+      session.user.id,
+      parsed.data.rawText,
+    );
     const { questions } = await askClarifying(parsed.data.rawText, priors);
-    return NextResponse.json({ questions }, { status: 200 });
+    return NextResponse.json({ questions, priorIds }, { status: 200 });
   } catch (err) {
     console.error("[clarify] failed:", err);
     return NextResponse.json(
