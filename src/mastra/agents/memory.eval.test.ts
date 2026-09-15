@@ -47,4 +47,25 @@ describe.skipIf(!hasKey)("Memory recall quality", () => {
     }
     expect(relatedSourceHunchIds).not.toContain("h_caf");
   }, 60_000);
+
+  // The pre-filter only needs one shared word, so these are the cases the model
+  // is actually there for. Added before moving recall to a smaller model.
+  test("recalls a finding that shares the idea but none of the phrasing", async () => {
+    const { relatedSourceHunchIds } = await recallRelevantPriors(
+      "my evening espresso keeps me awake",
+      [caffeine, desk],
+    );
+    expect(relatedSourceHunchIds).toContain("h_caf");
+    expect(relatedSourceHunchIds).not.toContain("h_desk");
+  }, 60_000);
+
+  test("skips findings that only share a word with the hunch", async () => {
+    // "afternoon" appears in both candidates; neither the change (sunlight)
+    // nor the outcome (mood) is the same.
+    const { relatedSourceHunchIds } = await recallRelevantPriors(
+      "does afternoon sunlight improve my mood?",
+      [caffeine, desk],
+    );
+    expect(relatedSourceHunchIds).toEqual([]);
+  }, 60_000);
 });

@@ -1,8 +1,8 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 
 /**
- * Single source of truth for the LLM every Hunch agent runs on: Claude Sonnet 5
- * through OpenRouter.
+ * Single source of truth for the LLMs Hunch agents run on, through OpenRouter:
+ * Claude Sonnet 5 for every agent that writes, Haiku 4.5 for memory recall.
  *
  * OpenRouter speaks the OpenAI wire format, so it needs no provider package of
  * its own — `@ai-sdk/openai-compatible` pointed at their base URL is the whole
@@ -28,5 +28,15 @@ const openrouter = createOpenAICompatible({
   supportsStructuredOutputs: true,
 });
 
-/** Claude Sonnet 5 — the model shared by every agent. */
+/** Claude Sonnet 5 — the default for every agent. */
 export const claudeModel = openrouter(OPENROUTER_MODEL_ID);
+
+export const OPENROUTER_FAST_MODEL_ID =
+  process.env.OPENROUTER_FAST_MODEL_ID ?? "anthropic/claude-haiku-4.5";
+
+/**
+ * Claude Haiku 4.5 — for short picking jobs where Sonnet's floor is most of the
+ * wait. Memory recall returns ~40 tokens yet took ~2.5s on Sonnet, on every
+ * returning user's first request. Moved only after its eval passed on both.
+ */
+export const fastModel = openrouter(OPENROUTER_FAST_MODEL_ID);
