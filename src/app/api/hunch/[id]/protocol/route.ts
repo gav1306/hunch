@@ -107,76 +107,87 @@ async function designHunch(
     );
   }
 
-  const result = await designProtocol({
-    statement: hunch.hypothesis.statement,
-    outcomeMetric: hunch.hypothesis.outcomeMetric,
-    outcomeType: engineOutcomeType(hunch.hypothesis.outcomeType),
-    confounderNames: hunch.hypothesis.confounders,
-    shape: observational ? "observational" : "phased",
-    exposureLabel: exposure?.label,
-  });
+  try {
+    const result = await designProtocol({
+      statement: hunch.hypothesis.statement,
+      outcomeMetric: hunch.hypothesis.outcomeMetric,
+      outcomeType: engineOutcomeType(hunch.hypothesis.outcomeType),
+      confounderNames: hunch.hypothesis.confounders,
+      shape: observational ? "observational" : "phased",
+      exposureLabel: exposure?.label,
+    });
 
-  const safetyState = resolveSafetyState(result.safety);
-  // No `startedAt` here, deliberately: the user starts the trial, not the
-  // designer. See the note on this route.
-  const protocolData = {
-    design: result.design,
-    powerInfo: result.powerInfo,
-    confounders: result.confounders,
-    safetyState,
-  };
+    const safetyState = resolveSafetyState(result.safety);
+    // No `startedAt` here, deliberately: the user starts the trial, not the
+    // designer. See the note on this route.
+    const protocolData = {
+      design: result.design,
+      powerInfo: result.powerInfo,
+      confounders: result.confounders,
+      safetyState,
+    };
 
-  const { protocol, parameters } = await db.$transaction(async (tx) => {
-    // The override and the design it produced are one write. A stored
-    // `schedulable` that disagreed with the protocol beside it would make the
-    // next redesign silently pick the other shape.
-    if (typeof override === "boolean" && override !== storedSchedulable) {
-      await tx.hypothesis.update({
-        where: { hunchId: hunch.id },
-        data: { schedulable: override },
+    const { protocol, parameters } = await db.$transaction(async (tx) => {
+      // The override and the design it produced are one write. A stored
+      // `schedulable` that disagreed with the protocol beside it would make the
+      // next redesign silently pick the other shape.
+      if (typeof override === "boolean" && override !== storedSchedulable) {
+        await tx.hypothesis.update({
+          where: { hunchId: hunch.id },
+          data: { schedulable: override },
+        });
+      }
+      // Replace, not merge: the confirmed list is the whole truth for this hunch.
+      await tx.parameter.deleteMany({ where: { hunchId: hunch.id } });
+      await tx.parameter.createMany({
+        data: confirmedRows.map((p, i) => ({
+          hunchId: hunch.id,
+          label: p.label,
+          type: p.type,
+          unit: p.unit ?? null,
+          min: p.min ?? null,
+          max: p.max ?? null,
+          isPrimary: p.isPrimary,
+          isExposure: p.isExposure,
+          sortOrder: i,
+        })),
       });
-    }
-    // Replace, not merge: the confirmed list is the whole truth for this hunch.
-    await tx.parameter.deleteMany({ where: { hunchId: hunch.id } });
-    await tx.parameter.createMany({
-      data: confirmedRows.map((p, i) => ({
-        hunchId: hunch.id,
-        label: p.label,
-        type: p.type,
-        unit: p.unit ?? null,
-        min: p.min ?? null,
-        max: p.max ?? null,
-        isPrimary: p.isPrimary,
-        isExposure: p.isExposure,
-        sortOrder: i,
-      })),
+
+      const saved = await tx.protocol.upsert({
+        where: { hunchId: hunch.id },
+        create: { hunchId: hunch.id, ...protocolData },
+        update: protocolData,
+      });
+
+      const rows = await tx.parameter.findMany({
+        where: { hunchId: hunch.id },
+        orderBy: { sortOrder: "asc" },
+      });
+      return { protocol: saved, parameters: rows };
     });
 
-    const saved = await tx.protocol.upsert({
-      where: { hunchId: hunch.id },
-      create: { hunchId: hunch.id, ...protocolData },
-      update: protocolData,
-    });
-
-    const rows = await tx.parameter.findMany({
-      where: { hunchId: hunch.id },
-      orderBy: { sortOrder: "asc" },
-    });
-    return { protocol: saved, parameters: rows };
-  });
-
-  return NextResponse.json(
-    {
-      protocol,
-      parameters: parameters.map(toParameterDto),
-      safety: result.safety,
-      hypothesis: {
-        statement: hunch.hypothesis.statement,
-        outcomeMetric: hunch.hypothesis.outcomeMetric,
+    return NextResponse.json(
+      {
+        protocol,
+        parameters: parameters.map(toParameterDto),
+        safety: result.safety,
+        hypothesis: {
+          statement: hunch.hypothesis.statement,
+          outcomeMetric: hunch.hypothesis.outcomeMetric,
+        },
       },
-    },
-    { status: 201 },
-  );
+      { status: 201 },
+    );
+  } catch (err) {
+    // The designer or safety reviewer (LLM) or the write failed. Nothing was
+    // saved — the transaction never ran or rolled back — so a retry is safe.
+    // Answer with JSON so the plan page shows a message, not a JSON parse error.
+    console.error("[protocol] design failed:", err);
+    return NextResponse.json(
+      { error: "Couldn't design your plan right now. Please try again in a moment." },
+      { status: 502 },
+    );
+  }
 }
 
 export const POST = withTiming(designHunch);

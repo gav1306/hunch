@@ -87,6 +87,17 @@ describe("POST /api/hunch/[id]/protocol", () => {
     expect(designProtocol).not.toHaveBeenCalled();
   });
 
+  it("502s with a message, and writes nothing, when the designer's model call fails", async () => {
+    vi.mocked(designProtocol).mockRejectedValue(new Error("402 out of credits"));
+    const res = await POST(req({ parameters: [primary] }), params);
+
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.error).toMatch(/try again/i);
+    expect(tx.parameter.deleteMany).not.toHaveBeenCalled();
+    expect(tx.protocol.upsert).not.toHaveBeenCalled();
+  });
+
   it("400s when the confirmed list is empty", async () => {
     const res = await POST(req({ parameters: [] }), params);
     expect(res.status).toBe(400);
