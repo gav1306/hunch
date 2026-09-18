@@ -3,9 +3,11 @@ import { NextResponse } from "next/server";
 import { timed, withTiming } from "@/lib/timing";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
-import { engineOutcomeType, pickExposure, toParameterDto } from "@/lib/parameters";
+import { pickExposure, toParameterDto } from "@/lib/parameters";
 import { parameterListSchema } from "@/lib/schemas/parameter";
 import { designProtocol, resolveSafetyState } from "@/mastra/workflows/design";
+import { designFingerprint, designInputFor } from "@/lib/design-draft/fingerprint";
+import { takeDraft } from "@/lib/design-draft/take";
 
 /**
  * Phase 3: design a protocol for a sharpened hunch. Takes the parameter set the
@@ -108,14 +110,12 @@ async function designHunch(
   }
 
   try {
-    const result = await designProtocol({
-      statement: hunch.hypothesis.statement,
-      outcomeMetric: hunch.hypothesis.outcomeMetric,
-      outcomeType: engineOutcomeType(hunch.hypothesis.outcomeType),
-      confounderNames: hunch.hypothesis.confounders,
-      shape: observational ? "observational" : "phased",
-      exposureLabel: exposure?.label,
-    });
+    // The same builder `predesign` uses, so a background design of these exact
+    // inputs has this exact fingerprint. No usable draft: design now, as ever.
+    const input = designInputFor(hunch.hypothesis, { schedulable, exposureLabel: exposure?.label });
+    const result =
+      (await timed("draft", () => takeDraft(hunch.id, designFingerprint(input)))) ??
+      (await designProtocol(input));
 
     const safetyState = resolveSafetyState(result.safety);
     // No `startedAt` here, deliberately: the user starts the trial, not the
@@ -152,6 +152,10 @@ async function designHunch(
           sortOrder: i,
         })),
       });
+
+      // A draft is used once. "Try again" or a later redesign starts fresh
+      // rather than replaying a stored safety verdict.
+      await tx.designDraft.deleteMany({ where: { hunchId: hunch.id } });
 
       const saved = await tx.protocol.upsert({
         where: { hunchId: hunch.id },

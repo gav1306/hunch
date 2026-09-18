@@ -6,12 +6,14 @@ vi.mock("@/mastra/workflows/design", () => ({
   designProtocol: vi.fn(),
   resolveSafetyState: vi.fn(() => "approved"),
 }));
+vi.mock("@/lib/design-draft/take", () => ({ takeDraft: vi.fn(async () => null) }));
 vi.mock("@/lib/db", () => {
   const tx = {
     parameter: { deleteMany: vi.fn(), createMany: vi.fn(), findMany: vi.fn(async () => []) },
     protocol: { upsert: vi.fn(async () => ({ id: "pr1", safetyState: "approved" })) },
     hunch: { update: vi.fn() },
     hypothesis: { update: vi.fn() },
+    designDraft: { deleteMany: vi.fn() },
   };
   return {
     db: {
@@ -26,6 +28,8 @@ import { POST } from "./route";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { designProtocol } from "@/mastra/workflows/design";
+import { takeDraft } from "@/lib/design-draft/take";
+import { designFingerprint, designInputFor } from "@/lib/design-draft/fingerprint";
 
 const tx = (db as unknown as { __tx: Record<string, Record<string, ReturnType<typeof vi.fn>>> }).__tx;
 
@@ -76,6 +80,7 @@ describe("POST /api/hunch/[id]/protocol", () => {
     vi.mocked(designProtocol).mockResolvedValue({
       design: {}, powerInfo: {}, confounders: [], safety: { state: "approved", reason: "r", routedToDoctor: false },
     } as never);
+    vi.mocked(takeDraft).mockResolvedValue(null);
   });
 
   it("400s when the confirmed list has no primary", async () => {
@@ -240,5 +245,59 @@ describe("POST /api/hunch/[id]/protocol", () => {
     const res = await POST(req({ parameters: [primary] }), params);
     expect(res.status).toBe(201);
     expect(tx.hypothesis.update).not.toHaveBeenCalled();
+  });
+
+  it("uses a draft designed from the same inputs instead of designing again", async () => {
+    const drafted = {
+      design: { phases: [], washoutDays: 0, controls: [], instructions: "drafted", shape: "phased" },
+      powerInfo: {},
+      confounders: [],
+      safety: { state: "approved", reason: "r", routedToDoctor: false },
+    };
+    vi.mocked(takeDraft).mockResolvedValue(drafted as never);
+
+    const res = await POST(req({ parameters: [primary] }), params);
+
+    expect(res.status).toBe(201);
+    expect(designProtocol).not.toHaveBeenCalled();
+    expect(takeDraft).toHaveBeenCalledWith(
+      "h1",
+      designFingerprint(designInputFor(sharpened.hypothesis, { schedulable: true })),
+    );
+    expect(tx.protocol.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ create: expect.objectContaining({ design: drafted.design }) }),
+    );
+  });
+
+  it("looks for the draft of the shape and label the user confirmed", async () => {
+    await POST(req({ parameters: [primary, exposure], schedulable: false }), params);
+
+    expect(takeDraft).toHaveBeenCalledWith(
+      "h1",
+      designFingerprint(
+        designInputFor(sharpened.hypothesis, { schedulable: false, exposureLabel: "played basketball" }),
+      ),
+    );
+  });
+
+  it("designs inline when there is no usable draft", async () => {
+    const res = await POST(req({ parameters: [primary] }), params);
+
+    expect(res.status).toBe(201);
+    expect(designProtocol).toHaveBeenCalledWith(expect.objectContaining({ shape: "phased" }));
+  });
+
+  it("consumes the draft in the same transaction that saves the protocol", async () => {
+    await POST(req({ parameters: [primary] }), params);
+
+    expect(tx.designDraft.deleteMany).toHaveBeenCalledWith({ where: { hunchId: "h1" } });
+  });
+
+  it("doesn't look for a draft once days are logged", async () => {
+    vi.mocked(db.hunch.findFirst).mockResolvedValue({ ...sharpened, _count: { checkIns: 2 } } as never);
+
+    await POST(req({ parameters: [primary] }), params);
+
+    expect(takeDraft).not.toHaveBeenCalled();
   });
 });
