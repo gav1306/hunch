@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -21,35 +20,36 @@ model Hunch {
   /// attention on home. Null means live.
   archivedAt DateTime?
 
-  hypothesis Hypothesis?
-  protocol   Protocol?
-  parameters Parameter[]
-  checkIns   CheckIn[]
-  verdict    Verdict?
+  hypothesis  Hypothesis?
+  protocol    Protocol?
+  parameters  Parameter[]
+  checkIns    CheckIn[]
+  verdict     Verdict?
+  designDraft DesignDraft?
 
   @@index([userId])
 }
 
 model Hypothesis {
-  id            String   @id @default(cuid())
-  hunchId       String   @unique
-  statement     String // falsifiable hypothesis
-  outcomeMetric String // measurable outcome
-  outcomeType   String // "binary" | "continuous"
+  id                String   @id @default(cuid())
+  hunchId           String   @unique
+  statement         String // falsifiable hypothesis
+  outcomeMetric     String // measurable outcome
+  outcomeType       String // "binary" | "continuous"
   /// "up" | "down" — which way the user expects the outcome to move. The
   /// verdict badge compares it against the measured sign. Null on hypotheses
   /// sharpened before the Coach wrote it.
   expectedDirection String?
   /// "self" | "other" — whose life this is about. Only consequence: a non-self
   /// result never becomes a CausalEdge prior about the user.
-  subject       String   @default("self")
-  confounders   String[] // named confounders
-  createdAt     DateTime @default(now())
+  subject           String   @default("self")
+  confounders       String[] // named confounders
+  createdAt         DateTime @default(now())
   /// Can the user apply this change on any day they choose? False means the
   /// trial is one observation window and its arms come from the exposure
   /// parameter, not the schedule. Every hypothesis written before this field
   /// was built as a scheduled trial, which is what the default says.
-  schedulable   Boolean  @default(true)
+  schedulable       Boolean  @default(true)
 
   hunch Hunch @relation(fields: [hunchId], references: [id], onDelete: Cascade)
 }
@@ -63,6 +63,19 @@ model Protocol {
   safetyState String    @default("pending") // pending | approved | refused | observe-only
   startedAt   DateTime? // set when approved + hunch flips to running; anchors the check-in schedule
   createdAt   DateTime  @default(now())
+
+  hunch Hunch @relation(fields: [hunchId], references: [id], onDelete: Cascade)
+}
+
+/// A plan designed in the background after sharpening, before the user
+/// confirms. Invisible until then: only the protocol route's `takeDraft`
+/// reads it, and it is deleted when a Protocol is written.
+model DesignDraft {
+  hunchId     String   @id
+  fingerprint String // designFingerprint of the inputs it was designed from
+  status      String // designing | ready | failed
+  result      Json? // DesignResult: confounders, design, powerInfo, raw safety verdict
+  updatedAt   DateTime @updatedAt
 
   hunch Hunch @relation(fields: [hunchId], references: [id], onDelete: Cascade)
 }
@@ -84,24 +97,24 @@ model CheckIn {
 /// One thing the user logs daily. Exactly one row per hunch is `isPrimary` —
 /// that one drives the Bayesian verdict; the rest are context trackers.
 model Parameter {
-  id        String  @id @default(cuid())
-  hunchId   String
-  label     String // human label, e.g. "hours of sleep"
-  type      String // "binary" | "scale" | "count" | "amount"
-  unit      String? // optional display unit, e.g. "hrs", "1-10"
-  min       Float? // optional bound (continuous scales)
-  max       Float?
-  isPrimary Boolean @default(false)
-  sortOrder Int     @default(0)
+  id         String    @id @default(cuid())
+  hunchId    String
+  label      String // human label, e.g. "hours of sleep"
+  type       String // "binary" | "scale" | "count" | "amount"
+  unit       String? // optional display unit, e.g. "hrs", "1-10"
+  min        Float? // optional bound (continuous scales)
+  max        Float?
+  isPrimary  Boolean   @default(false)
+  sortOrder  Int       @default(0)
   /// When the user stopped logging this tracker. Never a delete: readings
   /// cascade off this row, so removing it would take the trial's history with
   /// it. Null means live.
-  retiredAt DateTime?
+  retiredAt  DateTime?
   /// The daily yes/no that says whether the change happened. On an
   /// observational trial this is the arm assignment; on a phased one it is the
   /// adherence count and never moves a day. At most one per hunch, always
   /// binary, never the primary.
-  isExposure Boolean @default(false)
+  isExposure Boolean   @default(false)
 
   hunch  Hunch          @relation(fields: [hunchId], references: [id], onDelete: Cascade)
   values CheckInValue[]
@@ -170,17 +183,17 @@ model User {
 
   /// Local hour (0-23) the daily reminder goes out. Null means reminders off,
   /// which is every account's state until it starts its first trial.
-  reminderHour   Int?
+  reminderHour    Int?
   /// The IANA zone `reminderHour` is read in. Captured from the browser when
   /// the user starts a trial or edits the setting; UTC until then.
-  timeZone       String    @default("UTC")
+  timeZone        String    @default("UTC")
   /// The user's local calendar date the last reminder went out for. The hourly
   /// sweep is at-least-once, so this is what stops a second copy.
-  lastReminderOn DateTime? @db.Date
+  lastReminderOn  DateTime? @db.Date
   /// Set when the user turns reminders off themselves. Distinguishes "never
   /// had them" — which starting a trial switches on — from "said no", which
   /// nothing may switch back on.
-  remindersOptOut Boolean  @default(false)
+  remindersOptOut Boolean   @default(false)
 
   @@unique([email])
   @@map("user")
