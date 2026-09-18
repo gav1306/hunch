@@ -1,9 +1,14 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: vi.fn(),
+}));
 vi.mock("@/lib/auth", () => ({ auth: { api: { getSession: vi.fn() } } }));
 vi.mock("@/lib/memory/recall", () => ({ recallPriors: vi.fn(async () => []) }));
 vi.mock("@/mastra/agents/hypothesis-coach", () => ({ sharpenHunch: vi.fn() }));
+vi.mock("@/lib/design-draft/predesign", () => ({ predesign: vi.fn() }));
 
 const tx = {
   parameter: { deleteMany: vi.fn() },
@@ -18,9 +23,11 @@ vi.mock("@/lib/db", () => ({
 }));
 
 import { POST } from "./route";
+import { after } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sharpenHunch } from "@/mastra/agents/hypothesis-coach";
+import { predesign } from "@/lib/design-draft/predesign";
 
 const req = (body: unknown) =>
   new Request("http://t/api/hunch/h1/sharpen", { method: "POST", body: JSON.stringify(body) });
@@ -94,5 +101,28 @@ describe("POST /api/hunch/[id]/sharpen", () => {
     const res = await POST(req({ rawText: "x" }), params);
     expect(res.status).toBe(502);
     expect((await res.json()).error).toBeTruthy();
+  });
+
+  it("starts designing the re-sharpened hypothesis's plan", async () => {
+    vi.mocked(db.hunch.findFirst).mockResolvedValue(gate as never);
+    vi.mocked(sharpenHunch).mockResolvedValue(sharpened as never);
+
+    const res = await POST(req({ rawText: "coffee after 2pm", answers: [] }), params);
+
+    expect(res.status).toBe(200);
+    expect(after).toHaveBeenCalledTimes(1);
+    // `after` also accepts a promise; the routes always pass a function.
+    const scheduled = vi.mocked(after).mock.calls[0][0] as () => Promise<void>;
+    await scheduled();
+    expect(predesign).toHaveBeenCalledWith("h1");
+  });
+
+  it("designs nothing ahead when re-sharpening fails", async () => {
+    vi.mocked(db.hunch.findFirst).mockResolvedValue(gate as never);
+    vi.mocked(sharpenHunch).mockRejectedValue(new Error("model down"));
+
+    await POST(req({ rawText: "coffee after 2pm", answers: [] }), params);
+
+    expect(after).not.toHaveBeenCalled();
   });
 });

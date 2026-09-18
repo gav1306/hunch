@@ -1,18 +1,25 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: vi.fn(),
+}));
 vi.mock("@/lib/auth", () => ({ auth: { api: { getSession: vi.fn() } } }));
 vi.mock("@/lib/memory/recall", () => ({ recallPriors: vi.fn(async () => []) }));
 vi.mock("@/mastra/agents/hypothesis-coach", () => ({ sharpenHunch: vi.fn() }));
+vi.mock("@/lib/design-draft/predesign", () => ({ predesign: vi.fn() }));
 vi.mock("@/lib/db", () => ({
   db: { hunch: { create: vi.fn() } },
 }));
 
 import { POST } from "./route";
+import { after } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sharpenHunch } from "@/mastra/agents/hypothesis-coach";
 import { recallPriors } from "@/lib/memory/recall";
+import { predesign } from "@/lib/design-draft/predesign";
 
 const req = (body: unknown) =>
   new Request("http://t/api/hunch", { method: "POST", body: JSON.stringify(body) });
@@ -110,5 +117,50 @@ describe("POST /api/hunch", () => {
     vi.mocked(sharpenHunch).mockRejectedValue(new Error("bedrock down"));
     const res = await POST(req({ rawText: "coffee wrecks sleep", answers: [] }));
     expect(res.status).toBe(502);
+  });
+
+  it("starts designing the new hunch's plan once it is saved", async () => {
+    vi.mocked(sharpenHunch).mockResolvedValue({
+      statement: "Coffee after lunch makes me sleep worse.",
+      outcomeMetric: "hours of sleep from a tracker",
+      outcomeType: "continuous",
+      subject: "self",
+      confounders: [],
+      trackers: [],
+      schedulable: true,
+    });
+    vi.mocked(db.hunch.create).mockResolvedValue({ id: "h1", parameters: [] } as never);
+
+    await POST(req({ rawText: "coffee wrecks sleep", answers: [] }));
+
+    expect(after).toHaveBeenCalledTimes(1);
+    // `after` also accepts a promise; the routes always pass a function.
+    const scheduled = vi.mocked(after).mock.calls[0][0] as () => Promise<void>;
+    await scheduled();
+    expect(predesign).toHaveBeenCalledWith("h1");
+  });
+
+  it("designs nothing ahead for a hunch kept as a log", async () => {
+    vi.mocked(sharpenHunch).mockResolvedValue({
+      statement: "I feel more tired on some days than others.",
+      outcomeMetric: "tiredness rated 1-5",
+      outcomeType: "continuous",
+      subject: "self",
+      confounders: [],
+      trackers: [],
+    } as never);
+    vi.mocked(db.hunch.create).mockResolvedValue({ id: "h1", parameters: [] } as never);
+
+    await POST(req({ rawText: "am I tired", observeOnly: true }));
+
+    expect(after).not.toHaveBeenCalled();
+  });
+
+  it("designs nothing ahead when sharpening fails or is refused", async () => {
+    vi.mocked(sharpenHunch).mockRejectedValue(new Error("bedrock down"));
+    await POST(req({ rawText: "coffee wrecks sleep", answers: [] }));
+    await POST(req({ rawText: "do I sleep better if I skip my antidepressant" }));
+
+    expect(after).not.toHaveBeenCalled();
   });
 });
