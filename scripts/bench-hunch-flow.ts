@@ -13,7 +13,11 @@
  * request acts as `dev-user` and answers with a Server-Timing header:
  *
  *   DEV_AUTH_BYPASS=1 HUNCH_TIMING=1 npm run dev
- *   npx tsx scripts/bench-hunch-flow.ts [--runs 3] [--base http://localhost:3000]
+ *   npx tsx scripts/bench-hunch-flow.ts [--runs 3] [--read-pause 8] [--base http://localhost:3000]
+ *
+ * --read-pause is how long a user spends on the confirm gate before W3. With
+ * a pause the background design has usually finished (W3 "hit"); with 0 the
+ * confirm waits on it ("wait"). "miss" means W3 designed inline.
  *
  * This spends real model calls: each run is four W1-W3 chains and two W4
  * verdicts. Everything the script creates is tracked and deleted before it
@@ -48,6 +52,8 @@ function arg(name: string, fallback: string): string {
 
 const RUNS = Math.max(1, Number(arg("runs", "3")) || 1);
 const BASE = arg("base", "http://localhost:3000").replace(/\/$/, "");
+/** Seconds between W2 and W3, standing in for reading the confirm gate. */
+const READ_PAUSE_MS = Math.max(0, Number(arg("read-pause", "8")) || 0) * 1000;
 
 // ---------------------------------------------------------------------------
 // Scenarios. Fixed texts, so every run asks the model the same thing.
@@ -312,6 +318,8 @@ async function chain(run: number, shape: Shape, user: UserType) {
   );
   if (!hunch) return;
 
+  if (READ_PAUSE_MS > 0) await new Promise((resolve) => setTimeout(resolve, READ_PAUSE_MS));
+
   // Confirm the gate with the Coach's own drafts unchanged, exactly as the
   // client's confirm button sends them.
   checkStop();
@@ -328,7 +336,9 @@ async function chain(run: number, shape: Shape, user: UserType) {
   );
   record(
     run, "W3", scenario, w3, null,
-    w3.body.protocol ? `design=${w3.body.protocol.design?.shape} safety=${w3.body.protocol.safetyState}` : undefined,
+    w3.body.protocol
+      ? `design=${w3.body.protocol.design?.shape} safety=${w3.body.protocol.safetyState} draft=${draftOutcome(w3.steps)}`
+      : undefined,
   );
 }
 
@@ -474,6 +484,14 @@ const fmtMs = (ms: number) => (Number.isNaN(ms) ? "-" : ms >= 1000 ? `${(ms / 10
 
 /** "designer-2" is still the designer. */
 const baseName = (name: string) => name.replace(/-\d+$/, "");
+
+/** What W3 got from the background design, read off its Server-Timing steps. */
+function draftOutcome(steps: TimingEntry[]): "hit" | "wait" | "miss" | "-" {
+  const draft = steps.find((e) => e.name === "draft");
+  if (!draft) return "-";
+  if (steps.some((e) => e.name === "designer" || e.name === "safety")) return "miss";
+  return draft.dur > 250 ? "wait" : "hit";
+}
 
 function printTable() {
   const groups = new Map<string, Sample[]>();
