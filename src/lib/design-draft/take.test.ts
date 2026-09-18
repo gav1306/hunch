@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/db", () => ({ db: { designDraft: { findUnique: vi.fn() } } }));
 
-import { takeDraft } from "./take";
+import { DRAFT_POLL_MS, DRAFT_STALE_MS, DRAFT_WAIT_MS, takeDraft } from "./take";
 import { db } from "@/lib/db";
 import type { DesignResult } from "@/lib/schemas/protocol";
 
@@ -65,24 +65,24 @@ describe("takeDraft", () => {
     findUnique.mockResolvedValueOnce(designing).mockResolvedValueOnce(designing).mockResolvedValue(row({}));
 
     const taken = takeDraft("h1", "fp");
-    await vi.advanceTimersByTimeAsync(500);
+    await vi.advanceTimersByTimeAsync(DRAFT_POLL_MS * 2);
 
     await expect(taken).resolves.toEqual(RESULT);
     expect(findUnique).toHaveBeenCalledTimes(3);
   });
 
-  it("gives up after 10s on a draft that never finishes", async () => {
+  it("gives up after the wait cap on a draft that never finishes", async () => {
     findUnique.mockResolvedValue(row({ status: "designing", result: null }));
 
     const taken = takeDraft("h1", "fp");
-    await vi.advanceTimersByTimeAsync(10_250);
+    await vi.advanceTimersByTimeAsync(DRAFT_WAIT_MS + DRAFT_POLL_MS);
 
     await expect(taken).resolves.toBeNull();
   });
 
-  it("doesn't wait on a designing row older than 30s — its work was cut off", async () => {
+  it("doesn't wait on a designing row older than the stale threshold — its work was cut off", async () => {
     findUnique.mockResolvedValue(
-      row({ status: "designing", result: null, updatedAt: new Date(NOW.getTime() - 31_000) }),
+      row({ status: "designing", result: null, updatedAt: new Date(NOW.getTime() - (DRAFT_STALE_MS + 1_000)) }),
     );
 
     await expect(takeDraft("h1", "fp")).resolves.toBeNull();

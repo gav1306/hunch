@@ -17,7 +17,10 @@
  *
  * --read-pause is how long a user spends on the confirm gate before W3. With
  * a pause the background design has usually finished (W3 "hit"); with 0 the
- * confirm waits on it ("wait"). "miss" means W3 designed inline.
+ * confirm waits on it ("wait"). "miss" means W3 designed inline without ever
+ * finding a draft in progress; "wait+miss" means it waited on one, gave up,
+ * and still designed inline — the double-wait a wait cap must stay under one
+ * design's cost to avoid.
  *
  * This spends real model calls: each run is four W1-W3 chains and two W4
  * verdicts. Everything the script creates is tracked and deleted before it
@@ -486,10 +489,12 @@ const fmtMs = (ms: number) => (Number.isNaN(ms) ? "-" : ms >= 1000 ? `${(ms / 10
 const baseName = (name: string) => name.replace(/-\d+$/, "");
 
 /** What W3 got from the background design, read off its Server-Timing steps. */
-function draftOutcome(steps: TimingEntry[]): "hit" | "wait" | "miss" | "-" {
+function draftOutcome(steps: TimingEntry[]): "hit" | "wait" | "miss" | "wait+miss" | "-" {
   const draft = steps.find((e) => e.name === "draft");
   if (!draft) return "-";
-  if (steps.some((e) => e.name === "designer" || e.name === "safety")) return "miss";
+  if (steps.some((e) => e.name === "designer" || e.name === "safety")) {
+    return draft.dur > 1000 ? "wait+miss" : "miss";
+  }
   return draft.dur > 250 ? "wait" : "hit";
 }
 

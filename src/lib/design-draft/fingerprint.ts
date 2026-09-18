@@ -50,6 +50,7 @@ export function designFingerprint(input: DesignInput): string {
     input.confounderNames,
     shape,
     shape === "observational" ? (input.exposureLabel ?? "").trim() : null,
+    input.effectSize ?? null,
   ]);
   return createHash("sha256").update(canonical).digest("hex");
 }

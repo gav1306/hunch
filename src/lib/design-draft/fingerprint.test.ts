@@ -65,4 +65,11 @@ describe("designFingerprint", () => {
       designFingerprint(observational),
     );
   });
+
+  it("changes when effectSize changes", () => {
+    expect(designFingerprint({ ...phased, effectSize: "medium" })).not.toBe(
+      designFingerprint({ ...phased, effectSize: "large" }),
+    );
+    expect(designFingerprint({ ...phased, effectSize: "medium" })).not.toBe(designFingerprint(phased));
+  });
 });

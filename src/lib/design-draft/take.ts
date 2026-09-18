@@ -1,8 +1,11 @@
 import { db } from "@/lib/db";
 import { designResultSchema, type DesignResult } from "@/lib/schemas/protocol";
 
-/** Longest confirm waits on a draft still being designed. */
-export const DRAFT_WAIT_MS = 10_000;
+/**
+ * Longest confirm waits on a draft still being designed. Kept under one
+ * design's cost — a cap above that turns a near-miss into a double wait.
+ */
+export const DRAFT_WAIT_MS = 3_000;
 /** How often it looks again while waiting. */
 export const DRAFT_POLL_MS = 250;
 /** A `designing` row this old was cut off (a killed `after()`), not slow. */

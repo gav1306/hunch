@@ -55,7 +55,7 @@ One row per hunch. A separate table, not a `Protocol` row with a special state: 
 
 `designFingerprint(input)` → sha256 hex of a canonical JSON of:
 
-- `version` — `DESIGN_VERSION`, a constant beside `designProtocol`. Bumped whenever a prompt, a model, or the code that assembles a design changes, so drafts made by older logic are never served.
+- `version` — `DESIGN_VERSION`, a constant in `src/lib/design-draft/fingerprint.ts` (not beside `designProtocol`, so the fingerprint module never loads the agents). Bumped whenever a prompt, a model, or the code that assembles a design changes, so drafts made by older logic are never served.
 - `statement`, `outcomeMetric`, `outcomeType`, `confounderNames` (in stored order)
 - `shape`
 - `exposureLabel`, trimmed — **only** when `shape` is `observational`; omitted otherwise, since a phased design never reads it
@@ -99,11 +99,11 @@ const result =
 | ------------------------------------------------------ | ----------------------------------------------------------------------- |
 | no row, or fingerprint differs                         | `null`                                                                  |
 | `ready`                                                | `result` parsed with `designResultSchema`; `null` if it does not parse  |
-| `designing`, `updatedAt` within the last 30s           | poll the row every 250ms, up to 10s; its `result` if it turns `ready`, else `null` |
+| `designing`, `updatedAt` within the last 30s           | poll the row every 250ms, up to 3s; its `result` if it turns `ready`, else `null` |
 | `designing`, `updatedAt` older than 30s                | `null` — the background work was cut off                               |
 | `failed`                                               | `null`                                                                  |
 
-Waiting on an in-flight draft never costs more than designing inline would: the draft started earlier. The 10s cap only bounds a stuck row.
+Waiting on an in-flight draft never costs more than designing inline would: the draft started earlier. The 3s cap — kept under one design's cost, since a cap above it turns a near-miss into a double wait — only bounds a stuck row.
 
 The draft is **consumed**: `tx.designDraft.deleteMany({ where: { hunchId } })` inside the existing protocol transaction. "Try again" after a failure, or a later redesign, designs fresh rather than replaying a stored verdict.
 
