@@ -96,6 +96,16 @@ export async function timed<T>(
   return result;
 }
 
+/**
+ * Run work that outlives the request — an `after()` callback — with no timing
+ * record active. Such a callback inherits the request's async context, so
+ * without this its `timed` steps would be pushed into a record whose
+ * `Server-Timing` header has already gone out.
+ */
+export function untimed<T>(fn: () => T): T {
+  return requests.exit(fn);
+}
+
 type UsageLike = { inputTokens?: number | undefined; outputTokens?: number | undefined };
 
 /**

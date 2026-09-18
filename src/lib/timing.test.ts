@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { llmUsage, parseServerTiming, timed, withTiming } from "./timing";
+import { llmUsage, parseServerTiming, timed, untimed, withTiming } from "./timing";
 
 const json = (body: unknown) => Response.json(body);
 
@@ -196,5 +196,24 @@ describe("parseServerTiming", () => {
 
   it("returns nothing for an absent header", () => {
     expect(parseServerTiming(null)).toEqual([]);
+  });
+});
+
+describe("untimed", () => {
+  it("keeps a step started inside it off the enclosing request's header", async () => {
+    vi.stubEnv("HUNCH_TIMING", "1");
+    const out = await withTiming(async () => {
+      await timed("inline", async () => 1);
+      await untimed(() => timed("background", async () => 2));
+      return json({});
+    })();
+
+    const names = parseServerTiming(out.headers.get("Server-Timing")).map((e) => e.name);
+    expect(names).toContain("inline");
+    expect(names).not.toContain("background");
+  });
+
+  it("returns what the function returns", async () => {
+    await expect(untimed(async () => 42)).resolves.toBe(42);
   });
 });
