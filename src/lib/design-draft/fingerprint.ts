@@ -9,7 +9,10 @@ import type { designProtocol } from "@/mastra/workflows/design";
  * a draft made by older logic is never served. Lives here rather than beside
  * `designProtocol` so this module stays free of the agents.
  */
-export const DESIGN_VERSION = 1;
+// 2: the designer now writes only the phase copy, and observational designs
+// skip it entirely (ad56de1) — a version 1 draft describes a design this code
+// would no longer produce.
+export const DESIGN_VERSION = 2;
 
 export type DesignInput = Parameters<typeof designProtocol>[0];
 

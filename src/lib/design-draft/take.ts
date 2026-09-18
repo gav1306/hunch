@@ -2,10 +2,15 @@ import { db } from "@/lib/db";
 import { designResultSchema, type DesignResult } from "@/lib/schemas/protocol";
 
 /**
- * Longest confirm waits on a draft still being designed. Kept under one
- * design's cost — a cap above that turns a near-miss into a double wait.
+ * Longest confirm waits on a draft still being designed. Kept comfortably
+ * ABOVE one design's cost, which the 2026-09-18 bench measured at ~7.4s
+ * (designer 4.0s + safety 3.5s), worst sample 8.9s. That is the direction
+ * that holds the invariant: a draft started at sharpen has less than a full
+ * design left to run, so the wait ends when it arrives. A cap BELOW one
+ * design's cost is what turns a near-miss into a double wait — the cap
+ * elapses and the request designs inline anyway.
  */
-export const DRAFT_WAIT_MS = 3_000;
+export const DRAFT_WAIT_MS = 12_000;
 /** How often it looks again while waiting. */
 export const DRAFT_POLL_MS = 250;
 /** A `designing` row this old was cut off (a killed `after()`), not slow. */

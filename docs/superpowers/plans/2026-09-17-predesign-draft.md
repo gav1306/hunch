@@ -15,7 +15,7 @@
 - **The inline design path stays whole.** A missing, stale, failed or slow draft falls back to today's `designProtocol` call with today's arguments. No task may make confirm fail because of a draft.
 - **Drafts are invisible until confirmed.** Nothing but `takeDraft` and `predesign` reads `DesignDraft`. No `Protocol` row is written before confirm.
 - **`resolveSafetyState` runs at confirm time** on the stored raw verdict, never at draft time.
-- **Wait cap 3 000ms, poll every 250ms, a `designing` row older than 30 000ms is stale.** Exact values. The cap stays under one design's cost — a cap above it turns a near-miss into a double wait.
+- **Wait cap 12 000ms, poll every 250ms, a `designing` row older than 30 000ms is stale.** Exact values. The cap stays above one design's measured cost (~7.4s after the slim designer), so a wait ends when the draft arrives rather than timing out and designing inline anyway.
 - **Fingerprint = sha256 hex** of `DESIGN_VERSION`, statement, outcomeMetric, outcomeType, confounderNames, shape, and — for `observational` only — the trimmed exposure label. The tracker list is never an input.
 - **Bump `DESIGN_VERSION`** in any later change to a design prompt, a design model, or the code that assembles a design. Fix #4 (slim designer, currently uncommitted) counts: if it lands after this plan ships, it bumps the version.
 - **Test-first** (RULES.md §3). All tests here mock the model and the DB; no task needs OpenRouter credits except Task 8.
@@ -285,7 +285,7 @@ Report ready to commit: `feat(design-draft): fingerprint a design's inputs`
 - Consumes: `db` from `@/lib/db`; `designResultSchema`, `DesignResult` from `@/lib/schemas/protocol`.
 - Produces:
   - Prisma model `DesignDraft { hunchId String @id; fingerprint String; status String; result Json?; updatedAt DateTime }`, relation `Hunch.designDraft`
-  - `export const DRAFT_WAIT_MS = 3_000`, `DRAFT_POLL_MS = 250`, `DRAFT_STALE_MS = 30_000`
+  - `export const DRAFT_WAIT_MS = 12_000`, `DRAFT_POLL_MS = 250`, `DRAFT_STALE_MS = 30_000`
   - `export async function takeDraft(hunchId: string, fingerprint: string): Promise<DesignResult | null>`
 
 - [ ] **Step 1: Add the model**
@@ -451,7 +451,7 @@ import { designResultSchema, type DesignResult } from "@/lib/schemas/protocol";
  * Longest confirm waits on a draft still being designed. Kept under one
  * design's cost — a cap above that turns a near-miss into a double wait.
  */
-export const DRAFT_WAIT_MS = 3_000;
+export const DRAFT_WAIT_MS = 12_000;
 /** How often it looks again while waiting. */
 export const DRAFT_POLL_MS = 250;
 /** A `designing` row this old was cut off (a killed `after()`), not slow. */

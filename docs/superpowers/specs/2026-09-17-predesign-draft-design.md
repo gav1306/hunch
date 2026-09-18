@@ -99,11 +99,11 @@ const result =
 | ------------------------------------------------------ | ----------------------------------------------------------------------- |
 | no row, or fingerprint differs                         | `null`                                                                  |
 | `ready`                                                | `result` parsed with `designResultSchema`; `null` if it does not parse  |
-| `designing`, `updatedAt` within the last 30s           | poll the row every 250ms, up to 3s; its `result` if it turns `ready`, else `null` |
+| `designing`, `updatedAt` within the last 30s           | poll the row every 250ms, up to 12s; its `result` if it turns `ready`, else `null` |
 | `designing`, `updatedAt` older than 30s                | `null` — the background work was cut off                               |
 | `failed`                                               | `null`                                                                  |
 
-Waiting on an in-flight draft never costs more than designing inline would: the draft started earlier. The 3s cap — kept under one design's cost, since a cap above it turns a near-miss into a double wait — only bounds a stuck row.
+Waiting on an in-flight draft never costs more than designing inline would: the draft started earlier, so it has less than a full design left to run. That is why the 12s cap sits above one design's measured cost (~7.4s after the slim designer, worst sample 8.9s) — a cap below it would elapse on a near-miss and design inline anyway, paying both. The cap only bounds a row whose background work died without being marked stale.
 
 The draft is **consumed**: `tx.designDraft.deleteMany({ where: { hunchId } })` inside the existing protocol transaction. "Try again" after a failure, or a later redesign, designs fresh rather than replaying a stored verdict.
 
