@@ -1117,3 +1117,57 @@ Expected: no lines. Any `[predesign] failed` means drafts are being lost — rea
 - [ ] **Step 5: Report**
 
 Report both summary tables and the raw result file names to the owner.
+
+---
+
+## Task 8 results
+
+Both paths measured against a dev server on `:3100` (`DEV_AUTH_BYPASS=1 HUNCH_TIMING=1`),
+3 runs each. `[predesign]` never appeared in the server log on either run, so no draft was lost.
+
+**Hit path** — `--read-pause 8`, raw `scripts/.bench-results/2026-09-19T15-15-55.540Z.json`.
+All 12 samples `draft=hit`, all `safety=approved`. W3 client median 47–49ms across all four
+scenarios (worst 59ms), `draft` step 1–2ms: every confirm found a finished draft. The wait
+this feature exists to remove was ~13.5s.
+
+| scenario | W3 client median | worst | `draft` step |
+| --- | --- | --- | --- |
+| phased/new | 49ms | 59ms | 2ms |
+| observational/new | 47ms | 51ms | 1ms |
+| phased/returning | 47ms | 51ms | 2ms |
+| observational/returning | 49ms | 52ms | 2ms |
+
+This run is the one that matters for the current code: an earlier hit-path run
+(`2026-09-18T20-45-41.618Z.json`, 36–53ms) predates `d501e13`, which bumped `DESIGN_VERSION`
+1 → 2. A version bump changes the fingerprint, so a draft written at the wrong version would
+silently stop being taken and every hit would decay into a ~7.4s inline design. It does not:
+re-measured on `d501e13`, the hit path is unchanged.
+
+**Wait path** — `--read-pause 0`, raw `scripts/.bench-results/2026-09-19T14-53-58.556Z.json`.
+All 12 samples `draft=wait`, none `wait+miss`, all `safety=approved`.
+
+| scenario | W3 client median | worst | `draft` step |
+| --- | --- | --- | --- |
+| phased/new | 6.95s | 7.51s | 6.90s |
+| observational/new | 4.16s | 7.99s | 4.10s |
+| phased/returning | 7.73s | 7.99s | 7.67s |
+| observational/returning | 3.64s | 3.89s | 3.59s |
+
+This is the case the plan calls "no slower than the inline W3 of the most recent run without
+this feature", and it holds: a confirm that races the design pays one design (~7.4s: designer
+4.0s + safety 3.5s), not two. It also settles the `DRAFT_WAIT_MS` question empirically — the
+12s cap was never reached, while the earlier 3s cap would have turned all 12 of these into
+`wait+miss` (3s of waiting, then a full inline design on top).
+
+W3's `model med` reads 0ms because the design's model time is spent in the background under
+`untimed`; the user still waits the `draft` step.
+
+Still the dominant waits, untouched by this branch, across both runs: Coach 4.1–11.6s,
+clarifier 4.8–5.3s (plus recall 1.4–2.4s for returning users), analyst 3.6–4.0s. Non-model
+overhead stays 10–49ms. Coach is both the slowest step and the least predictable — the same
+fixed `phased/new` input drew 248 output tokens in one run and 687 in the other, 4.13s
+against 8.59s. That variance, not the median, is the argument for streaming it (#6).
+
+Unrelated observation worth a look: `observational/new` returned `design=phased` on run 2 of
+the wait-path bench and `design=observational` on runs 1 and 3, from identical fixed input
+text. The Coach's `schedulable` call is not stable across runs.
