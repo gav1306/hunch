@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { classifyVerdict, verdictBadge, verdictHeadline } from "@/lib/verdict";
+import {
+  classifyVerdict,
+  exposureDropped,
+  exposureSummary,
+  observationalCaveat,
+  verdictBadge,
+  verdictHeadline,
+} from "@/lib/verdict";
 import type { Belief } from "@/lib/schemas/belief";
+import type { ExposureReport } from "@/lib/schemas/verdict";
 import type { PhaseStatus } from "@/lib/schedule";
 
 const done: PhaseStatus = {
@@ -86,6 +94,115 @@ describe("verdictHeadline", () => {
     for (const c of ["helped", "hurt", "inconclusive_no_effect"] as const) {
       expect(verdictHeadline(c, outcome)).not.toMatch(banned);
     }
+  });
+
+  const observationalReport: ExposureReport = {
+    label: "Played basketball",
+    exposed: 6,
+    unexposed: 12,
+    unknown: 3,
+    observational: true,
+  };
+  const phasedReport: ExposureReport = {
+    label: "Played basketball",
+    exposed: 6,
+    unexposed: 12,
+    unknown: 3,
+    observational: false,
+  };
+
+  it("names the split instead of the days on an observational trial's thin arm", () => {
+    expect(verdictHeadline("inconclusive_insufficient", outcome, observationalReport)).toBe(
+      `Too few days either side of "Played basketball"`,
+    );
+  });
+
+  it("falls back to the generic headline on a phased trial — missing days really are missing", () => {
+    expect(verdictHeadline("inconclusive_insufficient", outcome, phasedReport)).toBe(
+      "Not enough days to tell",
+    );
+  });
+
+  it("ignores the third argument on every other category", () => {
+    expect(verdictHeadline("helped", outcome, observationalReport)).toBe(
+      "Bugs found today went up",
+    );
+    expect(verdictHeadline("hurt", outcome, observationalReport)).toBe(
+      "Bugs found today went down",
+    );
+    expect(verdictHeadline("inconclusive_no_effect", outcome, observationalReport)).toBe(
+      "No difference in bugs found today",
+    );
+  });
+});
+
+describe("exposureSummary", () => {
+  it("names the label and reports exposed days over every logged day", () => {
+    const e: ExposureReport = {
+      label: "Played basketball",
+      exposed: 6,
+      unexposed: 12,
+      unknown: 3,
+      observational: true,
+    };
+    expect(exposureSummary(e)).toBe("Played basketball on 6 of 21 logged days.");
+  });
+
+  it("counts intervention days on a phased trial, where only phase-B days are counted", () => {
+    // The report's denominator on a phased trial is the phase-B days alone, so
+    // "logged days" would undercount every baseline day the user logged.
+    const e: ExposureReport = {
+      label: "Took magnesium",
+      exposed: 5,
+      unexposed: 1,
+      unknown: 1,
+      observational: false,
+    };
+    expect(exposureSummary(e)).toBe("Took magnesium on 5 of 7 intervention days.");
+  });
+
+  it("says nothing while no day has been counted yet", () => {
+    // A phased trial spends its whole first baseline here: "on 0 of 0" is noise.
+    const zero = { label: "Took magnesium", exposed: 0, unexposed: 0, unknown: 0 };
+    expect(exposureSummary({ ...zero, observational: false })).toBe(null);
+    expect(exposureSummary({ ...zero, observational: true })).toBe(null);
+  });
+});
+
+describe("exposureDropped", () => {
+  const base = { label: "Played basketball", exposed: 10, unexposed: 10, observational: true };
+
+  it("returns null when nothing was dropped", () => {
+    expect(exposureDropped({ ...base, unknown: 0 })).toBe(null);
+  });
+
+  it("uses singular phrasing for exactly one dropped day", () => {
+    expect(exposureDropped({ ...base, unknown: 1 })).toBe(
+      "1 day had no answer either way, so it isn't in the comparison.",
+    );
+  });
+
+  it("uses plural phrasing for more than one dropped day", () => {
+    expect(exposureDropped({ ...base, unknown: 3 })).toBe(
+      "3 days had no answer either way, so they aren't in the comparison.",
+    );
+  });
+});
+
+describe("observationalCaveat", () => {
+  it("names the label and says correlation, not causation, in the user's own words", () => {
+    const e: ExposureReport = {
+      label: "Played basketball",
+      exposed: 6,
+      unexposed: 12,
+      unknown: 3,
+      observational: true,
+    };
+    expect(observationalCaveat(e)).toBe(
+      'These are the days you answered yes to "Played basketball", compared with the days ' +
+        "you didn't — you chose which were which, so this shows what went together, " +
+        "not what caused what.",
+    );
   });
 });
 

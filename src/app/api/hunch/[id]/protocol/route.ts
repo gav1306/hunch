@@ -2,16 +2,21 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
-import { engineOutcomeType, toParameterDto } from "@/lib/parameters";
+import { engineOutcomeType, pickExposure, toParameterDto } from "@/lib/parameters";
 import { parameterListSchema } from "@/lib/schemas/parameter";
 import { designProtocol, resolveSafetyState } from "@/mastra/workflows/design";
 
 /**
  * Phase 3: design a protocol for a sharpened hunch. Takes the parameter set the
  * user confirmed on the gate, replaces the proposed set with it, runs the design
- * workflow (confounders -> trial length -> ABA design -> safety review), applies
- * the safety gate, and persists the Protocol. Parameters and Protocol are written
+ * workflow (confounders -> trial length -> design -> safety review), applies the
+ * safety gate, and persists the Protocol. Parameters and Protocol are written
  * in one transaction — a designed trial always has exactly one primary parameter.
+ *
+ * Two shapes come out of here. A hunch whose change can be applied on demand
+ * gets the scheduled ABA trial. One whose change cannot ("play basketball")
+ * gets a single observation window, and the confirmed list must carry the
+ * daily yes/no its arms are derived from.
  *
  * Designing does NOT start the trial. This route used to stamp `startedAt` and
  * flip the hunch to "running" the moment the workflow returned, so the clock
@@ -70,11 +75,42 @@ export async function POST(
     );
   }
 
+  // The confirm gate can overrule the Coach about whether this change can be
+  // applied on demand — the user knows their own week better than the model
+  // does. Absent an override, the stored answer stands.
+  const override = (body as { schedulable?: unknown })?.schedulable;
+  const storedSchedulable = hunch.hypothesis.schedulable;
+  const schedulable = typeof override === "boolean" ? override : storedSchedulable;
+  const observational = !schedulable;
+
+  // An exposure that was assigning arms must not survive the flip to a design
+  // where the calendar assigns them: it would be a second, silent claim on the
+  // same days. Only an actual flip strips. An exposure on a hunch that was
+  // always schedulable is the adherence count — how many phase-B days the user
+  // managed — and is none of this route's business.
+  const flippedToScheduled = override === true && storedSchedulable === false;
+  const confirmedRows = flippedToScheduled
+    ? confirmed.data.map((p) => ({ ...p, isExposure: false }))
+    : confirmed.data;
+
+  const exposure = pickExposure(confirmedRows);
+  if (observational && !exposure) {
+    return NextResponse.json(
+      {
+        error:
+          "Tell us the one yes/no we should ask each day — it's how we tell your days apart.",
+      },
+      { status: 400 },
+    );
+  }
+
   const result = await designProtocol({
     statement: hunch.hypothesis.statement,
     outcomeMetric: hunch.hypothesis.outcomeMetric,
     outcomeType: engineOutcomeType(hunch.hypothesis.outcomeType),
     confounderNames: hunch.hypothesis.confounders,
+    shape: observational ? "observational" : "phased",
+    exposureLabel: exposure?.label,
   });
 
   const safetyState = resolveSafetyState(result.safety);
@@ -88,10 +124,19 @@ export async function POST(
   };
 
   const { protocol, parameters } = await db.$transaction(async (tx) => {
+    // The override and the design it produced are one write. A stored
+    // `schedulable` that disagreed with the protocol beside it would make the
+    // next redesign silently pick the other shape.
+    if (typeof override === "boolean" && override !== storedSchedulable) {
+      await tx.hypothesis.update({
+        where: { hunchId: hunch.id },
+        data: { schedulable: override },
+      });
+    }
     // Replace, not merge: the confirmed list is the whole truth for this hunch.
     await tx.parameter.deleteMany({ where: { hunchId: hunch.id } });
     await tx.parameter.createMany({
-      data: confirmed.data.map((p, i) => ({
+      data: confirmedRows.map((p, i) => ({
         hunchId: hunch.id,
         label: p.label,
         type: p.type,
@@ -99,6 +144,7 @@ export async function POST(
         min: p.min ?? null,
         max: p.max ?? null,
         isPrimary: p.isPrimary,
+        isExposure: p.isExposure,
         sortOrder: i,
       })),
     });

@@ -66,6 +66,9 @@ export async function POST(
       // Never from the payload. A running trial has its primary and it is frozen
       // for the length of the trial.
       isPrimary: false,
+      // Never from the payload. A running trial's arm assignment is settled, and
+      // a tracker added mid-trial starts empty.
+      isExposure: false,
       // Past the end of everything, retired rows included, so ordering stays
       // stable when a retired row is brought back.
       sortOrder: hunch.parameters.length,

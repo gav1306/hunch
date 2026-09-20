@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useCheckIn, type CheckInValueInput } from "@/hooks/use-checkin";
 import type { PhaseStatus } from "@/lib/schedule";
+import type { ProtocolDesign } from "@/lib/schemas/protocol";
 import {
   SCALE_MAX,
   SCALE_MIN,
@@ -74,6 +75,7 @@ export function CheckIn({
   startsOn,
   hasPlan,
   firstPhaseAction,
+  design,
   onLogged,
 }: {
   hunchId: string;
@@ -92,6 +94,12 @@ export function CheckIn({
   hasPlan?: boolean;
   /** Day 1's instruction, shown while the user waits for a scheduled start. */
   firstPhaseAction?: string;
+  /**
+   * The protocol's design, when `full` has it. Only its shape and length are
+   * read: an observational trial is one window with no arms on the calendar,
+   * so its copy counts days instead of naming a phase.
+   */
+  design?: ProtocolDesign;
   /** Fires once the day is saved, for chrome the caller owns (home's fade). */
   onLogged?: () => void;
 }) {
@@ -102,6 +110,7 @@ export function CheckIn({
 
   const compact = variant === "compact";
   const correction = variant === "correction";
+  const observational = design?.shape === "observational";
 
   if (!compact && !correction) {
     if (!schedule || !schedule.started) {
@@ -111,6 +120,9 @@ export function CheckIn({
           startsOn={schedule ? (startsOn ?? null) : null}
           hasPlan={hasPlan ?? false}
           firstPhaseAction={firstPhaseAction}
+          // Undefined while `design` hasn't loaded yet — neither "phased" nor
+          // "observational" is known, so NotStartedYet must not guess either.
+          observational={design === undefined ? undefined : observational}
         />
       );
     }
@@ -413,12 +425,27 @@ export function CheckIn({
 
   return (
     <section className={PANEL}>
-      <p className={cn(LABEL, "mt-0 mb-0")}>
-        Log today · Phase {schedule!.phase}{" "}
-        <span className="tracking-[0.04em] normal-case">
-          ({schedule!.kind === "intervention" ? "intervention" : "baseline"})
-        </span>
-      </p>
+      {/* `design` comes off a separate query that can resolve after the
+          schedule does — until it has, we don't yet know whether this trial
+          is observational or phased, so naming a phase would sometimes be a
+          guess. Say nothing phase-shaped rather than guess wrong. An
+          observational window is one phase whose arms come from the daily
+          yes/no, so "Phase A (baseline)" would name an arm the day isn't in. */}
+      {design === undefined ? (
+        <p className={cn(LABEL, "mt-0 mb-0")}>Log today</p>
+      ) : observational ? (
+        <p className={cn(LABEL, "mt-0 mb-0")}>
+          Log today · day {schedule!.dayInPhase + 1} of{" "}
+          {design!.phases.reduce((sum, p) => sum + p.days, 0)}
+        </p>
+      ) : (
+        <p className={cn(LABEL, "mt-0 mb-0")}>
+          Log today · Phase {schedule!.phase}{" "}
+          <span className="tracking-[0.04em] normal-case">
+            ({schedule!.kind === "intervention" ? "intervention" : "baseline"})
+          </span>
+        </p>
+      )}
 
       {phaseAction && (
         <p className="mt-2 mb-0 text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
@@ -461,11 +488,19 @@ function NotStartedYet({
   startsOn,
   hasPlan,
   firstPhaseAction,
+  observational,
 }: {
   hunchId: string;
   startsOn: string | null;
   hasPlan: boolean;
   firstPhaseAction?: string;
+  /**
+   * No day of an observational window is a baseline day — don't call it one.
+   * Undefined while the design hasn't loaded and the shape isn't known yet;
+   * treated the same as `true` so the sentence stays neutral rather than
+   * guessing "baseline" for a trial that turns out to be observational.
+   */
+  observational: boolean | undefined;
 }) {
   const scheduled = startsOn !== null;
   const eyebrowText = scheduled
@@ -481,7 +516,9 @@ function NotStartedYet({
       <p className="m-0 text-sm leading-relaxed text-ink [overflow-wrap:anywhere]">
         {scheduled
           ? firstPhaseAction
-            ? `Day 1 is a baseline day. ${firstPhaseAction}`
+            ? observational === false
+              ? `Day 1 is a baseline day. ${firstPhaseAction}`
+              : firstPhaseAction
             : "Day 1 hasn't come round yet — nothing to log until it does."
           : hasPlan
             ? "Your plan is designed and waiting. Nothing runs until you start it."

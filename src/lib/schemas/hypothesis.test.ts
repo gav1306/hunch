@@ -102,6 +102,58 @@ describe("expectedDirection", () => {
   });
 });
 
+describe("schedulable and exposure", () => {
+  const base = {
+    statement: "Playing basketball improves my mood.",
+    outcomeMetric: "mood rated 1-5",
+    outcomeType: "continuous" as const,
+  };
+
+  test("neither field: parses, schedulable defaults to true", () => {
+    const r = sharpenedHypothesisSchema.safeParse(base);
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.schedulable).toBe(true);
+  });
+
+  test("schedulable: false with a binary exposure parses", () => {
+    const r = sharpenedHypothesisSchema.safeParse({
+      ...base,
+      schedulable: false,
+      exposure: { label: "Played basketball", type: "binary" },
+    });
+    expect(r.success).toBe(true);
+  });
+
+  test("schedulable: false with no exposure fails", () => {
+    const r = sharpenedHypothesisSchema.safeParse({ ...base, schedulable: false });
+    expect(r.success).toBe(false);
+  });
+
+  test("schedulable: false with a scale exposure fails", () => {
+    const r = sharpenedHypothesisSchema.safeParse({
+      ...base,
+      schedulable: false,
+      exposure: { label: "Energy level", type: "scale", unit: "1-5", min: 1, max: 5 },
+    });
+    expect(r.success).toBe(false);
+  });
+
+  test("schedulable: true with a binary exposure parses (reporting-only adherence)", () => {
+    const r = sharpenedHypothesisSchema.safeParse({
+      ...base,
+      schedulable: true,
+      exposure: { label: "Took my walk", type: "binary" },
+    });
+    expect(r.success).toBe(true);
+  });
+
+  test("shape still exposes the field keys after the refinements", () => {
+    expect(Object.keys(sharpenedHypothesisSchema.shape)).toEqual(
+      expect.arrayContaining(["schedulable", "exposure"]),
+    );
+  });
+});
+
 describe("subject", () => {
   const base = {
     statement: "My houseplants droop when I play music.",

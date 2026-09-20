@@ -11,7 +11,9 @@
  */
 
 import { verdictHeadline } from "@/lib/verdict";
+import { isExposedReading } from "@/lib/parameters";
 import type { VerdictCategory } from "@/lib/schemas/verdict";
+import type { ProtocolShape } from "@/lib/schemas/protocol";
 
 export type ExportParameter = {
   id: string;
@@ -41,6 +43,9 @@ export type ExportHunch = {
   outcomeMetric: string;
   rawText: string;
   startedAt: Date | null;
+  shape: ProtocolShape;
+  /** The daily yes/no an observational trial derives its arms from, or null. */
+  exposureId: string | null;
   parameters: ExportParameter[];
   checkIns: ExportCheckIn[];
   verdict: ExportVerdict | null;
@@ -68,14 +73,29 @@ function columnLabel(p: ExportParameter): string {
   return p.unit ? `${p.label} (${p.unit})` : p.label;
 }
 
+/**
+ * The arm this day was actually compared in.
+ *
+ * An export is the record of what was compared, and it outlives the app. A
+ * column reading "B" for a day with no basketball on it would be wrong in a
+ * file someone hands to a doctor.
+ */
+function armOf(h: ExportHunch, c: ExportCheckIn): string | null {
+  if (h.shape !== "observational" || !h.exposureId) return c.phase;
+  const hit = c.values.find((v) => v.parameterId === h.exposureId);
+  if (hit === undefined) return null;
+  return isExposedReading(hit.value) ? "B" : "A";
+}
+
 /** One row per logged day, one column per parameter. Unlogged cells stay empty. */
 export function toCsv(h: ExportHunch): string {
-  const header = ["date", "phase", ...h.parameters.map(columnLabel)].map(csvCell);
+  const armHeader = h.shape === "observational" ? "arm" : "phase";
+  const header = ["date", armHeader, ...h.parameters.map(columnLabel)].map(csvCell);
   const rows = h.checkIns.map((c) => {
     const byId = readingsById(c);
     return [
       isoDate(c.loggedOn),
-      c.phase,
+      armOf(h, c) ?? "",
       ...h.parameters.map((p) => {
         const v = byId.get(p.id);
         return v === undefined ? "" : String(v);
@@ -128,7 +148,14 @@ export function toText(h: ExportHunch): string {
         .filter((p) => byId.has(p.id))
         .map((p) => `${columnLabel(p)}: ${byId.get(p.id)}`)
         .join("; ");
-      lines.push(`${isoDate(c.loggedOn)}  phase ${c.phase}  ${readings}`);
+      const arm = armOf(h, c);
+      const armLabel =
+        arm === null
+          ? "no arm (not answered)"
+          : h.shape === "observational"
+            ? `arm ${arm}`
+            : `phase ${arm}`;
+      lines.push(`${isoDate(c.loggedOn)}  ${armLabel}  ${readings}`);
     }
   }
   lines.push("");

@@ -45,6 +45,11 @@ model Hypothesis {
   subject       String   @default("self")
   confounders   String[] // named confounders
   createdAt     DateTime @default(now())
+  /// Can the user apply this change on any day they choose? False means the
+  /// trial is one observation window and its arms come from the exposure
+  /// parameter, not the schedule. Every hypothesis written before this field
+  /// was built as a scheduled trial, which is what the default says.
+  schedulable   Boolean  @default(true)
 
   hunch Hunch @relation(fields: [hunchId], references: [id], onDelete: Cascade)
 }
@@ -92,6 +97,11 @@ model Parameter {
   /// cascade off this row, so removing it would take the trial's history with
   /// it. Null means live.
   retiredAt DateTime?
+  /// The daily yes/no that says whether the change happened. On an
+  /// observational trial this is the arm assignment; on a phased one it is the
+  /// adherence count and never moves a day. At most one per hunch, always
+  /// binary, never the primary.
+  isExposure Boolean @default(false)
 
   hunch  Hunch          @relation(fields: [hunchId], references: [id], onDelete: Cascade)
   values CheckInValue[]

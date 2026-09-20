@@ -5,6 +5,7 @@ import { PencilIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CheckIn } from "@/components/check-in";
 import { adherenceStrip, adherenceSummary, type AdherenceDay } from "@/lib/adherence";
+import { isExposedReading } from "@/lib/parameters";
 import { cn } from "@/lib/utils";
 import type { ProtocolDesign } from "@/lib/schemas/protocol";
 import type { Parameter } from "@/lib/schemas/parameter";
@@ -67,6 +68,11 @@ export function AdherenceStrip({
   });
   const { logged, missed, elapsed } = adherenceSummary(strip);
 
+  // On an observational trial every day's `kind` is "baseline" — the daily
+  // yes/no this finds is the only thing that tells one day from another.
+  const exposureParam = parameters.find((p) => p.isExposure);
+  const observational = design.shape === "observational";
+
   const selected = openDay === null ? null : strip[openDay - 1];
   const selectedEntry = selected ? byDay.get(selected.date.getTime()) : undefined;
 
@@ -85,12 +91,17 @@ export function AdherenceStrip({
         {strip.map((d) => {
           const tone = STATE[d.state];
           const isOpen = openDay === d.day;
+          const exposureHit = exposureParam
+            ? byDay.get(d.date.getTime())?.values.find((v) => v.parameterId === exposureParam.id)
+            : undefined;
+          const exposed = isExposedReading(exposureHit?.value);
+          const label = exposed ? `${tone.word}, ${exposureParam?.label}` : tone.word;
           return (
             <li key={d.day}>
               <button
                 type="button"
                 aria-pressed={isOpen}
-                aria-label={`Day ${d.day}, ${DATE_FMT.format(d.date)} — ${tone.word}`}
+                aria-label={`Day ${d.day}, ${DATE_FMT.format(d.date)} — ${label}`}
                 onClick={() => {
                   setOpenDay(isOpen ? null : d.day);
                   setEditing(null);
@@ -98,9 +109,14 @@ export function AdherenceStrip({
                 className={cn(
                   "size-[26px] cursor-pointer rounded-md border p-0 outline-offset-2",
                   tone.className,
-                  // The phase is the tile's second dimension: baseline days read
-                  // flat, intervention days carry the accent underline.
-                  d.kind === "intervention" && "shadow-[inset_0_-3px_0_0_var(--s2)]",
+                  // The arm is the tile's second dimension: baseline days read
+                  // flat, intervention days carry the accent underline. On an
+                  // observational trial `kind` never leaves "baseline", so a day
+                  // the yes/no was answered yes carries it instead. On a phased
+                  // trial the schedule sets the arm — a baseline day answered
+                  // yes is still a baseline day.
+                  (observational ? exposed : d.kind === "intervention") &&
+                    "shadow-[inset_0_-3px_0_0_var(--s2)]",
                 )}
               />
             </li>

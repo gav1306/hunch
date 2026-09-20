@@ -30,6 +30,7 @@ const design = (): ProtocolDesign => ({
   washoutDays: 2,
   controls: ["Keep bedtime within 30 min", "No caffeine after 2pm"],
   instructions: "Log each morning. Baseline = usual routine; intervention = the change under test.",
+  shape: "phased",
 });
 
 async function main() {

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { computeBelief } from "@/lib/bayes";
-import { engineOutcomeType, pickPrimary, primaryBeliefRows } from "@/lib/parameters";
+import { armRows, engineOutcomeType, pickExposure, pickPrimary } from "@/lib/parameters";
 import { currentPhase, utcMidnight, utcToday as utcTodayFrom } from "@/lib/schedule";
 import { checkInValuesInputSchema, validateParameterValue } from "@/lib/schemas/parameter";
 import type { ParameterType } from "@/lib/schemas/parameter";
@@ -177,8 +177,9 @@ export async function POST(
     return flag ? [{ ...flag, parameterId: row.parameterId, label: param.label }] : [];
   });
   const primary = pickPrimary(hunch.parameters);
+  const exposureId = pickExposure(hunch.parameters)?.id ?? null;
   const belief = computeBelief(
-    primaryBeliefRows(all, primary?.id),
+    armRows(all, primary?.id, { shape: design.shape, exposureId }),
     engineOutcomeType(primary?.type ?? hunch.hypothesis.outcomeType),
   );
 

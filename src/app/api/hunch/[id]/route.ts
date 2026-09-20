@@ -44,6 +44,7 @@ export async function GET(
       outcomeMetric: hunch.hypothesis.outcomeMetric,
       // The gate needs this to seed a primary row for pre-migration hunches.
       outcomeType: hunch.hypothesis.outcomeType,
+      schedulable: hunch.hypothesis.schedulable,
     },
     parameters: hunch.parameters.map(toParameterDto),
     protocol: p

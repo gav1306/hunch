@@ -1,11 +1,14 @@
 import { describe, expect, test } from "vitest";
 import {
   activeParameters,
+  armRows,
   backfillKind,
   draftsFromSharpened,
   engineOutcomeType,
+  exposureReport,
+  isExposedReading,
+  pickExposure,
   pickPrimary,
-  primaryBeliefRows,
   toParameterDto,
 } from "@/lib/parameters";
 import { parameterSchema } from "@/lib/schemas/parameter";
@@ -58,6 +61,73 @@ describe("draftsFromSharpened", () => {
     });
     expect(rows[1]).toMatchObject({ unit: "1-10", min: 1, max: 10 });
   });
+
+  test("with no exposure, output is unchanged from today", () => {
+    const rows = draftsFromSharpened({
+      outcomeMetric: "hours of sleep",
+      outcomeType: "continuous",
+      trackers: [{ label: "caffeine after 2pm", type: "binary" }],
+    });
+    expect(rows).toHaveLength(2);
+    expect(rows.some((r) => "isExposure" in r && r.isExposure)).toBe(false);
+  });
+
+  test("with an exposure, the second row is the exposure and the primary is still first", () => {
+    const rows = draftsFromSharpened({
+      outcomeMetric: "hours of sleep",
+      outcomeType: "continuous",
+      trackers: [{ label: "stress", type: "amount" }],
+      exposure: { label: "played basketball today", type: "binary" },
+    });
+    expect(rows[0]).toMatchObject({ label: "hours of sleep", isPrimary: true });
+    expect(rows[1]).toMatchObject({
+      label: "played basketball today",
+      type: "binary",
+      isPrimary: false,
+      isExposure: true,
+    });
+  });
+
+  test("drops an exposure whose label matches the primary's", () => {
+    const rows = draftsFromSharpened({
+      outcomeMetric: "hours of sleep",
+      outcomeType: "continuous",
+      exposure: { label: "hours of sleep", type: "binary" },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows.some((r) => r.isExposure)).toBe(false);
+  });
+
+  test("drops a tracker whose label matches the exposure's", () => {
+    const rows = draftsFromSharpened({
+      outcomeMetric: "hours of sleep",
+      outcomeType: "continuous",
+      trackers: [{ label: "played basketball today", type: "binary" }],
+      exposure: { label: "played basketball today", type: "binary" },
+    });
+    // Primary + the exposure row only — the duplicate tracker is dropped.
+    expect(rows).toHaveLength(2);
+    const matches = rows.filter((r) => r.label === "played basketball today");
+    expect(matches).toHaveLength(1);
+    expect(matches[0].isExposure).toBe(true);
+  });
+
+  test("with an exposure, trackers are capped at three so the total stays inside five", () => {
+    const trackers = Array.from({ length: 6 }, (_, i) => ({
+      label: `t${i}`,
+      type: "binary" as const,
+    }));
+    const rows = draftsFromSharpened({
+      outcomeMetric: "m",
+      outcomeType: "binary",
+      trackers,
+      exposure: { label: "exposure", type: "binary" },
+    });
+    // primary + exposure + 3 trackers = 5
+    expect(rows).toHaveLength(5);
+    expect(rows.filter((r) => r.isExposure)).toHaveLength(1);
+    expect(rows.filter((r) => !r.isPrimary && !r.isExposure)).toHaveLength(3);
+  });
 });
 
 describe("toParameterDto", () => {
@@ -69,6 +139,7 @@ describe("toParameterDto", () => {
     min: null,
     max: null,
     isPrimary: true,
+    isExposure: false,
     sortOrder: 0,
     retiredAt: null,
   };
@@ -101,26 +172,183 @@ describe("pickPrimary", () => {
   });
 });
 
-describe("primaryBeliefRows", () => {
+describe("pickExposure", () => {
+  test("returns the exposure row", () => {
+    const rows = [
+      { id: "a", isExposure: false },
+      { id: "b", isExposure: true },
+    ];
+    expect(pickExposure(rows)?.id).toBe("b");
+  });
+
+  test("returns null when there is none", () => {
+    expect(pickExposure([{ id: "a", isExposure: false }])).toBeNull();
+  });
+});
+
+describe("isExposedReading", () => {
+  test("1 is exposed", () => {
+    expect(isExposedReading(1)).toBe(true);
+  });
+
+  test("0, null, undefined and other numbers are not exposed", () => {
+    expect(isExposedReading(0)).toBe(false);
+    expect(isExposedReading(null)).toBe(false);
+    expect(isExposedReading(undefined)).toBe(false);
+    expect(isExposedReading(2)).toBe(false);
+    expect(isExposedReading(0.5)).toBe(false);
+  });
+});
+
+describe("armRows", () => {
   const checkIns = [
     { phase: "A", values: [{ parameterId: "p1", value: 7 }, { parameterId: "p2", value: 1 }] },
     { phase: "B", values: [{ parameterId: "p2", value: 0 }] },
     { phase: "B", values: [{ parameterId: "p1", value: 5 }] },
   ];
 
-  test("keeps only the primary parameter's readings, with their phase", () => {
-    expect(primaryBeliefRows(checkIns, "p1")).toEqual([
+  test("phased passthrough: one row per day carrying a primary reading, phase as stored", () => {
+    expect(armRows(checkIns, "p1", { shape: "phased" })).toEqual([
       { phase: "A", value: 7 },
       { phase: "B", value: 5 },
     ]);
   });
 
-  test("returns nothing when there is no primary", () => {
-    expect(primaryBeliefRows(checkIns, null)).toEqual([]);
+  test("phased with a reporting-only exposureId still sorts by the stored phase", () => {
+    expect(armRows(checkIns, "p1", { shape: "phased", exposureId: "some-id" })).toEqual([
+      { phase: "A", value: 7 },
+      { phase: "B", value: 5 },
+    ]);
   });
 
-  test("skips days where the primary was not logged", () => {
-    expect(primaryBeliefRows([{ phase: "A", values: [] }], "p1")).toEqual([]);
+  test("observational sorting: exposure 1 -> B, exposure 0 -> A, regardless of stored phase", () => {
+    const rows = [
+      { phase: "A", values: [{ parameterId: "primary", value: 7 }, { parameterId: "exp", value: 1 }] },
+      { phase: "A", values: [{ parameterId: "primary", value: 3 }, { parameterId: "exp", value: 0 }] },
+    ];
+    expect(armRows(rows, "primary", { shape: "observational", exposureId: "exp" })).toEqual([
+      { phase: "B", value: 7 },
+      { phase: "A", value: 3 },
+    ]);
+  });
+
+  test("stored phase ignored: an observational day stored as B with exposure 0 comes back as A", () => {
+    const rows = [
+      { phase: "B", values: [{ parameterId: "primary", value: 4 }, { parameterId: "exp", value: 0 }] },
+    ];
+    expect(armRows(rows, "primary", { shape: "observational", exposureId: "exp" })).toEqual([
+      { phase: "A", value: 4 },
+    ]);
+  });
+
+  test("unknown exposure dropped: a primary reading with no exposure reading produces no row", () => {
+    const rows = [
+      { phase: "A", values: [{ parameterId: "primary", value: 4 }] },
+    ];
+    expect(armRows(rows, "primary", { shape: "observational", exposureId: "exp" })).toEqual([]);
+  });
+
+  test("missing primary: a day with no primary reading produces no row, either shape", () => {
+    const rows = [{ phase: "A", values: [{ parameterId: "exp", value: 1 }] }];
+    expect(armRows(rows, "primary", { shape: "phased" })).toEqual([]);
+    expect(armRows(rows, "primary", { shape: "observational", exposureId: "exp" })).toEqual([]);
+  });
+
+  test("no primaryId: returns []", () => {
+    expect(armRows(checkIns, null, { shape: "phased" })).toEqual([]);
+    expect(armRows(checkIns, undefined, { shape: "observational", exposureId: "p2" })).toEqual([]);
+  });
+
+  test("observational with no exposureId: returns [], not phase-sorted rows", () => {
+    const rows = [
+      { phase: "A", values: [{ parameterId: "primary", value: 7 }] },
+      { phase: "B", values: [{ parameterId: "primary", value: 3 }] },
+    ];
+    expect(armRows(rows, "primary", { shape: "observational" })).toEqual([]);
+    expect(armRows(rows, "primary", { shape: "observational", exposureId: null })).toEqual([]);
+  });
+
+  test("a corrected exposure moves the day: flipping exposure 1 -> 0 flips the arm B -> A", () => {
+    const before = [
+      { phase: "A", values: [{ parameterId: "primary", value: 4 }, { parameterId: "exp", value: 1 }] },
+    ];
+    const after = [
+      { phase: "A", values: [{ parameterId: "primary", value: 4 }, { parameterId: "exp", value: 0 }] },
+    ];
+    expect(armRows(before, "primary", { shape: "observational", exposureId: "exp" })).toEqual([
+      { phase: "B", value: 4 },
+    ]);
+    expect(armRows(after, "primary", { shape: "observational", exposureId: "exp" })).toEqual([
+      { phase: "A", value: 4 },
+    ]);
+  });
+});
+
+describe("exposureReport", () => {
+  const exposure = { id: "exp", label: "Played basketball" };
+
+  test("null when there is no exposure — a hunch without one reports nothing", () => {
+    const checkIns = [{ phase: "A", values: [{ parameterId: "exp", value: 1 }] }];
+    expect(exposureReport(checkIns, null, "observational")).toBe(null);
+    expect(exposureReport(checkIns, undefined, "observational")).toBe(null);
+  });
+
+  test("observational: counts over the whole window, unknown for logged days with no reading", () => {
+    const checkIns = [
+      ...Array.from({ length: 6 }, () => ({
+        phase: "A",
+        values: [{ parameterId: "exp", value: 1 }],
+      })),
+      ...Array.from({ length: 12 }, () => ({
+        phase: "A",
+        values: [{ parameterId: "exp", value: 0 }],
+      })),
+      ...Array.from({ length: 3 }, () => ({ phase: "A", values: [] })),
+    ];
+    expect(exposureReport(checkIns, exposure, "observational")).toEqual({
+      label: "Played basketball",
+      exposed: 6,
+      unexposed: 12,
+      unknown: 3,
+      observational: true,
+    });
+  });
+
+  test("phased: counts over phase-B days only — an A day with exposure 1 doesn't count", () => {
+    const checkIns = [
+      { phase: "A", values: [{ parameterId: "exp", value: 1 }] },
+      { phase: "B", values: [{ parameterId: "exp", value: 1 }] },
+      { phase: "B", values: [{ parameterId: "exp", value: 0 }] },
+      { phase: "B", values: [] },
+    ];
+    expect(exposureReport(checkIns, exposure, "phased")).toEqual({
+      label: "Played basketball",
+      exposed: 1,
+      unexposed: 1,
+      unknown: 1,
+      observational: false,
+    });
+  });
+
+  test("diary: same rule as phased — no B days, so all zeroes", () => {
+    const checkIns = [
+      { phase: "A", values: [{ parameterId: "exp", value: 1 }] },
+      { phase: "A", values: [{ parameterId: "exp", value: 0 }] },
+    ];
+    expect(exposureReport(checkIns, exposure, "diary")).toEqual({
+      label: "Played basketball",
+      exposed: 0,
+      unexposed: 0,
+      unknown: 0,
+      observational: false,
+    });
+  });
+
+  test("carries the label through verbatim", () => {
+    const checkIns = [{ phase: "B", values: [{ parameterId: "exp", value: 1 }] }];
+    expect(exposureReport(checkIns, { id: "exp", label: "Hours in the sun" }, "phased")?.label).toBe(
+      "Hours in the sun",
+    );
   });
 });
 
@@ -197,6 +425,7 @@ describe("toParameterDto retirement", () => {
     min: 1,
     max: 5,
     isPrimary: false,
+    isExposure: false,
     sortOrder: 1,
   };
 

@@ -5,9 +5,11 @@ import { db } from "@/lib/db";
 import { computeBelief } from "@/lib/bayes";
 import {
   activeParameters,
+  armRows,
   engineOutcomeType,
+  exposureReport,
+  pickExposure,
   pickPrimary,
-  primaryBeliefRows,
   toParameterDto,
 } from "@/lib/parameters";
 import { currentPhase } from "@/lib/schedule";
@@ -46,11 +48,20 @@ export async function GET(
 
   const primary = pickPrimary(hunch.parameters);
   const outcomeType = engineOutcomeType(primary?.type ?? hunch.hypothesis.outcomeType);
-  const belief = computeBelief(primaryBeliefRows(hunch.checkIns, primary?.id), outcomeType);
+  // A hunch with no protocol yet has no shape to speak of — treat it as
+  // "phased" so the belief falls back to today's byte-for-byte behaviour.
+  const design = hunch.protocol
+    ? parseStoredDesign(hunch.protocol.design, hunch.hypothesis.outcomeMetric)
+    : null;
+  const shape = design?.shape ?? "phased";
+  const exposureParam = pickExposure(hunch.parameters);
+  const belief = computeBelief(
+    armRows(hunch.checkIns, primary?.id, { shape, exposureId: exposureParam?.id ?? null }),
+    outcomeType,
+  );
 
   let schedule = null;
-  if (hunch.protocol?.startedAt) {
-    const design = parseStoredDesign(hunch.protocol.design, hunch.hypothesis.outcomeMetric);
+  if (hunch.protocol?.startedAt && design) {
     schedule = currentPhase(hunch.protocol.startedAt, design, new Date());
   }
 
@@ -72,5 +83,9 @@ export async function GET(
     // The anchor itself, so a trial the user scheduled for tomorrow can say
     // when it begins rather than just reporting that it hasn't.
     startsOn: hunch.protocol?.startedAt?.toISOString() ?? null,
+    // Computed from the check-ins on every request, exactly like the belief
+    // above it — a frozen count would disagree the moment a user corrects a
+    // day through the adherence strip.
+    exposure: exposureReport(hunch.checkIns, exposureParam, shape),
   });
 }

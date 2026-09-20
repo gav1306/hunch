@@ -62,6 +62,7 @@ describe("POST /api/hunch", () => {
       subject: "self",
       confounders: [],
       trackers: [{ label: "stress", type: "amount", unit: "1-10", min: 1, max: 10 }],
+      schedulable: true,
     });
     vi.mocked(db.hunch.create).mockResolvedValue({
       id: "h1",

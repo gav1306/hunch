@@ -9,6 +9,8 @@ import {
   protocolPhaseSchema,
   observeOnlyDesign,
   OBSERVE_DAYS,
+  observationalDesign,
+  OBSERVATION_DAYS,
   safetyVerdictSchema,
 } from "@/lib/schemas/protocol";
 
@@ -64,6 +66,11 @@ describe("protocol schemas", () => {
     expect(
       designResultSchema.safeParse({ confounders: [confounder], design, powerInfo, safety }).success,
     ).toBe(true);
+  });
+
+  it("defaults shape to \"phased\" when absent, so every existing writer stays valid", () => {
+    const parsed = protocolDesignSchema.parse(design);
+    expect(parsed.shape).toBe("phased");
   });
 });
 
@@ -121,6 +128,23 @@ describe("parseStoredDesign (tolerates pre-name/action rows)", () => {
     expect(design.phases[1].name).toBe("Phase 1");
     expect(design.phases[1].action).toBe("Do thing 1.");
   });
+
+  it("derives shape \"phased\" for a legacy three-phase row with no shape key", () => {
+    const design = parseStoredDesign(legacy);
+    expect(design.shape).toBe("phased");
+  });
+
+  it("derives shape \"diary\" for a legacy one-phase row with no shape key", () => {
+    const oneRow = { ...legacy, phases: [legacy.phases[0]] };
+    const design = parseStoredDesign(oneRow);
+    expect(design.shape).toBe("diary");
+  });
+
+  it("keeps an explicit shape rather than overwriting it with the derivation", () => {
+    const observational = { ...legacy, phases: [legacy.phases[0]], shape: "observational" };
+    const design = parseStoredDesign(observational);
+    expect(design.shape).toBe("observational");
+  });
 });
 
 describe("observeOnlyDesign", () => {
@@ -156,6 +180,59 @@ describe("observeOnlyDesign", () => {
 
   it("still rejects an empty phase list", () => {
     expect(protocolDesignSchema.safeParse({ ...design, phases: [] }).success).toBe(false);
+  });
+
+  it("is shaped as a diary", () => {
+    expect(design.shape).toBe("diary");
+  });
+});
+
+describe("observationalDesign", () => {
+  const design = observationalDesign("sleep quality", "played basketball");
+
+  it("has exactly one phase — the observation window", () => {
+    expect(design.phases).toHaveLength(1);
+  });
+
+  it("labels the phase A/baseline so the schedule needs no third case", () => {
+    expect(design.phases[0]).toMatchObject({
+      label: "A",
+      kind: "baseline",
+      days: OBSERVATION_DAYS,
+    });
+  });
+
+  it("has a 21-day observation window", () => {
+    expect(design.phases[0].days).toBe(21);
+  });
+
+  it("has no washout — a washout separates arms, and there is one arm", () => {
+    expect(design.washoutDays).toBe(0);
+  });
+
+  it("contains the exposure label verbatim in the action", () => {
+    expect(design.phases[0].action).toContain("played basketball");
+  });
+
+  it("contains the outcome metric verbatim in the action", () => {
+    expect(design.phases[0].action).toContain("sleep quality");
+  });
+
+  it("has non-empty instructions", () => {
+    expect(design.instructions).toBeTruthy();
+    expect(design.instructions.length).toBeGreaterThan(0);
+  });
+
+  it("is shaped as observational", () => {
+    expect(design.shape).toBe("observational");
+  });
+
+  it("passes protocolDesignSchema validation", () => {
+    expect(protocolDesignSchema.safeParse(design).success).toBe(true);
+  });
+
+  it("passes the stored-design parser the dashboard reads through", () => {
+    expect(() => parseStoredDesign(design, "sleep quality")).not.toThrow();
   });
 });
 

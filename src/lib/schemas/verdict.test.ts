@@ -36,4 +36,46 @@ describe("verdict schemas", () => {
     };
     expect(verdictSchema.safeParse(dto).success).toBe(false);
   });
+  it("parses a verdict carrying an exposure report, and keeps it in the parsed value", () => {
+    const exposure = {
+      label: "Played basketball",
+      exposed: 5,
+      unexposed: 3,
+      unknown: 1,
+      observational: true,
+    };
+    const dto = {
+      category: "helped",
+      narrative: "The intervention clearly improved your sleep.",
+      pEffect: 0.97,
+      effect: 1.2,
+      ci: [0.4, 2.0],
+      nA: 5,
+      nB: 5,
+      model: "normal-normal",
+      exposure,
+    };
+    const parsed = verdictSchema.safeParse(dto);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.exposure).toEqual(exposure);
+    }
+  });
+  it("still parses a verdict frozen before exposure existed — no exposure field at all", () => {
+    const dto = {
+      category: "helped",
+      narrative: "The intervention clearly improved your sleep.",
+      pEffect: 0.97,
+      effect: 1.2,
+      ci: [0.4, 2.0],
+      nA: 5,
+      nB: 5,
+      model: "normal-normal",
+    };
+    const parsed = verdictSchema.safeParse(dto);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.exposure).toBeUndefined();
+    }
+  });
 });

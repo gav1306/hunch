@@ -39,6 +39,12 @@ export type Tracker = z.infer<typeof trackerSchema>;
 export const parameterDraftSchema = trackerSchema.extend({
   /** The one parameter that drives the Bayesian verdict. */
   isPrimary: z.boolean().default(false),
+  /**
+   * The daily yes/no that tells this trial's days apart. At most one per
+   * hunch, always binary, never the primary — the refinements that police
+   * that are on the list schema, not here.
+   */
+  isExposure: z.boolean().default(false),
 });
 export type ParameterDraft = z.infer<typeof parameterDraftSchema>;
 
@@ -56,7 +62,16 @@ export const parameterListSchema = z
   .refine(
     (rows) => rows.every((r) => r.min === undefined || r.max === undefined || r.min < r.max),
     { message: "A parameter's lowest value must be below its highest." },
-  );
+  )
+  .refine((rows) => rows.filter((r) => r.isExposure).length <= 1, {
+    message: "Only one daily yes/no can split your days.",
+  })
+  .refine((rows) => rows.every((r) => !r.isExposure || r.type === "binary"), {
+    message: "The question that splits your days is a yes/no.",
+  })
+  .refine((rows) => rows.every((r) => !(r.isExposure && r.isPrimary)), {
+    message: "Your main measure can't also be the thing it's compared across.",
+  });
 
 /**
  * One primary plus four trackers. Retired rows don't count against it — they

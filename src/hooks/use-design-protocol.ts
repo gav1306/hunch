@@ -26,14 +26,23 @@ export type DesignResponse = {
   hypothesis: { statement: string; outcomeMetric: string };
 };
 
-async function postDesign(
-  hunchId: string,
-  parameters: ParameterDraft[],
-): Promise<DesignResponse> {
+/** What the confirm gate sends: the confirmed list, and its say on the shape. */
+export type DesignInput = {
+  parameters: ParameterDraft[];
+  /**
+   * The user's override of the Coach's schedulable guess. Safe to send on
+   * every request — the route only acts on it when it actually flips the
+   * stored value, so an always-scheduled hunch keeps a reporting-only
+   * exposure row untouched.
+   */
+  schedulable: boolean;
+};
+
+async function postDesign(hunchId: string, input: DesignInput): Promise<DesignResponse> {
   const res = await fetch(`/api/hunch/${hunchId}/protocol`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ parameters }),
+    body: JSON.stringify(input),
   });
   const body = await res.json();
   if (!res.ok) {
@@ -45,6 +54,6 @@ async function postDesign(
 /** Design (or redesign) the protocol for a sharpened hunch. */
 export function useDesignProtocol(hunchId: string) {
   return useMutation({
-    mutationFn: (parameters: ParameterDraft[]) => postDesign(hunchId, parameters),
+    mutationFn: (input: DesignInput) => postDesign(hunchId, input),
   });
 }

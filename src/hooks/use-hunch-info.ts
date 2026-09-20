@@ -6,7 +6,12 @@ import type { Parameter } from "@/lib/schemas/parameter";
 
 /** The protocol page's read model: the hypothesis + any already-designed protocol. */
 export type HunchInfo = {
-  hypothesis: { statement: string; outcomeMetric: string; outcomeType: "binary" | "continuous" };
+  hypothesis: {
+    statement: string;
+    outcomeMetric: string;
+    outcomeType: "binary" | "continuous";
+    schedulable: boolean;
+  };
   /** The parameters logged daily. Exactly one is primary once designed. */
   parameters: Parameter[];
   /** Null means the hunch is live. Set once the user files it away. */

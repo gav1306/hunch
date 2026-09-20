@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { Belief } from "@/lib/schemas/belief";
 import type { PhaseStatus } from "@/lib/schedule";
 import type { Parameter } from "@/lib/schemas/parameter";
+import type { ExposureReport } from "@/lib/schemas/verdict";
 
 export type BeliefResponse = {
   belief: Belief;
@@ -19,6 +20,8 @@ export type BeliefResponse = {
   schedule: PhaseStatus | null;
   /** The trial's anchor, or null if it has never been started. */
   startsOn: string | null;
+  /** How many days the exposure happened, or null when the hunch carries none. */
+  exposure: ExposureReport | null;
 };
 
 async function fetchBelief(hunchId: string): Promise<BeliefResponse> {

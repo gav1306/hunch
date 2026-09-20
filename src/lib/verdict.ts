@@ -1,6 +1,6 @@
 import type { Belief } from "@/lib/schemas/belief";
 import type { PhaseStatus } from "@/lib/schedule";
-import type { VerdictCategory } from "@/lib/schemas/verdict";
+import type { ExposureReport, VerdictCategory } from "@/lib/schemas/verdict";
 
 /** Minimum check-ins per arm before a verdict is trustworthy (matches the Phase 4 warming-up floor). */
 const MIN_PER_ARM = 3;
@@ -50,6 +50,41 @@ function midSentence(label: string): string {
 }
 
 /**
+ * "Played basketball on 6 of 21 logged days." on an observational trial, where
+ * every logged day is counted. A phased report counts phase-B days only, so
+ * there it reads "Took magnesium on 5 of 7 intervention days." Null until a
+ * day has been counted — a phased trial's whole first baseline would otherwise
+ * read "on 0 of 0".
+ */
+export function exposureSummary(e: ExposureReport): string | null {
+  const days = e.exposed + e.unexposed + e.unknown;
+  if (days === 0) return null;
+  const which = e.observational ? "logged" : "intervention";
+  return `${sentenceStart(e.label)} on ${e.exposed} of ${days} ${which} days.`;
+}
+
+/** Named only when days fell out of the comparison. */
+export function exposureDropped(e: ExposureReport): string | null {
+  if (e.unknown === 0) return null;
+  return e.unknown === 1
+    ? "1 day had no answer either way, so it isn't in the comparison."
+    : `${e.unknown} days had no answer either way, so they aren't in the comparison.`;
+}
+
+/**
+ * The one thing an observational trial must say about itself. Exposure is
+ * self-selected — people play on days their knee already feels good — so this
+ * is a correlation and the copy says so in the user's own words, once.
+ */
+export function observationalCaveat(e: ExposureReport): string {
+  return (
+    `These are the days you answered yes to "${e.label}", compared with the days ` +
+    `you didn't — you chose which were which, so this shows what went together, ` +
+    `not what caused what.`
+  );
+}
+
+/**
  * The verdict headline: which way the outcome moved, in the user's own words.
  *
  * Deliberately free of valence. `effect` is `meanB - meanA` on the raw outcome
@@ -61,13 +96,25 @@ function midSentence(label: string): string {
  *
  * The category names are the stored ones and still read as valence; they are
  * renamed to increase/decrease when the badge work lands.
+ *
+ * `exposure` is optional so the two-argument call sites (frozen exports,
+ * belief payloads without an exposure) keep compiling untouched. It only
+ * changes the thin-arm headline, and only when `exposure.observational` is
+ * true: on an observational trial "not enough days" is false the moment the
+ * user logged every day of the window — what was thin was the split between
+ * exposed and unexposed, not the logging. On a phased trial a missing day
+ * really is a missing day, so the generic headline stands.
  */
 export function verdictHeadline(
   category: VerdictCategory,
   outcome: VerdictOutcome | null,
+  exposure?: ExposureReport | null,
 ): string {
   switch (category) {
     case "inconclusive_insufficient":
+      if (exposure?.observational) {
+        return `Too few days either side of "${exposure.label}"`;
+      }
       return "Not enough days to tell";
     case "inconclusive_no_effect":
       return outcome

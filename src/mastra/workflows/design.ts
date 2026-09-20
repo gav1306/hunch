@@ -1,6 +1,7 @@
 import {
   designResultSchema,
   type DesignResult,
+  type ProtocolShape,
   type SafetyVerdict,
 } from "@/lib/schemas/protocol";
 import { detectConfounders } from "@/mastra/tools/confounder-detection";
@@ -28,8 +29,12 @@ export function resolveSafetyState(
 
 /**
  * The design workflow: structure confounders -> size the trial -> design the
- * ABA protocol -> safety-review it. Pure orchestration; persistence and gate
+ * protocol -> safety-review it. Pure orchestration; persistence and gate
  * enforcement live in the API route.
+ *
+ * The safety review runs on every shape. An observational trial schedules no
+ * change at all, but the reviewer is the gate (RULES §6) and there is no
+ * bypass — the hypothesis it reads can still be one a doctor should oversee.
  */
 export async function designProtocol(input: {
   statement: string;
@@ -37,8 +42,15 @@ export async function designProtocol(input: {
   outcomeType: "binary" | "continuous";
   confounderNames: string[];
   effectSize?: "small" | "medium" | "large";
+  /** Defaults to the scheduled ABA shape. */
+  shape?: ProtocolShape;
+  /** The daily yes/no an observational window derives its arms from. */
+  exposureLabel?: string;
 }): Promise<DesignResult> {
   const confounders = detectConfounders(input.confounderNames);
+  // Still run, still stored: `powerInfo` is what the plan shows the user about
+  // how much data this needs. Its `minDaysPerPhase` only reaches the design on
+  // the phased branch — an observational window is a fixed 21 days.
   const powerInfo = estimateTrialLength({
     outcomeType: input.outcomeType,
     effectSize: input.effectSize,
@@ -49,6 +61,8 @@ export async function designProtocol(input: {
     outcomeType: input.outcomeType,
     confounders,
     power: powerInfo,
+    shape: input.shape,
+    exposureLabel: input.exposureLabel,
   });
   const safety = await reviewSafety({ statement: input.statement, design });
 

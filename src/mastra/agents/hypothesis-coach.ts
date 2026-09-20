@@ -1,8 +1,10 @@
 import { Agent } from "@mastra/core/agent";
 import { claudeModel } from "@/mastra/model";
 import {
+  sharpenedHypothesisObjectSchema,
   sharpenedHypothesisSchema,
   type SharpenedHypothesis,
+  type SharpenedHypothesisDraft,
 } from "@/lib/schemas/hypothesis";
 import type { Prior } from "@/lib/schemas/prior";
 import type { ClarifyingAnswer } from "@/lib/schemas/clarify";
@@ -59,6 +61,20 @@ Rules:
 - subject: "self" for a hunch about the person's own body, mood, work or habits
   — almost every hunch. "other" when the thing being measured is NOT the person:
   a houseplant, a pet, a room, a car.
+- schedulable: can this person apply the change on ANY day they choose? "Skip
+  coffee after 2pm", "10k steps", "magnesium at bedtime" — yes, true. "Play
+  basketball", "go to the sauna", "have a big night out" — no, false: those
+  need other people, a place, or an opportunity that does not arrive on
+  request. Ask yourself whether a calendar could put it on a Tuesday. If it
+  could not, say false.
+- exposure: the daily yes/no that says whether the change happened, as
+  { label, type: "binary" }. REQUIRED whenever schedulable is false — it is how
+  the days get told apart. Also give one when schedulable is true AND the change
+  is a discrete act someone could skip ("Skipped coffee after 2pm", "Took my
+  walk"); leave it out when the phase itself is the whole story ("slept with the
+  window open"). Label it as the person would tick it off: "Played basketball",
+  "Went to the sauna". Never a scale, never a duration, never the outcome metric
+  restated.
 - confounders: real factors that could independently move the outcome during
   the experiment (stress, travel, illness, weekends). Empty array if none are
   obvious. Do not invent far-fetched ones.
@@ -167,6 +183,21 @@ export class NoStructuredOutput extends Error {
   }
 }
 
+// A model that says "not schedulable" but forgets the exposure would 502 the
+// whole sharpen. Fall back to the scheduled design, which is exactly today's
+// behaviour, and let the user flip it on the confirm gate — which is where the
+// exposure label gets asked for anyway.
+export function normaliseSchedulability(h: SharpenedHypothesisDraft): SharpenedHypothesisDraft {
+  // `=== false`, not `!`: an absent field means the schema default, true.
+  if (h.schedulable === false && h.exposure === undefined) {
+    console.warn(
+      "normaliseSchedulability: model returned schedulable=false with no exposure; falling back to schedulable=true",
+    );
+    return { ...h, schedulable: true };
+  }
+  return h;
+}
+
 export async function sharpenHunch(
   rawText: string,
   priors: Prior[] = [],
@@ -176,7 +207,10 @@ export async function sharpenHunch(
   const response = await hypothesisCoach.generate(
     buildSharpenPrompt(rawText, priors, answers, observeOnly),
     {
-      structuredOutput: { schema: sharpenedHypothesisSchema },
+      // The unrefined shape: Mastra validates with the refinements too, so the
+      // refined schema would throw on "unschedulable, no yes/no" here, before
+      // normaliseSchedulability below could repair it.
+      structuredOutput: { schema: sharpenedHypothesisObjectSchema },
       // The output is a small object; cap tokens to stay within budget and
       // avoid the provider's large default.
       modelSettings: { maxOutputTokens: 1024 },
@@ -186,5 +220,7 @@ export async function sharpenHunch(
   if (!response.object) {
     throw new NoStructuredOutput();
   }
-  return sharpenedHypothesisSchema.parse(response.object);
+  // response.object has already been validated against the unrefined shape,
+  // defaults filled. The cross-field rules run here, after the fallback.
+  return sharpenedHypothesisSchema.parse(normaliseSchedulability(response.object));
 }

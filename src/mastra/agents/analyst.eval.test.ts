@@ -86,4 +86,43 @@ describe.skipIf(!hasKey)("Analyst verdict quality", () => {
     // It still has to say which way the number went.
     expect(narrative.toLowerCase()).toMatch(/up|more|higher|increase|rose/);
   }, 60_000);
+
+  /**
+   * An observational trial compares days the person chose to do something with
+   * days they didn't. The prose may say what went together; it may not say the
+   * yes/no moved the outcome — the user picked their good-knee days to play.
+   */
+  test("says what went together on an observational trial, never what caused it", async () => {
+    const narrative = await narrateVerdict({
+      category: "hurt",
+      pEffect: 0.04,
+      effect: -1.3,
+      ci: [-2.2, -0.4],
+      statement: "Playing basketball makes my knee pain worse the next day.",
+      outcomeMetric: "knee pain the next morning, 1-5",
+      observational: true,
+      exposureLabel: "Played basketball",
+    });
+    expect(narrative.length).toBeGreaterThan(0);
+    expect(narrative.toLowerCase()).not.toMatch(
+      /\b(raised|raises|lowered|lowers|caused|causes|made|makes|led to|leads to|reduced|reduces|increased your|decreased your|because of)\b/,
+    );
+  }, 60_000);
+
+  test("blames a thin split, not thin logging, on an insufficient observational trial", async () => {
+    const narrative = await narrateVerdict({
+      category: "inconclusive_insufficient",
+      pEffect: 0.6,
+      effect: 0.3,
+      ci: [-1.5, 2.1],
+      statement: "Playing basketball makes my knee pain worse the next day.",
+      outcomeMetric: "knee pain the next morning, 1-5",
+      observational: true,
+      exposureLabel: "Played basketball",
+    });
+    expect(narrative.length).toBeGreaterThan(0);
+    expect(narrative.toLowerCase()).not.toMatch(
+      /(not enough|too few) (logged )?(days|entries|check-ins) (logged|were logged)|log more|didn't log|missed/,
+    );
+  }, 60_000);
 });

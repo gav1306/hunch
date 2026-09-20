@@ -5,6 +5,8 @@ import type {
   ParameterType,
   Tracker,
 } from "@/lib/schemas/parameter";
+import type { ProtocolShape } from "@/lib/schemas/protocol";
+import type { ExposureReport } from "@/lib/schemas/verdict";
 
 /** A day's check-in with its per-parameter readings, as read from the DB. */
 export type CheckInWithValues = {
@@ -21,6 +23,7 @@ export type ParameterRow = {
   min: number | null;
   max: number | null;
   isPrimary: boolean;
+  isExposure: boolean;
   sortOrder: number;
   retiredAt: Date | null;
 };
@@ -39,6 +42,7 @@ export function toParameterDto(row: ParameterRow): Parameter {
     min: row.min ?? undefined,
     max: row.max ?? undefined,
     isPrimary: row.isPrimary,
+    isExposure: row.isExposure,
     sortOrder: row.sortOrder,
     retired: row.retiredAt !== null,
   };
@@ -51,14 +55,20 @@ function sameLabel(a: string, b: string): boolean {
 
 /**
  * The starting parameter set for a freshly sharpened hunch: the outcome metric
- * as the primary, then the Coach's proposed trackers. Capped at four trackers;
- * duplicates of the primary are dropped so the user never sees the same row twice.
+ * as the primary, then (when the hunch carries one) the exposure — the daily
+ * yes/no an observational trial derives its arms from — then the Coach's
+ * proposed trackers. Duplicates of the primary, and of the exposure, are
+ * dropped so the user never sees the same row twice. Trackers are capped at
+ * four normally, three when an exposure is present, so the total never
+ * exceeds `MAX_ACTIVE_PARAMETERS`.
  */
 export function draftsFromSharpened(s: {
   outcomeMetric: string;
   /** The hypothesis' own word — the engine's vocabulary, not a kind. */
   outcomeType: "binary" | "continuous";
   trackers?: Tracker[];
+  /** The daily yes/no, present only for a hunch that can't be scheduled. */
+  exposure?: Tracker;
 }): ParameterDraft[] {
   const primary: ParameterDraft = {
     label: s.outcomeMetric,
@@ -68,12 +78,22 @@ export function draftsFromSharpened(s: {
     // stepper for a measure nobody has described yet.
     type: s.outcomeType === "binary" ? "binary" : "amount",
     isPrimary: true,
+    isExposure: false,
   };
+
+  const exposure: ParameterDraft | null =
+    s.exposure && !sameLabel(s.exposure.label, s.outcomeMetric)
+      ? { ...s.exposure, isPrimary: false, isExposure: true }
+      : null;
+
+  const trackerCap = exposure ? 3 : 4;
   const trackers = (s.trackers ?? [])
     .filter((t) => !sameLabel(t.label, s.outcomeMetric))
-    .slice(0, 4)
-    .map((t) => ({ ...t, isPrimary: false }));
-  return [primary, ...trackers];
+    .filter((t) => !exposure || !sameLabel(t.label, exposure.label))
+    .slice(0, trackerCap)
+    .map((t) => ({ ...t, isPrimary: false, isExposure: false }));
+
+  return exposure ? [primary, exposure, ...trackers] : [primary, ...trackers];
 }
 
 /** The one parameter that drives the verdict, or null when the set has none. */
@@ -81,22 +101,102 @@ export function pickPrimary<T extends { isPrimary: boolean }>(rows: T[]): T | nu
   return rows.find((r) => r.isPrimary) ?? null;
 }
 
+/** The daily yes/no an observational trial derives its arms from, or null when the hunch carries none. */
+export function pickExposure<T extends { isExposure: boolean }>(rows: T[]): T | null {
+  return rows.find((r) => r.isExposure) ?? null;
+}
+
+/**
+ * Whether a single reading of the exposure parameter says the change
+ * happened that day. `1` is yes; anything else — `0`, a stray non-binary
+ * number, or a missing reading — is not. The one place this comparison is
+ * made, so the four call sites that used to write `value === 1` by hand
+ * can't quietly drift from each other.
+ */
+export function isExposedReading(value: number | null | undefined): boolean {
+  return value === 1;
+}
+
 /**
  * Project day-buckets down to what the Bayesian engine consumes: the primary
- * parameter's reading per day, tagged with that day's phase. Secondary trackers
- * are dropped here — they never reach the statistics.
+ * reading per day, tagged with the arm that day belongs to.
+ *
+ * The arm is derived here and never stored. `CheckIn.phase` is the calendar's
+ * answer — the check-in route writes whatever the schedule says the date is —
+ * and on an observational trial that label carries no arm meaning at all.
+ * Deriving is also what makes a correction work: the adherence strip lets a
+ * user fix yesterday's "did I play?", and a stored arm would go stale the
+ * moment they did.
+ *
+ * Secondary trackers are dropped here — they never reach the statistics.
+ *
+ * `opts` is required on purpose: a defaulted shape let a caller forget it and
+ * silently sort an observational trial by the calendar, which puts every day
+ * in one arm and makes the verdict unreachable.
  */
-export function primaryBeliefRows(
+export function armRows(
   checkIns: CheckInWithValues[],
   primaryId: string | null | undefined,
+  opts: { shape: ProtocolShape; exposureId?: string | null },
 ): CheckInRow[] {
   if (!primaryId) return [];
+  if (opts.shape === "observational" && !opts.exposureId) return [];
+
   const rows: CheckInRow[] = [];
   for (const c of checkIns) {
-    const hit = c.values.find((v) => v.parameterId === primaryId);
-    if (hit) rows.push({ phase: c.phase, value: hit.value });
+    const primaryHit = c.values.find((v) => v.parameterId === primaryId);
+    if (!primaryHit) continue;
+
+    if (opts.shape === "observational") {
+      const exposureHit = c.values.find((v) => v.parameterId === opts.exposureId);
+      // An unanswered exposure is not a "no" — treating it as one would stuff
+      // every lazy check-in into the baseline arm and bias the result towards
+      // whatever the user does when they cannot be bothered to log.
+      if (!exposureHit) continue;
+      rows.push({ phase: isExposedReading(exposureHit.value) ? "B" : "A", value: primaryHit.value });
+    } else {
+      rows.push({ phase: c.phase, value: primaryHit.value });
+    }
   }
   return rows;
+}
+
+/**
+ * Count the days the exposure happened, over the days the count is actually
+ * answering a question about.
+ *
+ * On an observational trial the exposure assigned the arms, so the count is
+ * over the whole window: "how many days did this happen at all?" On a phased
+ * or diary trial the schedule already assigned the arms, so a reading logged
+ * during phase A says nothing about adherence — only phase-B days count, and
+ * the question the count answers is "was phase B adhered to?"
+ *
+ * `unknown` is a logged day carrying no exposure reading at all — never
+ * folded into `unexposed`, for the same reason `armRows` drops it: treating
+ * silence as "no" would bias the count towards whatever a lazy check-in
+ * defaults to.
+ */
+export function exposureReport(
+  checkIns: CheckInWithValues[],
+  exposure: { id: string; label: string } | null | undefined,
+  shape: ProtocolShape,
+): ExposureReport | null {
+  if (!exposure) return null;
+
+  const observational = shape === "observational";
+  const days = observational ? checkIns : checkIns.filter((c) => c.phase === "B");
+
+  let exposed = 0;
+  let unexposed = 0;
+  let unknown = 0;
+  for (const day of days) {
+    const hit = day.values.find((v) => v.parameterId === exposure.id);
+    if (!hit) unknown++;
+    else if (isExposedReading(hit.value)) exposed++;
+    else unexposed++;
+  }
+
+  return { label: exposure.label, exposed, unexposed, unknown, observational };
 }
 
 /**

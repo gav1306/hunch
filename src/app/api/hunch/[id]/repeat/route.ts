@@ -56,7 +56,12 @@ export async function POST(
           statement: hypothesis.statement,
           outcomeMetric: hypothesis.outcomeMetric,
           outcomeType: hypothesis.outcomeType,
+          expectedDirection: hypothesis.expectedDirection,
+          subject: hypothesis.subject,
           confounders: hypothesis.confounders,
+          // The design below carries its shape; without this the clone's
+          // hypothesis would say "schedulable" under an observational design.
+          schedulable: hypothesis.schedulable,
         },
       },
       protocol: {
@@ -80,6 +85,8 @@ export async function POST(
           min: p.min,
           max: p.max,
           isPrimary: p.isPrimary,
+          // On an observational trial this is where the arms come from.
+          isExposure: p.isExposure,
           sortOrder: p.sortOrder,
         })),
       },

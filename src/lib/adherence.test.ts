@@ -11,6 +11,7 @@ const DESIGN: ProtocolDesign = {
   washoutDays: 1,
   controls: [],
   instructions: "test",
+  shape: "phased",
 };
 
 const START = new Date("2026-08-01T00:00:00Z");
