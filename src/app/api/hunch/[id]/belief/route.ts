@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+import { timed, withTiming } from "@/lib/timing";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { computeBelief } from "@/lib/bayes";
@@ -20,7 +21,7 @@ import { parseStoredDesign } from "@/lib/schemas/protocol";
  * Bayesian engine fresh, and returns the posterior plus today's schedule so the
  * UI knows whether logging is open. No stored snapshots.
  */
-export async function GET(
+async function readBelief(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -30,18 +31,20 @@ export async function GET(
   }
 
   const { id } = await params;
-  const hunch = await db.hunch.findFirst({
-    where: { id, userId: session.user.id },
-    include: {
-      hypothesis: true,
-      protocol: true,
-      parameters: { orderBy: { sortOrder: "asc" } },
-      checkIns: {
-        orderBy: { loggedOn: "asc" },
-        include: { values: { select: { parameterId: true, value: true } } },
+  const hunch = await timed("db-load", () =>
+    db.hunch.findFirst({
+      where: { id, userId: session.user.id },
+      include: {
+        hypothesis: true,
+        protocol: true,
+        parameters: { orderBy: { sortOrder: "asc" } },
+        checkIns: {
+          orderBy: { loggedOn: "asc" },
+          include: { values: { select: { parameterId: true, value: true } } },
+        },
       },
-    },
-  });
+    }),
+  );
   if (!hunch || !hunch.hypothesis) {
     return NextResponse.json({ error: "Hunch not found." }, { status: 404 });
   }
@@ -89,3 +92,5 @@ export async function GET(
     exposure: exposureReport(hunch.checkIns, exposureParam, shape),
   });
 }
+
+export const GET = withTiming(readBelief);

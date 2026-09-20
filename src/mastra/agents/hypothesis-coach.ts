@@ -1,5 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { claudeModel } from "@/mastra/model";
+import { llmUsage, timed } from "@/lib/timing";
 import {
   sharpenedHypothesisObjectSchema,
   sharpenedHypothesisSchema,
@@ -204,17 +205,19 @@ export async function sharpenHunch(
   answers: ClarifyingAnswer[] = [],
   observeOnly = false,
 ): Promise<SharpenedHypothesis> {
-  const response = await hypothesisCoach.generate(
-    buildSharpenPrompt(rawText, priors, answers, observeOnly),
-    {
-      // The unrefined shape: Mastra validates with the refinements too, so the
-      // refined schema would throw on "unschedulable, no yes/no" here, before
-      // normaliseSchedulability below could repair it.
-      structuredOutput: { schema: sharpenedHypothesisObjectSchema },
-      // The output is a small object; cap tokens to stay within budget and
-      // avoid the provider's large default.
-      modelSettings: { maxOutputTokens: 1024 },
-    },
+  const response = await timed(
+    "coach",
+    () =>
+      hypothesisCoach.generate(buildSharpenPrompt(rawText, priors, answers, observeOnly), {
+        // The unrefined shape: Mastra validates with the refinements too, so the
+        // refined schema would throw on "unschedulable, no yes/no" here, before
+        // normaliseSchedulability below could repair it.
+        structuredOutput: { schema: sharpenedHypothesisObjectSchema },
+        // The output is a small object; cap tokens to stay within budget and
+        // avoid the provider's large default.
+        modelSettings: { maxOutputTokens: 1024 },
+      }),
+    llmUsage,
   );
 
   if (!response.object) {

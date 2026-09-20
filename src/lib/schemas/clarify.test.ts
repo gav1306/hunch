@@ -37,4 +37,16 @@ describe("clarify schemas", () => {
     const parsed = sharpenRequestSchema.parse({ rawText: "coffee wrecks sleep" });
     expect(parsed.answers).toEqual([]);
   });
+
+  it("sharpenRequest leaves priorIds unset when clarify didn't recall", () => {
+    // Unset means "recall hasn't run for this text"; [] means it ran and found
+    // nothing. Defaulting to [] would silently skip recall on the fallback path.
+    const parsed = sharpenRequestSchema.parse({ rawText: "coffee wrecks sleep" });
+    expect(parsed.priorIds).toBeUndefined();
+  });
+
+  it("sharpenRequest carries the prior ids clarify recalled", () => {
+    const parsed = sharpenRequestSchema.parse({ rawText: "coffee wrecks sleep", priorIds: ["h_caf"] });
+    expect(parsed.priorIds).toEqual(["h_caf"]);
+  });
 });

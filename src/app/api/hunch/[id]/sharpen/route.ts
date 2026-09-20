@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+import { untimed } from "@/lib/timing";
 import { db } from "@/lib/db";
 import { recallPriors } from "@/lib/memory/recall";
 import { draftsFromSharpened, toParameterDto } from "@/lib/parameters";
@@ -7,6 +8,7 @@ import { sharpenRequestSchema } from "@/lib/schemas/clarify";
 import { MEDICATION_REFUSAL, medicationIntent } from "@/lib/safety/medication";
 import { getSession } from "@/lib/session";
 import { sharpenHunch } from "@/mastra/agents/hypothesis-coach";
+import { predesign } from "@/lib/design-draft/predesign";
 
 /**
  * Re-sharpen a hunch the user already dropped, in place.
@@ -62,7 +64,11 @@ export async function POST(
   }
 
   try {
-    const priors = await recallPriors(session.user.id, parsed.data.rawText);
+    const priors = await recallPriors(
+      session.user.id,
+      parsed.data.rawText,
+      parsed.data.priorIds,
+    );
     const sharpened = await sharpenHunch(
       parsed.data.rawText,
       priors,
@@ -114,6 +120,9 @@ export async function POST(
         include: { hypothesis: true, parameters: { orderBy: { sortOrder: "asc" } } },
       });
     });
+
+    // The old draft was designed from the old hypothesis; this one replaces it.
+    if (!parsed.data.observeOnly) after(() => untimed(() => predesign(updated.id)));
 
     return NextResponse.json(
       { hunch: { ...updated, parameters: updated.parameters.map(toParameterDto) }, priors },

@@ -1,5 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { claudeModel } from "@/mastra/model";
+import { llmUsage, timed } from "@/lib/timing";
 import {
   verdictNarrativeSchema,
   type VerdictCategory,
@@ -80,10 +81,15 @@ Effect size (${effectLabel}): ${input.effect.toFixed(2)}
     observational ? observationalBrief(input.exposureLabel?.trim() || "the daily yes/no") : ""
   }`;
 
-  const response = await analyst.generate(prompt, {
-    structuredOutput: { schema: verdictNarrativeSchema },
-    modelSettings: { maxOutputTokens: 1024 },
-  });
+  const response = await timed(
+    "analyst",
+    () =>
+      analyst.generate(prompt, {
+        structuredOutput: { schema: verdictNarrativeSchema },
+        modelSettings: { maxOutputTokens: 1024 },
+      }),
+    llmUsage,
+  );
 
   return verdictNarrativeSchema.parse(response.object).narrative;
 }

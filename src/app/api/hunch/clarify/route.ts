@@ -1,7 +1,8 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+import { withTiming } from "@/lib/timing";
 import { getSession } from "@/lib/session";
-import { recallPriors } from "@/lib/memory/recall";
+import { recallPriorsForReuse } from "@/lib/memory/recall";
 import { hunchInputSchema } from "@/lib/schemas/hypothesis";
 import { askClarifying } from "@/mastra/agents/clarifier";
 import { MEDICATION_REFUSAL, medicationIntent } from "@/lib/safety/medication";
@@ -11,7 +12,7 @@ import { MEDICATION_REFUSAL, medicationIntent } from "@/lib/safety/medication";
  * Creates nothing — the Hunch row is written later by POST /api/hunch once the
  * user has answered and the coach commits a hypothesis.
  */
-export async function POST(request: Request) {
+async function clarify(request: Request) {
   const session = await getSession(await headers());
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -33,9 +34,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    const priors = await recallPriors(session.user.id, parsed.data.rawText);
+    // priorIds go back so sharpen can reuse this recall rather than repeat it;
+    // absent when recall failed, so sharpen tries again.
+    const { priors, priorIds } = await recallPriorsForReuse(
+      session.user.id,
+      parsed.data.rawText,
+    );
     const { questions } = await askClarifying(parsed.data.rawText, priors);
-    return NextResponse.json({ questions }, { status: 200 });
+    return NextResponse.json({ questions, priorIds }, { status: 200 });
   } catch (err) {
     console.error("[clarify] failed:", err);
     return NextResponse.json(
@@ -44,3 +50,5 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export const POST = withTiming(clarify);

@@ -4,12 +4,15 @@ vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 vi.mock("@/lib/auth", () => ({
   auth: { api: { getSession: vi.fn() } },
 }));
-vi.mock("@/lib/memory/recall", () => ({ recallPriors: vi.fn(async () => []) }));
+vi.mock("@/lib/memory/recall", () => ({
+  recallPriorsForReuse: vi.fn(async () => ({ priors: [], priorIds: [] })),
+}));
 vi.mock("@/mastra/agents/clarifier", () => ({ askClarifying: vi.fn() }));
 
 import { POST } from "./route";
 import { auth } from "@/lib/auth";
 import { askClarifying } from "@/mastra/agents/clarifier";
+import { recallPriorsForReuse } from "@/lib/memory/recall";
 
 const req = (body: unknown) =>
   new Request("http://t/api/hunch/clarify", { method: "POST", body: JSON.stringify(body) });
@@ -38,5 +41,40 @@ describe("POST /api/hunch/clarify", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.questions).toHaveLength(1);
+  });
+
+  it("hands back the ids recall picked so sharpening doesn't ask the model again", async () => {
+    vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "u1" } } as never);
+    vi.mocked(recallPriorsForReuse).mockResolvedValue({
+      priors: [
+        {
+          cause: "Cutting caffeine increases sleep.",
+          effect: "hours of sleep",
+          direction: "increases",
+          effectSize: 0.4,
+          confidence: 0.8,
+          sourceHunchId: "h_caf",
+        },
+      ],
+      priorIds: ["h_caf"],
+    });
+    vi.mocked(askClarifying).mockResolvedValue({
+      questions: [{ id: "outcome", prompt: "How?", options: ["a", "b"], allowOther: true }],
+    });
+    const res = await POST(req({ rawText: "coffee wrecks sleep" }));
+    const body = await res.json();
+    expect(body.priorIds).toEqual(["h_caf"]);
+  });
+
+  it("sends no priorIds when recall failed, so sharpen recalls again", async () => {
+    vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "u1" } } as never);
+    vi.mocked(recallPriorsForReuse).mockResolvedValue({ priors: [] });
+    vi.mocked(askClarifying).mockResolvedValue({
+      questions: [{ id: "outcome", prompt: "How?", options: ["a", "b"], allowOther: true }],
+    });
+    const res = await POST(req({ rawText: "coffee wrecks sleep" }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).not.toHaveProperty("priorIds");
   });
 });

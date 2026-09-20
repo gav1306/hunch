@@ -111,6 +111,8 @@ export function NewHunchForm({
     }
   });
   const [questions, setQuestions] = useState<ClarifyingQuestion[] | null>(null);
+  /** What clarify's recall picked for these same words, so sharpen needn't ask again. */
+  const [priorIds, setPriorIds] = useState<string[] | undefined>(undefined);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   /** Why the last press didn't do anything, when the form isn't ready yet. */
   const [nudge, setNudge] = useState<string | null>(null);
@@ -198,7 +200,10 @@ export function NewHunchForm({
     }
     setNudge(null);
     clarify.mutate(text, {
-      onSuccess: (qs) => setQuestions(qs),
+      onSuccess: (result) => {
+        setQuestions(result.questions);
+        setPriorIds(result.priorIds);
+      },
       // Degrade: if the clarifier fails, skip straight to a one-shot sharpen —
       // unless it didn't fail but refused, in which case falling through would
       // run the very thing that was just declined.
@@ -221,7 +226,7 @@ export function NewHunchForm({
     const payload: ClarifyingAnswer[] = questions
       .filter((q) => (answers[q.id] ?? "").trim() !== "")
       .map((q) => ({ id: q.id, prompt: q.prompt, answer: answers[q.id].trim() }));
-    createHunch.mutate({ rawText: rawText.trim(), answers: payload });
+    createHunch.mutate({ rawText: rawText.trim(), answers: payload, priorIds });
   }
 
   const allAnswered = questions?.every((q) => (answers[q.id] ?? "").trim() !== "") ?? false;
@@ -303,6 +308,7 @@ export function NewHunchForm({
               disabled={busy}
               onClick={() => {
                 setQuestions(null);
+                setPriorIds(undefined);
                 setAnswers({});
                 setNudge(null);
               }}

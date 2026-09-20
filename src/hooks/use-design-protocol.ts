@@ -44,8 +44,10 @@ async function postDesign(hunchId: string, input: DesignInput): Promise<DesignRe
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-  const body = await res.json();
-  if (!res.ok) {
+  // Tolerate a non-JSON / empty body (e.g. an unhandled 5xx) instead of letting
+  // res.json() throw a raw "Unexpected end of JSON input" at the UI.
+  const body = await res.json().catch(() => null);
+  if (!res.ok || !body) {
     throw new Error(body?.error ?? "Something went wrong designing your protocol.");
   }
   return body as DesignResponse;

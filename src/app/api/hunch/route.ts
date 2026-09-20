@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+import { untimed, withTiming } from "@/lib/timing";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { recallPriors } from "@/lib/memory/recall";
@@ -8,12 +9,13 @@ import { sharpenRequestSchema } from "@/lib/schemas/clarify";
 import { MEDICATION_REFUSAL, medicationIntent } from "@/lib/safety/medication";
 import { NoStructuredOutput, sharpenHunch } from "@/mastra/agents/hypothesis-coach";
 import { diaryFallback } from "@/lib/safety/diary-fallback";
+import { predesign } from "@/lib/design-draft/predesign";
 
 /**
  * Core loop, step one: drop a hunch -> Hypothesis Coach sharpens it -> persist
  * the Hunch and its Hypothesis, then return the pair for the Hunch Card.
  */
-export async function POST(request: Request) {
+async function createHunch(request: Request) {
   const session = await getSession(await headers());
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -37,7 +39,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    const priors = await recallPriors(session.user.id, parsed.data.rawText);
+    const priors = await recallPriors(
+      session.user.id,
+      parsed.data.rawText,
+      parsed.data.priorIds,
+    );
     let sharpened;
     try {
       sharpened = await sharpenHunch(
@@ -91,6 +97,10 @@ export async function POST(request: Request) {
       include: { hypothesis: true, parameters: { orderBy: { sortOrder: "asc" } } },
     });
 
+    // Design the plan while the user reads the confirm gate; confirm takes it
+    // if nothing it depends on changed. A log never gets a designed plan.
+    if (!parsed.data.observeOnly) after(() => untimed(() => predesign(hunch.id)));
+
     return NextResponse.json(
       { hunch: { ...hunch, parameters: hunch.parameters.map(toParameterDto) }, priors },
       { status: 201 },
@@ -105,3 +115,5 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export const POST = withTiming(createHunch);

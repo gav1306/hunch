@@ -33,7 +33,12 @@ export class BlockedHunchError extends Error {
 }
 
 async function postHunch(
-  input: { rawText: string; answers: ClarifyingAnswer[]; observeOnly?: boolean },
+  input: {
+    rawText: string;
+    answers: ClarifyingAnswer[];
+    observeOnly?: boolean;
+    priorIds?: string[];
+  },
   resumeId?: string,
 ): Promise<HunchWithHypothesis> {
   const res = await fetch(resumeId ? `/api/hunch/${resumeId}/sharpen` : "/api/hunch", {
@@ -67,6 +72,7 @@ export function useCreateHunch(resumeId?: string) {
       rawText: string;
       answers: ClarifyingAnswer[];
       observeOnly?: boolean;
+      priorIds?: string[];
     }) => postHunch(input, resumeId),
   });
 }

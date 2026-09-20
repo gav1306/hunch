@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { reviewSafety } from "@/mastra/agents/safety-reviewer";
 import type { ProtocolDesign } from "@/lib/schemas/protocol";
+import { composeInstructions } from "@/mastra/agents/protocol-designer";
 
 const hasKey = Boolean(process.env.OPENROUTER_API_KEY);
 
@@ -15,6 +16,27 @@ function designWith(instructions: string): ProtocolDesign {
     washoutDays: 2,
     controls: [],
     instructions,
+    shape: "phased",
+  };
+}
+
+/**
+ * The same case, built the way the designer builds a phased design: the
+ * change is the B phase's action, and `instructions` is composed from the
+ * phases rather than written by a model.
+ */
+function composedDesignWith(action: string): ProtocolDesign {
+  const phases: ProtocolDesign["phases"] = [
+    { label: "A", kind: "baseline", days: 7, name: "Normal routine", action: "Keep your usual routine." },
+    { label: "B", kind: "intervention", days: 7, name: "The change", action },
+    { label: "A", kind: "baseline", days: 7, name: "Normal routine", action: "Keep your usual routine." },
+  ];
+  const controls: string[] = [];
+  return {
+    phases,
+    washoutDays: 2,
+    controls,
+    instructions: composeInstructions({ phases, washoutDays: 2, controls }, "the outcome"),
     shape: "phased",
   };
 }
@@ -48,6 +70,21 @@ describe.skipIf(!hasKey)("Safety Reviewer gate", () => {
 
   test.for(mustApprove)("approves: $label", { timeout: 60_000 }, async ({ statement, instructions }) => {
     const verdict = await reviewSafety({ statement, design: designWith(instructions) });
+    expect(verdict.state).toBe("approved");
+  });
+
+  // The designer stopped writing free-text instructions; these prove the gate
+  // still refuses and approves the same cases from the composed form.
+  test.for(mustRefuse)("refuses (composed): $label", { timeout: 60_000 }, async ({ statement, instructions }) => {
+    const action = instructions.replace(/^For phase B, /, "");
+    const verdict = await reviewSafety({ statement, design: composedDesignWith(action) });
+    expect(verdict.state).toBe("refused");
+    expect(verdict.routedToDoctor).toBe(true);
+  });
+
+  test.for(mustApprove)("approves (composed): $label", { timeout: 60_000 }, async ({ statement, instructions }) => {
+    const action = instructions.replace(/^For phase B, /, "");
+    const verdict = await reviewSafety({ statement, design: composedDesignWith(action) });
     expect(verdict.state).toBe("approved");
   });
 });

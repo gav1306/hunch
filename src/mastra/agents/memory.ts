@@ -1,5 +1,6 @@
 import { Agent } from "@mastra/core/agent";
-import { claudeModel } from "@/mastra/model";
+import { fastModel } from "@/mastra/model";
+import { llmUsage, timed } from "@/lib/timing";
 import type { CausalEdge } from "@/generated/prisma/client";
 import { recallResultSchema, type RecallResult } from "@/lib/schemas/prior";
 
@@ -13,7 +14,7 @@ import { recallResultSchema, type RecallResult } from "@/lib/schemas/prior";
 export const memory = new Agent({
   id: "memory",
   name: "Memory",
-  model: claudeModel,
+  model: fastModel,
   instructions: `You are the Memory for Hunch, a personal-science copilot.
 
 The user just wrote a new hunch. You are given a short list of their PAST
@@ -46,10 +47,15 @@ ${list}
 
 Return the ids of the findings genuinely related to this new hunch.`;
 
-  const response = await memory.generate(prompt, {
-    structuredOutput: { schema: recallResultSchema },
-    modelSettings: { maxOutputTokens: 1024 },
-  });
+  const response = await timed(
+    "recall",
+    () =>
+      memory.generate(prompt, {
+        structuredOutput: { schema: recallResultSchema },
+        modelSettings: { maxOutputTokens: 1024 },
+      }),
+    llmUsage,
+  );
 
   return recallResultSchema.parse(response.object);
 }

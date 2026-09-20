@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+import { timed, withTiming } from "@/lib/timing";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { computeBelief } from "@/lib/bayes";
@@ -48,7 +49,7 @@ function toDto(
  * Analyst narrate it, persists the snapshot, flips the hunch to "concluded", and
  * returns it. Still-running trials get 409 and keep showing the live meter.
  */
-export async function GET(
+async function readVerdict(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -58,19 +59,21 @@ export async function GET(
   }
 
   const { id } = await params;
-  const hunch = await db.hunch.findFirst({
-    where: { id, userId: session.user.id },
-    include: {
-      hypothesis: true,
-      protocol: true,
-      verdict: true,
-      parameters: true,
-      checkIns: {
-        orderBy: { loggedAt: "asc" },
-        include: { values: { select: { parameterId: true, value: true } } },
+  const hunch = await timed("db-load", () =>
+    db.hunch.findFirst({
+      where: { id, userId: session.user.id },
+      include: {
+        hypothesis: true,
+        protocol: true,
+        verdict: true,
+        parameters: true,
+        checkIns: {
+          orderBy: { loggedAt: "asc" },
+          include: { values: { select: { parameterId: true, value: true } } },
+        },
       },
-    },
-  });
+    }),
+  );
   if (!hunch || !hunch.hypothesis) {
     return NextResponse.json({ error: "Hunch not found." }, { status: 404 });
   }
@@ -183,3 +186,5 @@ export async function GET(
 
   return NextResponse.json({ verdict: { ...verdict, exposure: report } });
 }
+
+export const GET = withTiming(readVerdict);

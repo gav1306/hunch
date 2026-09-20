@@ -1,7 +1,8 @@
 import { Agent } from "@mastra/core/agent";
+import { z } from "zod";
 import { claudeModel } from "@/mastra/model";
+import { llmUsage, timed } from "@/lib/timing";
 import {
-  OBSERVATION_DAYS,
   observationalDesign,
   protocolDesignSchema,
   type Confounder,
@@ -13,15 +14,19 @@ import {
 
 /**
  * Protocol Designer (RESEARCH §3 / Phase 3). Turns a sharpened hypothesis into
- * a concrete n-of-1 design. Usually that is ABA — baseline (A) -> intervention
- * (B) -> baseline (A) — with phase lengths informed by the deterministic power
- * tool and the confounder controls folded into the instructions. The agent does
- * NOT do math: phase lengths come from `power.minDaysPerPhase`.
+ * a concrete n-of-1 design: ABA — baseline (A) -> intervention (B) -> baseline
+ * (A) — with phase lengths from the deterministic power tool and the
+ * confounder controls folded in.
  *
- * When the change cannot be applied on demand the design is instead a single
- * observation window, and there the agent writes only the prose — see
- * `designProtocolShape`, which tells it so in the prompt and builds the
- * structure itself.
+ * The model writes only what needs judgment: what the user calls each phase,
+ * what they do in it, and how long a washout the change needs. Structure,
+ * lengths, controls and the step-by-step instructions are built here. It used
+ * to write all of it — ~900 tokens, ~10s — most of which was copied from its
+ * input or, for `instructions`, read only by the safety reviewer.
+ *
+ * When the change cannot be applied on demand the design is a single
+ * observation window and the model is not asked at all — see
+ * `designProtocolShape`.
  */
 export const protocolDesigner = new Agent({
   id: "protocol-designer",
@@ -29,39 +34,44 @@ export const protocolDesigner = new Agent({
   model: claudeModel,
   instructions: `You are the Protocol Designer for Hunch, a personal-science copilot.
 
-Given a sharpened hypothesis, design an n-of-1 experiment the user can run on
-themselves. Usually that is ABA: phase A (baseline, normal behaviour), phase B
-(intervention), then phase A again (return to baseline), which isolates the
-intervention's effect. When the change cannot be applied on demand, each request
-says so and asks for a single observation window instead — follow what the
-request asks for.
+Given a sharpened hypothesis, you name the phases of an ABA n-of-1 experiment
+the user runs on themselves: phase A (baseline, normal behaviour), phase B (the
+change), then phase A again. The app sets the phase lengths and structure; you
+write the words.
 
-Rules for an ABA design:
-- phases: exactly three — A (baseline), B (intervention), A (baseline). Use the
-  provided minimum days per phase for EACH phase's "days". Do not invent your own
-  length and do not do arithmetic; use the number you are given.
-- Each phase also needs a short human "name" and an "action". name: what the
-  user calls this phase in plain words ("Normal coffee", "No coffee after 2pm").
-  action: exactly what they do that phase and what to log, in their own terms.
-  Baseline phases keep normal behaviour; the B phase names the specific change.
+- baselineName / interventionName / returnName: what the user calls each phase
+  in plain words ("Normal coffee", "No coffee after 2pm", "Back to normal
+  coffee"). A few words each.
+- baselineAction / interventionAction / returnAction: exactly what they do in
+  that phase, in their own terms, in one or two short sentences. Baseline keeps
+  normal behaviour; the intervention names the specific change; the return
+  phase stops the change and, being the last, says what to record at the end.
 - washoutDays: a short gap (1-3 days) between phases so the prior phase stops
   influencing the next. Use 0 only if a washout makes no sense.
-- instructions: clear, friendly, step-by-step guidance for running all three
-  phases and logging the outcome metric. Reference the controls.
-
-Whatever the shape: include every confounder control you are given in
-"controls", verbatim, and always return non-empty "instructions".
 
 Keep it realistic for one person at home. Never recommend prescription meds,
 fasting, or anything a doctor should oversee — that is handled separately.`,
 });
 
 /**
- * Deterministic fallback instructions, built from the structured design when the
- * model omits or empties the `instructions` field. Guarantees the schema's
- * non-empty `instructions` invariant holds without a hard failure blanking the
- * page — prose is nicer, but a valid protocol always wins over a 500.
+ * The model's whole output for a phased design. Everything else in a
+ * ProtocolDesign is decided in code.
  */
+export const phaseCopySchema = z.object({
+  baselineName: z.string(),
+  baselineAction: z.string(),
+  interventionName: z.string(),
+  interventionAction: z.string(),
+  /** The closing baseline: same behaviour as the first, but it ends the trial. */
+  returnName: z.string(),
+  returnAction: z.string(),
+  washoutDays: z.number().int(),
+});
+export type PhaseCopy = z.infer<typeof phaseCopySchema>;
+
+/** Most days a washout may take; a longer gap just stretches the trial. */
+const MAX_WASHOUT_DAYS = 3;
+
 /**
  * Fill any missing per-phase name/action deterministically so the schema's
  * non-empty invariant holds even when the model omits them. Baseline phases
@@ -87,6 +97,11 @@ export function fillPhaseDefaults(
   });
 }
 
+/**
+ * The step-by-step instructions for a design, built from its structure: every
+ * phase's name and action, the washout, and each control. Always non-empty, so
+ * the schema's `instructions` invariant holds.
+ */
 export function composeInstructions(
   design: Pick<ProtocolDesign, "phases" | "washoutDays" | "controls">,
   outcomeMetric: string,
@@ -110,12 +125,14 @@ export function composeInstructions(
 /**
  * Design the protocol for one hypothesis.
  *
- * Two shapes. "phased" is the ABA trial the model designs. "observational" is
- * a single 21-day window whose arms come from the daily exposure answer rather
- * than the calendar — and there, the structure is taken out of the model's
- * hands rather than negotiated with it: `phases`, `washoutDays` and `shape`
- * are `observationalDesign`'s, and only the prose (`controls`, `instructions`)
- * is the model's. A model that returns three phases anyway has them discarded.
+ * Two shapes. "phased" is the ABA trial: the model names the two kinds of
+ * phase and picks a washout, and the rest is assembled here. "observational"
+ * is a single 21-day window whose arms come from the daily exposure answer —
+ * there is nothing in it for the model to decide, so it is built without one.
+ *
+ * `instructions` is composed from the phases and controls in both cases. No
+ * screen shows it; the safety reviewer reads it, so it has to carry each
+ * phase's action — the change being tested — verbatim.
  */
 export async function designProtocolShape(input: {
   statement: string;
@@ -129,74 +146,61 @@ export async function designProtocolShape(input: {
   exposureLabel?: string;
 }): Promise<ProtocolDesign> {
   const controls = input.confounders.map((c) => c.control);
-  const controlLine = controls.length ? controls.join(" | ") : "none";
-  const observational = input.shape === "observational";
-  const exposureLabel = input.exposureLabel ?? "the change";
 
-  // Two prompts, not one with holes in it: the ABA rules ("phases: exactly
-  // three", the deterministic phase length) are wrong for a window, and the
-  // observational branch has to countermand them explicitly.
-  const prompt = observational
-    ? `Design a single observation window for this hypothesis.
-
-Hypothesis: ${input.statement}
-Outcome metric: ${input.outcomeMetric}
-Outcome type: ${input.outcomeType}
-The daily yes/no they will answer: "${exposureLabel}"
-Confounder controls to include verbatim: ${controlLine}
-
-This person CANNOT schedule the change — it depends on an opportunity that does
-not arrive on request. They live normally for the whole window and log, each
-day, whether "${exposureLabel}" happened. Do NOT propose an ABA structure, do
-NOT add a washout, and do NOT ask them to do the thing on particular days.
-
-"phases" must hold exactly ONE phase covering the whole window: label "A", kind "baseline", days ${OBSERVATION_DAYS}, a short name, and an action for living normally and logging both questions. Set "washoutDays" to 0.
-Return "controls" (the confounder controls you are given, verbatim) and
-"instructions" for living normally and logging both questions daily.
-
-Return ALL fields, especially "instructions" — it is required and must be non-empty.`
-    : `Design an ABA n-of-1 protocol for this hypothesis.
-
-Hypothesis: ${input.statement}
-Outcome metric: ${input.outcomeMetric}
-Outcome type: ${input.outcomeType}
-Minimum days per phase (use this exact number for each phase): ${input.power.minDaysPerPhase}
-Confounder controls to include verbatim: ${controlLine}
-
-Name each phase in the user's own words (e.g. "Normal coffee" vs "No coffee after 2pm") and give a concrete action for each.
-Return ALL fields, especially "instructions" — it is required and must be non-empty.`;
-
-  const response = await protocolDesigner.generate(prompt, {
-    structuredOutput: { schema: protocolDesignSchema },
-    modelSettings: { maxOutputTokens: 2048 },
-  });
-
-  const raw = (response.object ?? {}) as Partial<ProtocolDesign>;
-
-  if (observational) {
-    const base = observationalDesign(input.outcomeMetric, exposureLabel);
-    return protocolDesignSchema.parse({
-      ...base,
-      controls: raw.controls?.length ? raw.controls : controls,
-      instructions:
-        typeof raw.instructions === "string" && raw.instructions.trim().length > 0
-          ? raw.instructions
-          : base.instructions,
-    });
+  if (input.shape === "observational") {
+    const base = observationalDesign(input.outcomeMetric, input.exposureLabel ?? "the change");
+    return protocolDesignSchema.parse({ ...base, controls });
   }
 
-  const rawPhases = (raw.phases ?? []) as Array<
-    Partial<ProtocolPhase> & Pick<ProtocolPhase, "label" | "kind" | "days">
-  >;
-  const phases = fillPhaseDefaults(rawPhases, input.outcomeMetric);
+  const prompt = `Name the phases of an ABA n-of-1 experiment for this hypothesis.
 
-  const instructions =
-    typeof raw.instructions === "string" && raw.instructions.trim().length > 0
-      ? raw.instructions
-      : composeInstructions(
-          { phases, washoutDays: raw.washoutDays ?? 0, controls: raw.controls ?? controls },
-          input.outcomeMetric,
-        );
+Hypothesis: ${input.statement}
+Outcome metric: ${input.outcomeMetric}
+Outcome type: ${input.outcomeType}
 
-  return protocolDesignSchema.parse({ ...raw, phases, instructions });
+Name each phase in the user's own words (e.g. "Normal coffee" vs "No coffee after 2pm") and give a concrete action for each.`;
+
+  const response = await timed(
+    "designer",
+    () =>
+      protocolDesigner.generate(prompt, {
+        structuredOutput: { schema: phaseCopySchema },
+        modelSettings: { maxOutputTokens: 512 },
+      }),
+    llmUsage,
+  );
+
+  const raw = (response.object ?? {}) as Partial<PhaseCopy>;
+  const days = input.power.minDaysPerPhase;
+  const baseline = {
+    label: "A" as const,
+    kind: "baseline" as const,
+    days,
+    name: raw.baselineName,
+    action: raw.baselineAction,
+  };
+  const intervention = {
+    label: "B" as const,
+    kind: "intervention" as const,
+    days,
+    name: raw.interventionName,
+    action: raw.interventionAction,
+  };
+  // The closing baseline gets its own copy, since it's where the trial ends;
+  // without one it reads the same as the first.
+  const back = {
+    ...baseline,
+    name: raw.returnName?.trim() || baseline.name,
+    action: raw.returnAction?.trim() || baseline.action,
+  };
+  const phases = fillPhaseDefaults([baseline, intervention, back], input.outcomeMetric);
+  const washoutDays = Math.min(MAX_WASHOUT_DAYS, Math.max(0, Math.round(raw.washoutDays ?? 0)));
+
+  return protocolDesignSchema.parse({
+    phases,
+    washoutDays,
+    controls,
+    instructions: composeInstructions({ phases, washoutDays, controls }, input.outcomeMetric),
+    shape: "phased",
+  });
 }

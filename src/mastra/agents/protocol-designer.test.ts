@@ -13,6 +13,7 @@ import {
   composeInstructions,
   designProtocolShape,
   fillPhaseDefaults,
+  phaseCopySchema,
   protocolDesigner,
 } from "./protocol-designer";
 import {
@@ -20,7 +21,6 @@ import {
   observationalDesign,
   protocolDesignSchema,
   type PowerInfo,
-  type ProtocolPhase,
 } from "@/lib/schemas/protocol";
 
 describe("composeInstructions", () => {
@@ -94,11 +94,6 @@ describe("designProtocolShape", () => {
     effectSize: "medium",
     rationale: "a medium effect on a continuous outcome",
   };
-  const threePhases: ProtocolPhase[] = [
-    { label: "A", kind: "baseline", days: 7, name: "Normal weeks", action: "Nothing changes." },
-    { label: "B", kind: "intervention", days: 7, name: "Play basketball", action: "Play daily." },
-    { label: "A", kind: "baseline", days: 7, name: "Normal weeks", action: "Nothing changes." },
-  ];
   const input = {
     statement: "Playing basketball improves my sleep quality.",
     outcomeMetric: "sleep quality",
@@ -113,12 +108,21 @@ describe("designProtocolShape", () => {
     ],
     power,
   };
+  const copy = {
+    baselineName: "Normal evenings",
+    baselineAction: "Keep your usual evenings.",
+    interventionName: "Basketball after work",
+    interventionAction: "Play basketball after work each day.",
+    returnName: "Back to normal evenings",
+    returnAction: "Stop the basketball and log your last week before the verdict.",
+    washoutDays: 2,
+  };
 
   beforeEach(() => {
     generate.mockReset();
   });
 
-  const lastPrompt = () => generate.mock.calls[generate.mock.calls.length - 1][0] as string;
+  const lastCall = () => generate.mock.calls[generate.mock.calls.length - 1];
 
   describe("observational", () => {
     const observational = {
@@ -128,151 +132,120 @@ describe("designProtocolShape", () => {
     };
     const deterministic = observationalDesign("sleep quality", "played basketball");
 
-    it("takes phases, washoutDays and shape out of the model's hands", async () => {
-      // The model ignored the branch and designed an ABA trial anyway.
-      generate.mockResolvedValue({
-        object: {
-          phases: threePhases,
-          washoutDays: 2,
-          controls: ["Hold caffeine constant."],
-          instructions: "Run three phases.",
-          shape: "phased",
-        },
-      });
-
+    it("designs the window without asking the model", async () => {
+      // Everything the model used to write here was either overwritten
+      // (phases, washout, shape) or copied from its input (controls); the
+      // instructions are read by the safety reviewer and shown nowhere.
       const design = await designProtocolShape(observational);
 
+      expect(generate).not.toHaveBeenCalled();
       expect(design.phases).toEqual(deterministic.phases);
       expect(design.washoutDays).toBe(0);
       expect(design.shape).toBe("observational");
-    });
-
-    it("keeps the model's controls and instructions", async () => {
-      generate.mockResolvedValue({
-        object: {
-          phases: threePhases,
-          washoutDays: 2,
-          controls: ["Hold caffeine constant.", "Keep bedtime steady."],
-          instructions: "Live normally and answer both questions each evening.",
-        },
-      });
-
-      const design = await designProtocolShape(observational);
-
-      expect(design.controls).toEqual(["Hold caffeine constant.", "Keep bedtime steady."]);
-      expect(design.instructions).toBe("Live normally and answer both questions each evening.");
-    });
-
-    it("falls back to the deterministic prose when the model returns no instructions", async () => {
-      // The one-phase window the prompt asks for — `phases: []` could never
-      // get past the schema Mastra validates against.
-      generate.mockResolvedValue({
-        object: {
-          phases: [
-            {
-              label: "A",
-              kind: "baseline",
-              days: OBSERVATION_DAYS,
-              name: "Just live normally",
-              action: "Live normally and log both questions.",
-            },
-          ],
-          washoutDays: 0,
-          controls: [],
-        },
-      });
-
-      const design = await designProtocolShape(observational);
-
       expect(design.instructions).toBe(deterministic.instructions);
-      // An empty `controls` from the model falls back to the detected controls.
+    });
+
+    it("carries the detected confounder controls", async () => {
+      const design = await designProtocolShape(observational);
+
       expect(design.controls).toEqual(["Hold caffeine constant."]);
     });
 
     it("names the exposure in the window it designs", async () => {
-      generate.mockResolvedValue({ object: {} });
-
       const design = await designProtocolShape(observational);
 
       expect(design.phases[0].action).toContain("played basketball");
-      expect(design.phases[0].days).toBe(21);
-    });
-
-    it("asks for the one phase its schema requires, and drops the ABA rules", async () => {
-      generate.mockResolvedValue({ object: {} });
-
-      await designProtocolShape(observational);
-
-      const prompt = lastPrompt();
-      // The schema passed to the model needs at least one phase; a prompt that
-      // asked for none would have an obedient model fail validation.
-      expect(prompt).toContain(
-        `exactly ONE phase covering the whole window: label "A", kind "baseline", days ${OBSERVATION_DAYS}`,
-      );
-      expect(prompt).not.toContain("Do NOT invent phases");
-      expect(prompt).not.toContain("discarded");
-      expect(prompt).toContain('"played basketball"');
-      expect(prompt).not.toContain("Minimum days per phase");
+      expect(design.phases[0].days).toBe(OBSERVATION_DAYS);
     });
   });
 
-  describe("phased (unchanged)", () => {
-    it("keeps the model's phases, washout, controls and instructions verbatim", async () => {
-      generate.mockResolvedValue({
-        object: {
-          phases: threePhases,
-          washoutDays: 2,
-          controls: ["Hold caffeine constant."],
-          instructions: "Run three phases.",
+  describe("phased", () => {
+    it("builds A, B, A at the deterministic length from the model's three phase copies", async () => {
+      generate.mockResolvedValue({ object: copy });
+
+      const design = await designProtocolShape(input);
+
+      expect(design.phases).toEqual([
+        { label: "A", kind: "baseline", days: 7, name: "Normal evenings", action: "Keep your usual evenings." },
+        { label: "B", kind: "intervention", days: 7, name: "Basketball after work", action: "Play basketball after work each day." },
+        {
+          label: "A",
+          kind: "baseline",
+          days: 7,
+          name: "Back to normal evenings",
+          action: "Stop the basketball and log your last week before the verdict.",
         },
-      });
-
-      const design = await designProtocolShape({ ...input, shape: "phased" });
-
-      expect(design.phases).toEqual(threePhases);
+      ]);
       expect(design.washoutDays).toBe(2);
-      expect(design.controls).toEqual(["Hold caffeine constant."]);
-      expect(design.instructions).toBe("Run three phases.");
       expect(design.shape).toBe("phased");
     });
 
-    it("behaves identically when no shape is given at all", async () => {
-      const object = {
-        phases: threePhases,
-        washoutDays: 2,
-        controls: ["Hold caffeine constant."],
-        instructions: "Run three phases.",
-      };
-      generate.mockResolvedValue({ object });
-      const withShape = await designProtocolShape({ ...input, shape: "phased" });
-      generate.mockResolvedValue({ object });
-      const withoutShape = await designProtocolShape(input);
+    it("takes the controls from the detected confounders, not the model", async () => {
+      generate.mockResolvedValue({ object: copy });
 
-      expect(withoutShape).toEqual(withShape);
+      const design = await designProtocolShape(input);
+
+      expect(design.controls).toEqual(["Hold caffeine constant."]);
     });
 
-    it("still composes instructions from the phases when the model omits them", async () => {
-      generate.mockResolvedValue({
-        object: { phases: threePhases, washoutDays: 2, controls: ["Hold caffeine constant."] },
-      });
+    it("composes the instructions the safety reviewer reads from the phases and controls", async () => {
+      generate.mockResolvedValue({ object: copy });
 
       const design = await designProtocolShape(input);
 
       expect(design.instructions).toBe(
         composeInstructions(
-          { phases: threePhases, washoutDays: 2, controls: ["Hold caffeine constant."] },
+          { phases: design.phases, washoutDays: 2, controls: ["Hold caffeine constant."] },
           "sleep quality",
         ),
       );
+      // The change itself must reach the gate.
+      expect(design.instructions).toContain("Play basketball after work each day.");
     });
 
-    it("still sends the ABA rules and the deterministic phase length", async () => {
-      generate.mockResolvedValue({ object: { phases: threePhases, washoutDays: 2, controls: [] } });
+    it("reuses the first baseline's copy when the model skips the return phase", async () => {
+      generate.mockResolvedValue({ object: { ...copy, returnName: "", returnAction: "" } });
+
+      const design = await designProtocolShape(input);
+
+      expect(design.phases[2]).toMatchObject({
+        name: "Normal evenings",
+        action: "Keep your usual evenings.",
+      });
+    });
+
+    it("falls back to plain phase names when the model returns no copy", async () => {
+      generate.mockResolvedValue({ object: {} });
+
+      const design = await designProtocolShape(input);
+
+      expect(design.phases.map((p) => p.name)).toEqual(["Baseline", "Intervention", "Baseline"]);
+      expect(design.washoutDays).toBe(0);
+      expect(protocolDesignSchema.safeParse(design).success).toBe(true);
+    });
+
+    it("keeps a washout the model returns out of range to 0-3 days", async () => {
+      generate.mockResolvedValue({ object: { ...copy, washoutDays: 9 } });
+
+      const design = await designProtocolShape(input);
+
+      expect(design.washoutDays).toBe(3);
+    });
+
+    it("asks the model only for the phase copy and the washout", async () => {
+      generate.mockResolvedValue({ object: copy });
 
       await designProtocolShape(input);
 
-      expect(lastPrompt()).toContain("Minimum days per phase (use this exact number for each phase): 7");
-      expect(lastPrompt()).not.toContain("exactly ONE phase");
+      const [prompt, options] = lastCall() as [
+        string,
+        { structuredOutput: { schema: unknown }; modelSettings: { maxOutputTokens: number } },
+      ];
+      expect(options.structuredOutput.schema).toBe(phaseCopySchema);
+      expect(options.modelSettings.maxOutputTokens).toBeLessThanOrEqual(512);
+      expect(prompt).not.toContain('"instructions"');
+      expect(prompt).not.toContain("Minimum days per phase");
+      expect(prompt).toContain(input.statement);
     });
   });
 });

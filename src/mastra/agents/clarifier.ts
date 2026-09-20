@@ -1,5 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { claudeModel } from "@/mastra/model";
+import { llmUsage, timed } from "@/lib/timing";
 import {
   clarifyingQuestionsSchema,
   type ClarifyingQuestions,
@@ -63,12 +64,17 @@ export async function askClarifying(
           .join("\n")}`
       : "";
 
-  const response = await clarifier.generate(
-    `Ask the clarifying questions for this hunch:\n\n"${rawText}"${priorsBlock}`,
-    {
-      structuredOutput: { schema: clarifyingQuestionsSchema },
-      modelSettings: { maxOutputTokens: 1024 },
-    },
+  const response = await timed(
+    "clarifier",
+    () =>
+      clarifier.generate(
+        `Ask the clarifying questions for this hunch:\n\n"${rawText}"${priorsBlock}`,
+        {
+          structuredOutput: { schema: clarifyingQuestionsSchema },
+          modelSettings: { maxOutputTokens: 1024 },
+        },
+      ),
+    llmUsage,
   );
 
   return clarifyingQuestionsSchema.parse(response.object);

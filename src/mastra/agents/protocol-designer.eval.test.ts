@@ -37,5 +37,14 @@ describe.skipIf(!hasKey)("Protocol Designer quality", () => {
 
     // Carries the controls.
     expect(design.controls.length).toBeGreaterThanOrEqual(confounders.length);
+
+    // The model wrote the phase copy — the plain fallbacks mean it didn't.
+    expect(design.phases[0].name).not.toBe("Baseline");
+    expect(design.phases[1].name).not.toBe("Intervention");
+    expect(design.phases[2].name).not.toBe("Baseline");
+    // "caffeinated" is as good as "caffeine" — match the stem, not the word.
+    expect(design.phases[1].action.toLowerCase()).toMatch(/caffein|coffee/);
+    expect(design.washoutDays).toBeGreaterThanOrEqual(0);
+    expect(design.washoutDays).toBeLessThanOrEqual(3);
   }, 60_000);
 });
