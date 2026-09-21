@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { sharpenHunch } from "@/mastra/agents/hypothesis-coach";
+import { sharpenHunch, streamSharpenHunch } from "@/mastra/agents/hypothesis-coach";
 import { sharpenedHypothesisSchema } from "@/lib/schemas/hypothesis";
 
 const hasKey = Boolean(process.env.OPENROUTER_API_KEY);
@@ -70,4 +70,32 @@ describe.skipIf(!hasKey)("Hypothesis Coach quality", () => {
     // The exposure is the change, not the outcome restated.
     expect(h.exposure?.label.toLowerCase()).not.toBe(h.outcomeMetric.toLowerCase());
   }, 120_000);
+});
+
+describe.skipIf(!hasKey)("Hypothesis Coach, streamed", () => {
+  test("streams a hypothesis of the same shape the generated path returns", async () => {
+    const partials: Array<Record<string, unknown>> = [];
+    const h = await streamSharpenHunch(
+      "i think coffee in the afternoon wrecks my sleep",
+      [],
+      [],
+      false,
+      (p) => partials.push(p as Record<string, unknown>),
+    );
+
+    // Same contract as the generated path — this is the guard against the two
+    // drifting apart, since they share the prompt and the schema.
+    expect(sharpenedHypothesisSchema.safeParse(h).success).toBe(true);
+    expect(h.statement.trim().endsWith("?")).toBe(false);
+    expect(h.outcomeMetric.split(/\s+/).length).toBeGreaterThanOrEqual(2);
+
+    // It actually streamed, and the statement led — that ordering is what the
+    // form's display depends on.
+    expect(partials.length).toBeGreaterThan(1);
+    expect(Object.keys(partials[0])).toContain("statement");
+
+    // The last partial is the finished object, so the text the user watched
+    // appear is the text they end up with.
+    expect(partials.at(-1)!.statement).toBe(h.statement);
+  });
 });
