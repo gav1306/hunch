@@ -47,7 +47,7 @@ describe.skipIf(!hasKey)("Hypothesis Coach quality", () => {
     );
     // And it should say when, so "every day" is unambiguous.
     expect(h.outcomeMetric.toLowerCase()).toMatch(
-      /today|each day|daily|each morning|each evening|day's end|per day/,
+      /today|each day|daily|each morning|each evening|day's end|end of day|per day/,
     );
   }, 120_000);
 
