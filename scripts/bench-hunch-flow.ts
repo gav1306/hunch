@@ -22,6 +22,15 @@
  * and still designed inline — the double-wait a wait cap must stay under one
  * design's cost to avoid.
  *
+ * W2 streams (spec 2026-09-20). Its client total is unchanged — the wait still
+ * ends when the whole body has arrived — but two server-side readings moved:
+ * `coach` is no longer in its Server-Timing, because the header is written
+ * when the handler returns and the model runs after that, and W2's `total` now
+ * measures only the time to build the streaming response. The number to read
+ * for W2 is the client total, plus "first line", which is when the user stops
+ * seeing a blank button. With HUNCH_TIMING=1 the server logs the coach's own
+ * duration and token counts to its console.
+ *
  * This spends real model calls: each run is four W1-W3 chains and two W4
  * verdicts. Everything the script creates is tracked and deleted before it
  * exits, Ctrl+C included; nothing it did not create is touched.
@@ -148,7 +157,34 @@ function checkStop() {
 // ---------------------------------------------------------------------------
 // HTTP
 
-type Timed<T> = { status: number; body: T; clientMs: number; steps: TimingEntry[]; hasHeader: boolean };
+type Timed<T> = {
+  status: number;
+  body: T;
+  clientMs: number;
+  /** When the first byte of the body arrived — the moment a streamed wait stops being blank. */
+  firstByteMs?: number;
+  steps: TimingEntry[];
+  hasHeader: boolean;
+};
+
+/**
+ * The last line of an NDJSON body, unwrapped.
+ *
+ * The sharpen routes stream `{"partial":…}` lines and end with exactly one
+ * `{"done":…}` or `{"error":…}`, so what the bench wants is inside the final
+ * line rather than in the body as a whole.
+ */
+function terminalNdjson(text: string): { done?: unknown; error?: unknown } | null {
+  const lines = text.trim().split("\n").filter(Boolean);
+  const last = lines.at(-1);
+  if (!last) return null;
+  try {
+    const msg = JSON.parse(last) as { done?: unknown; error?: unknown };
+    return msg.done !== undefined || msg.error !== undefined ? msg : null;
+  } catch {
+    return null;
+  }
+}
 
 async function call<T = Record<string, unknown>>(
   method: "GET" | "POST",
@@ -161,20 +197,44 @@ async function call<T = Record<string, unknown>>(
     headers: body === undefined ? undefined : { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  // The wait ends when the client has the whole body, not the headers.
-  const text = await res.text();
+
+  // The wait ends when the client has the whole body, not the headers — but on
+  // a streamed sharpen the first chunk is when the user stops seeing nothing,
+  // so both readings are kept.
+  let firstByteMs: number | undefined;
+  let text = "";
+  if (res.body) {
+    const decoder = new TextDecoder();
+    for await (const chunk of res.body as unknown as AsyncIterable<Uint8Array>) {
+      firstByteMs ??= performance.now() - start;
+      text += decoder.decode(chunk, { stream: true });
+    }
+    text += decoder.decode();
+  }
   const clientMs = performance.now() - start;
+
+  let status = res.status;
   let parsed: unknown = text;
   try {
     parsed = JSON.parse(text);
   } catch {
-    // Left as text: an HTML error page from Next, say.
+    const terminal = terminalNdjson(text);
+    if (terminal?.done !== undefined) parsed = terminal.done;
+    else if (terminal?.error !== undefined) {
+      // A streamed failure is the 502 this replaced; the rest of the script
+      // counts it exactly as it always did.
+      parsed = { error: terminal.error };
+      status = 502;
+    }
+    // Otherwise left as text: an HTML error page from Next, say.
   }
+
   const header = res.headers.get("server-timing");
   return {
-    status: res.status,
+    status,
     body: parsed as T,
     clientMs,
+    firstByteMs,
     steps: parseServerTiming(header),
     hasHeader: header !== null,
   };
@@ -313,11 +373,15 @@ async function chain(run: number, shape: Shape, user: UserType) {
     answers,
     priorIds: w1.body.priorIds,
   });
-  const hunch = w2.status === 201 ? w2.body.hunch : null;
+  // 200 + NDJSON now, 201 + JSON for a log; either way the hunch is in the body.
+  const hunch = w2.status < 400 && w2.body?.hunch ? w2.body.hunch : null;
   if (hunch) created.hunchIds.add(hunch.id);
   record(
     run, "W2", scenario, w2, fires,
-    hunch ? `schedulable=${hunch.hypothesis.schedulable} priors=${w2.body.priors.length}` : undefined,
+    hunch
+      ? `schedulable=${hunch.hypothesis.schedulable} priors=${w2.body.priors.length}` +
+        (w2.firstByteMs !== undefined ? ` first line ${fmtMs(w2.firstByteMs)}` : "")
+      : undefined,
   );
   if (!hunch) return;
 
