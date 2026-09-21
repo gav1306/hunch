@@ -8,7 +8,7 @@ vi.mock("@mastra/core/agent", () => ({
     stream = vi.fn();
   },
 }));
-vi.mock("@/mastra/model", () => ({ claudeModel: {} }));
+vi.mock("@/mastra/model", () => ({ claudeModel: {}, claudeModelNoThinking: {} }));
 
 import {
   buildSharpenPrompt,

@@ -1,5 +1,5 @@
 import { Agent } from "@mastra/core/agent";
-import { claudeModel } from "@/mastra/model";
+import { claudeModelNoThinking } from "@/mastra/model";
 import { llmUsage, timed } from "@/lib/timing";
 import {
   sharpenedHypothesisObjectSchema,
@@ -15,13 +15,16 @@ import type { ClarifyingAnswer } from "@/lib/schemas/clarify";
  * falsifiable hypothesis with a measurable outcome, an outcome type that drives
  * the Bayesian model choice, and the confounders worth controlling for.
  *
- * Claude (Sonnet 5) runs via the shared `claudeModel` instance. See
- * `src/mastra/model.ts`.
+ * Claude (Sonnet 5) runs with the provider's extended thinking turned off, via
+ * `claudeModelNoThinking`. The Coach is the one agent a person sits and watches
+ * write: with thinking on, the model spends the whole wait reasoning and then
+ * emits the hypothesis in one burst, so there is nothing to stream. See the
+ * note in `src/mastra/model.ts`.
  */
 export const hypothesisCoach = new Agent({
   id: "hypothesis-coach",
   name: "Hypothesis Coach",
-  model: claudeModel,
+  model: claudeModelNoThinking,
   instructions: `You are the Hypothesis Coach for Hunch, a personal-science copilot.
 
 A user gives you a vague hunch about their own life ("coffee wrecks my sleep",
