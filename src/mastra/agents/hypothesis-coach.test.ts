@@ -1,10 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // buildSharpenPrompt is pure, but importing the module constructs `new Agent(...)`
 // at load time — stub the Agent + model so no live client is built.
 vi.mock("@mastra/core/agent", () => ({
   Agent: class {
     generate = vi.fn();
+    stream = vi.fn();
   },
 }));
 vi.mock("@/mastra/model", () => ({ claudeModel: {} }));
@@ -13,9 +14,15 @@ import {
   buildSharpenPrompt,
   hypothesisCoach,
   normaliseSchedulability,
+  NoStructuredOutput,
   sharpenHunch,
+  streamSharpenHunch,
 } from "@/mastra/agents/hypothesis-coach";
-import { sharpenedHypothesisSchema, type SharpenedHypothesis } from "@/lib/schemas/hypothesis";
+import {
+  sharpenedHypothesisObjectSchema,
+  sharpenedHypothesisSchema,
+  type SharpenedHypothesis,
+} from "@/lib/schemas/hypothesis";
 
 function baseHypothesis(overrides: Partial<SharpenedHypothesis> = {}): SharpenedHypothesis {
   return {
@@ -146,5 +153,101 @@ describe("sharpenHunch", () => {
     });
 
     await expect(sharpenHunch("basketball helps my knee")).rejects.toThrow();
+  });
+});
+
+/** A stand-in for Mastra's MastraModelOutput: the partials, then the object. */
+function fakeStream(partials: unknown[], object: unknown | Promise<unknown>) {
+  return {
+    objectStream: new ReadableStream({
+      start(controller) {
+        for (const p of partials) controller.enqueue(p);
+        controller.close();
+      },
+    }),
+    object: object instanceof Promise ? object : Promise.resolve(object),
+    totalUsage: Promise.resolve({ inputTokens: 10, outputTokens: 20 }),
+  };
+}
+
+describe("streamSharpenHunch", () => {
+  // hypothesisCoach.stream is one vi.fn() shared by every test in this file;
+  // without a fresh call history, "asks for the same prompt..." below would
+  // inspect an earlier test's call instead of its own.
+  beforeEach(() => vi.clearAllMocks());
+
+  it("hands every partial to the callback, in the order the model wrote them", async () => {
+    const partials = [
+      { statement: "Coffee after lun" },
+      { statement: "Coffee after lunch makes me sleep worse.", outcomeMetric: "hours of" },
+    ];
+    vi.mocked(hypothesisCoach.stream).mockResolvedValue(
+      fakeStream(partials, baseHypothesis()) as never,
+    );
+
+    const seen: unknown[] = [];
+    await streamSharpenHunch("coffee wrecks sleep", [], [], false, (p) => seen.push(p));
+
+    expect(seen).toEqual(partials);
+  });
+
+  it("returns the same validated hypothesis the generated path returns", async () => {
+    vi.mocked(hypothesisCoach.stream).mockResolvedValue(
+      fakeStream([], {
+        statement: "Coffee after lunch makes me sleep worse.",
+        outcomeMetric: "hours of sleep from a tracker",
+        outcomeType: "continuous",
+        confounders: [],
+        subject: "self",
+        trackers: [],
+        schedulable: true,
+      }) as never,
+    );
+
+    const h = await streamSharpenHunch("coffee wrecks sleep");
+
+    expect(sharpenedHypothesisSchema.safeParse(h).success).toBe(true);
+    expect(h.statement).toBe("Coffee after lunch makes me sleep worse.");
+  });
+
+  it("repairs an unschedulable hypothesis with no exposure, exactly as generate does", async () => {
+    vi.mocked(hypothesisCoach.stream).mockResolvedValue(
+      fakeStream([], baseHypothesis({ schedulable: false })) as never,
+    );
+
+    const h = await streamSharpenHunch("basketball wrecks my knee");
+
+    expect(h.schedulable).toBe(true);
+  });
+
+  it("asks for the same prompt, schema and token cap as the generated path", async () => {
+    vi.mocked(hypothesisCoach.stream).mockResolvedValue(fakeStream([], baseHypothesis()) as never);
+
+    await streamSharpenHunch("coffee wrecks sleep", [], [
+      { id: "measure", prompt: "How would you track it?", answer: "sleep score" },
+    ]);
+
+    // `Agent.stream` is overloaded; `Parameters<>`-style inference on the mock
+    // picks the last (single-arg) overload, so the two-arg call shape here
+    // needs the `unknown` bridge tsc asks for, not a direct cast.
+    const [prompt, options] = vi.mocked(hypothesisCoach.stream).mock.calls[0] as unknown as [
+      string,
+      { structuredOutput: { schema: unknown }; modelSettings: { maxOutputTokens: number } },
+    ];
+    expect(prompt).toBe(
+      buildSharpenPrompt("coffee wrecks sleep", [], [
+        { id: "measure", prompt: "How would you track it?", answer: "sleep score" },
+      ]),
+    );
+    expect(options.structuredOutput.schema).toBe(sharpenedHypothesisObjectSchema);
+    expect(options.modelSettings.maxOutputTokens).toBe(1024);
+  });
+
+  it("throws NoStructuredOutput when the model never completes an object", async () => {
+    vi.mocked(hypothesisCoach.stream).mockResolvedValue(
+      fakeStream([{ statement: "I can't help with" }], Promise.reject(new Error("no object"))) as never,
+    );
+
+    await expect(streamSharpenHunch("skip my statin")).rejects.toBeInstanceOf(NoStructuredOutput);
   });
 });

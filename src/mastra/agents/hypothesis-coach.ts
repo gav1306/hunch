@@ -227,3 +227,60 @@ export async function sharpenHunch(
   // defaults filled. The cross-field rules run here, after the fallback.
   return sharpenedHypothesisSchema.parse(normaliseSchedulability(response.object));
 }
+
+/**
+ * The Coach, streamed. Same prompt, same schema, same token cap as
+ * `sharpenHunch` — the difference is only that the caller sees the object
+ * being assembled instead of waiting for it.
+ *
+ * It does not make the Coach faster: the same tokens take the same time.
+ * Latency here is very nearly a readout of output length (~2.2s plus ~8.5ms
+ * per token), so the app cannot know whether it is handing the user a 4s wait
+ * or an 11.5s one. Streaming makes that wait legible.
+ *
+ * Deliberately NOT wrapped in `timed("coach", …)`: the caller has already
+ * returned its response, so the `Server-Timing` header this would write into
+ * has gone out. With timing on the run logs its own line instead.
+ */
+export async function streamSharpenHunch(
+  rawText: string,
+  priors: Prior[] = [],
+  answers: ClarifyingAnswer[] = [],
+  observeOnly = false,
+  onPartial: (partial: Partial<SharpenedHypothesisDraft>) => void = () => {},
+): Promise<SharpenedHypothesis> {
+  const start = performance.now();
+  const stream = await hypothesisCoach.stream(
+    buildSharpenPrompt(rawText, priors, answers, observeOnly),
+    {
+      // The unrefined shape, for the same reason `sharpenHunch` uses it:
+      // Mastra validates with the refinements too, so the refined schema would
+      // throw on "unschedulable, no yes/no" before normaliseSchedulability
+      // below could repair it.
+      structuredOutput: { schema: sharpenedHypothesisObjectSchema },
+      modelSettings: { maxOutputTokens: 1024 },
+    },
+  );
+
+  // Partials arrive in the schema's field order — statement first, trackers
+  // last. See the note on `sharpenedHypothesisObjectSchema`.
+  for await (const partial of stream.objectStream) {
+    onPartial(partial as Partial<SharpenedHypothesisDraft>);
+  }
+
+  // A refusal reaches us as a stream that produced prose and no object; the
+  // underlying rejection says nothing useful about why. Same error type the
+  // generated path throws, so the observe-only fallback still recognises it.
+  const object = await stream.object.catch(() => undefined);
+  if (!object) throw new NoStructuredOutput();
+
+  if (process.env.HUNCH_TIMING === "1") {
+    const usage = await stream.totalUsage.catch(() => undefined);
+    console.log(
+      `[timing] coach (streamed) dur=${(performance.now() - start).toFixed(1)} ` +
+        `in=${usage?.inputTokens ?? "?"} out=${usage?.outputTokens ?? "?"}`,
+    );
+  }
+
+  return sharpenedHypothesisSchema.parse(normaliseSchedulability(object));
+}

@@ -20,6 +20,11 @@ export type HunchInput = z.infer<typeof hunchInputSchema>;
  * refined schema would throw on "unschedulable, no yes/no" before the Coach's
  * fallback could repair it. Everything else should use
  * `sharpenedHypothesisSchema`.
+ *
+ * The FIELD ORDER below is load-bearing. The Coach streams this object a field
+ * at a time, so the order here is the order the user watches it appear:
+ * statement first, then the outcome, with the trackers last. Reordering these
+ * would silently change what the new-hunch form shows while it waits.
  */
 export const sharpenedHypothesisObjectSchema = z.object({
   /** A single falsifiable claim. */
