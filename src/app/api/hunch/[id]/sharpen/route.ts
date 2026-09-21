@@ -123,7 +123,11 @@ export async function POST(
       try {
         after(() => untimed(() => predesign(updated.id)));
       } catch (err) {
-        console.warn("[re-sharpen] after() unavailable, pre-designing detached:", err);
+        // If this fallback is ever taken in production, the background
+        // pre-design is running detached — which on some deploy targets means
+        // not at all — and the confirm gate silently regresses to the long
+        // inline design a previous change removed. Worth a log scan.
+        console.error("[re-sharpen] after() unavailable, pre-designing detached:", err);
         void untimed(() => predesign(updated.id)).catch(() => {});
       }
     }

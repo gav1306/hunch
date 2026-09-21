@@ -405,6 +405,37 @@ describe("POST /api/hunch", () => {
     expect(sharpenHunch).toHaveBeenCalled();
   });
 
+  it("logs and still pre-designs detached when after() throws outside request scope", async () => {
+    coachStreams({
+      statement: "Coffee after lunch makes me sleep worse.",
+      outcomeMetric: "hours of sleep from a tracker",
+      outcomeType: "continuous",
+      subject: "self",
+      confounders: [],
+      trackers: [],
+      schedulable: true,
+    });
+    vi.mocked(db.hunch.create).mockResolvedValue({ id: "h1", parameters: [] } as never);
+    // The fallback does `predesign(...).catch(...)`, so it needs a real
+    // promise here — mockImplementationOnce so this doesn't bleed into the
+    // next test's default `predesign` mock.
+    vi.mocked(predesign).mockResolvedValueOnce(undefined as never);
+    vi.mocked(after).mockImplementationOnce(() => {
+      throw new Error("outside request scope");
+    });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const res = await POST(req({ rawText: "coffee wrecks sleep", answers: [] }));
+    await lines(res);
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[hunch] after() unavailable, pre-designing detached:",
+      expect.any(Error),
+    );
+    expect(predesign).toHaveBeenCalledWith("h1");
+    errorSpy.mockRestore();
+  });
+
   it("leaves the coach out of Server-Timing, because the header goes out first", async () => {
     vi.stubEnv("HUNCH_TIMING", "1");
     coachStreams({

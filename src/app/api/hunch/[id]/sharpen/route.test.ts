@@ -218,6 +218,29 @@ describe("POST /api/hunch/[id]/sharpen", () => {
     expect(streamSharpenHunch).not.toHaveBeenCalled();
   });
 
+  it("logs and still pre-designs detached when after() throws outside request scope", async () => {
+    vi.mocked(db.hunch.findFirst).mockResolvedValue(gate as never);
+    coachStreams(sharpened);
+    // The fallback does `predesign(...).catch(...)`, so it needs a real
+    // promise here — mockResolvedValueOnce so this doesn't bleed into the
+    // next test's default `predesign` mock.
+    vi.mocked(predesign).mockResolvedValueOnce(undefined as never);
+    vi.mocked(after).mockImplementationOnce(() => {
+      throw new Error("outside request scope");
+    });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const res = await POST(req({ rawText: "coffee after 2pm", answers: [] }), params);
+    await lines(res);
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[re-sharpen] after() unavailable, pre-designing detached:",
+      expect.any(Error),
+    );
+    expect(predesign).toHaveBeenCalledWith("h1");
+    errorSpy.mockRestore();
+  });
+
   it("refuses medication before any byte is streamed", async () => {
     const res = await POST(
       req({ rawText: "do I sleep better if I skip my antidepressant" }),
