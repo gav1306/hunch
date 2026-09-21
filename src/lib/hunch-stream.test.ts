@@ -127,4 +127,60 @@ describe("sharpenStreamResponse", () => {
     expect(got[1]).toEqual({ done: null });
   });
 
+  it("silently stops writing when the reader cancels mid-flight", async () => {
+    let releaseRun: (() => void) | null = null;
+    const waitForSignal = new Promise<void>((resolve) => {
+      releaseRun = resolve;
+    });
+
+    // Track what run attempts to do so we can verify the guard is protecting against post-cancel writes
+    const runExecution: string[] = [];
+
+    const res = sharpenStreamResponse(async (emit) => {
+      runExecution.push("emitting before cancel");
+      emit({ partial: "before cancel" });
+
+      runExecution.push("awaiting cancel");
+      await waitForSignal;
+
+      // After this point, the reader has been cancelled and the stream is closed.
+      // The guard's job is to prevent these writes from going to a dead stream.
+      runExecution.push("emitting after cancel");
+      emit({ partial: "after cancel" });
+
+      runExecution.push("resolving");
+      return { done: true };
+    }, { label: "hunch" });
+
+    expect(res.status).toBe(200);
+
+    const reader = res.body!.getReader();
+
+    // Read the first chunk (the "before cancel" partial)
+    const { value: firstChunk } = await reader.read();
+    expect(firstChunk).toBeDefined();
+
+    // Cancel the reader while run is still awaiting
+    await reader.cancel();
+
+    // Release run to continue — it will execute fully but the post-cancel writes
+    // will be silently dropped by the open flag guard.
+    releaseRun!();
+
+    // Wait for run to finish all its operations
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Verify that run executed all the way through
+    expect(runExecution).toContain("emitting after cancel");
+    expect(runExecution).toContain("resolving");
+
+    // But verify the client never saw the post-cancel data
+    const clientData = Buffer.concat([firstChunk!]).toString("utf-8");
+
+    // The client should have exactly one line: the before-cancel partial
+    expect(clientData).toContain("before cancel");
+    // The client should NOT have the after-cancel partial — the guard prevented it
+    expect(clientData).not.toContain("after cancel");
+  });
+
 });
