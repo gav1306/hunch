@@ -127,60 +127,61 @@ describe("sharpenStreamResponse", () => {
     expect(got[1]).toEqual({ done: null });
   });
 
-  it("silently stops writing when the reader cancels mid-flight", async () => {
+  it("keeps run from crashing when the reader cancels mid-flight", async () => {
+    // The discriminating claim here is not "the client saw nothing after the
+    // cancel" — a cancelled reader can never see more, guard or no guard, so
+    // that assertion would pass by construction. What the `open` guard (and
+    // its try/catch around `controller.enqueue`) actually buys is that a
+    // write attempted on a dead controller doesn't throw and abort the rest
+    // of `run` — which, on the real routes, still has to persist the hunch
+    // after the coach finishes. So this asserts that `run` reaches its last
+    // line and settles, captured directly rather than via a fixed delay.
     let releaseRun: (() => void) | null = null;
     const waitForSignal = new Promise<void>((resolve) => {
       releaseRun = resolve;
     });
 
-    // Track what run attempts to do so we can verify the guard is protecting against post-cancel writes
     const runExecution: string[] = [];
+    let capturedRun: Promise<unknown> | null = null;
 
-    const res = sharpenStreamResponse(async (emit) => {
-      runExecution.push("emitting before cancel");
-      emit({ partial: "before cancel" });
+    const res = sharpenStreamResponse((emit) => {
+      capturedRun = (async () => {
+        runExecution.push("emitting before cancel");
+        emit({ partial: "before cancel" });
 
-      runExecution.push("awaiting cancel");
-      await waitForSignal;
+        runExecution.push("awaiting cancel");
+        await waitForSignal;
 
-      // After this point, the reader has been cancelled and the stream is closed.
-      // The guard's job is to prevent these writes from going to a dead stream.
-      runExecution.push("emitting after cancel");
-      emit({ partial: "after cancel" });
+        // The reader has been cancelled by now; the guard's job is to stop
+        // this write from throwing and aborting the rest of `run`.
+        runExecution.push("emitting after cancel");
+        emit({ partial: "after cancel" });
 
-      runExecution.push("resolving");
-      return { done: true };
+        runExecution.push("resolving");
+        return { done: true };
+      })();
+      return capturedRun;
     }, { label: "hunch" });
 
     expect(res.status).toBe(200);
 
     const reader = res.body!.getReader();
-
-    // Read the first chunk (the "before cancel" partial)
     const { value: firstChunk } = await reader.read();
-    expect(firstChunk).toBeDefined();
+    expect(Buffer.from(firstChunk!).toString("utf-8")).toContain("before cancel");
 
-    // Cancel the reader while run is still awaiting
     await reader.cancel();
-
-    // Release run to continue — it will execute fully but the post-cancel writes
-    // will be silently dropped by the open flag guard.
     releaseRun!();
 
-    // Wait for run to finish all its operations
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Wait for `run` to actually settle — resolve or reject — instead of a
+    // fixed timeout. Without the guard, the post-cancel `emit` throws and
+    // `run`'s promise rejects before "resolving" is ever pushed.
+    await capturedRun!.catch(() => {});
 
-    // Verify that run executed all the way through
-    expect(runExecution).toContain("emitting after cancel");
-    expect(runExecution).toContain("resolving");
-
-    // But verify the client never saw the post-cancel data
-    const clientData = Buffer.concat([firstChunk!]).toString("utf-8");
-
-    // The client should have exactly one line: the before-cancel partial
-    expect(clientData).toContain("before cancel");
-    // The client should NOT have the after-cancel partial — the guard prevented it
-    expect(clientData).not.toContain("after cancel");
+    expect(runExecution).toEqual([
+      "emitting before cancel",
+      "awaiting cancel",
+      "emitting after cancel",
+      "resolving",
+    ]);
   });
-
 });
