@@ -60,4 +60,74 @@ describe("readNdjson", () => {
     });
     expect(await collect(stream)).toEqual([{ s: "café" }]);
   });
+
+  it("does not cancel a stream it read to exhaustion", async () => {
+    let cancelled = false;
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode('{"a":1}\n'));
+        controller.close();
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+
+    await collect(stream);
+    expect(cancelled).toBe(false);
+  });
+
+  it("cancels the stream when the consumer stops before exhausting it", async () => {
+    let cancelled = false;
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        // Two separate enqueues, so the queue still holds the second chunk
+        // (and the stream is still "readable", not yet auto-closed) when the
+        // consumer breaks after the first — otherwise a single enqueue+close
+        // drains and auto-closes the stream on the very first read, and
+        // cancelling an already-closed stream is a spec no-op that would pass
+        // this test even without the fix.
+        controller.enqueue(encoder.encode('{"a":1}\n'));
+        controller.enqueue(encoder.encode('{"a":2}\n'));
+        controller.close();
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+
+    for await (const value of readNdjson(stream)) {
+      expect(value).toEqual({ a: 1 });
+      break;
+    }
+
+    expect(cancelled).toBe(true);
+  });
+
+  it("cancels the stream and tolerates a rejecting cancel when the consumer throws", async () => {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode('{"a":1}\n'));
+        controller.enqueue(encoder.encode('{"a":2}\n'));
+        controller.close();
+      },
+      cancel() {
+        // A cancel can itself reject (the underlying source erroring on the
+        // way out); readNdjson must not let that mask the consumer's own error.
+        return Promise.reject(new Error("cancel failed"));
+      },
+    });
+
+    async function consume() {
+      for await (const value of readNdjson(stream)) {
+        void value;
+        throw new Error("consumer blew up");
+      }
+    }
+
+    await expect(consume()).rejects.toThrow("consumer blew up");
+  });
 });

@@ -28,6 +28,7 @@ export async function* readNdjson(stream: ReadableStream<Uint8Array>): AsyncGene
   const reader = stream.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let finished = false;
   try {
     for (;;) {
       const { done, value } = await reader.read();
@@ -42,7 +43,21 @@ export async function* readNdjson(stream: ReadableStream<Uint8Array>): AsyncGene
     // Flush the decoder, then whatever line never got its newline.
     const tail = (buffer + decoder.decode()).trim();
     if (tail) yield JSON.parse(tail);
+    finished = true;
   } finally {
+    // A consumer that breaks or throws out of the `for await` (e.g. `onPartial`
+    // itself throwing) leaves the body mid-read rather than exhausted. Cancel
+    // it so the underlying connection is released instead of left undrained;
+    // a reader that already ran to completion has nothing left to cancel, and
+    // cancelling it anyway is harmless but pointless.
+    if (!finished) {
+      try {
+        await reader.cancel();
+      } catch {
+        // The stream may already be closed or erroring; cancelling it again
+        // rejecting is not this generator's problem to surface.
+      }
+    }
     reader.releaseLock();
   }
 }
