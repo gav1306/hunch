@@ -100,10 +100,14 @@ export async function postHunch(
         result = { ...(msg.done.hunch as object), priors: msg.done.priors ?? [] } as HunchWithHypothesis;
       } else if (msg.partial) onPartial?.(msg.partial);
     }
-  } catch {
-    // A torn stream: a line that wasn't JSON, or a connection that dropped.
-    // Same dead end as an error line, and whatever was already typed out stays
-    // on screen either way.
+  } catch (err) {
+    // Either a torn stream (a line that wasn't JSON, a connection that
+    // dropped) or `onPartial` itself throwing — the form's own callback runs
+    // inside this loop. Both end the same way for the user: the generic
+    // failure below, with whatever was already typed out staying on screen.
+    // Logged so a real bug in `onPartial` isn't indistinguishable from a
+    // dropped connection.
+    console.error("[postHunch] stream reading failed:", err);
   }
 
   if (failure) throw new Error(failure);

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, afterEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { BlockedHunchError, postHunch } from "./use-create-hunch";
 
 /** A response whose body arrives as exactly these chunks. */
@@ -32,8 +32,18 @@ function mockFetch(res: Response) {
 const input = { rawText: "coffee wrecks sleep", answers: [] };
 const done = { hunch: { id: "h1", hypothesis: { statement: "Coffee." } }, priors: [{ cause: "caffeine" }] };
 
+// A torn stream (bad JSON) is logged rather than swallowed silently, so every
+// test gets a stubbed console.error to keep the suite's own output pristine;
+// the one test that actually drives that path asserts on what was logged.
+let errorSpy: ReturnType<typeof vi.spyOn>;
+
+beforeEach(() => {
+  errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+});
+
 afterEach(() => {
   vi.unstubAllGlobals();
+  errorSpy.mockRestore();
 });
 
 describe("postHunch, streaming", () => {
@@ -90,6 +100,12 @@ describe("postHunch, streaming", () => {
     mockFetch(streamed(["<!doctype html>\n"]));
 
     await expect(postHunch(input)).rejects.toThrow("Something went wrong sharpening your hunch.");
+
+    // The parse failure is logged, not lost — so a real bug reads differently
+    // from a dropped connection in the console.
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy.mock.calls[0][0]).toEqual(expect.stringContaining("[postHunch]"));
+    expect(errorSpy.mock.calls[0][1]).toBeInstanceOf(Error);
   });
 
   it("posts a redo to the resume route", async () => {
