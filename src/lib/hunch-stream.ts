@@ -35,8 +35,11 @@ export function sharpenStreamResponse(
   const body = new ReadableStream<Uint8Array>({
     async start(controller) {
       // The reader can go away mid-stream (a closed tab, a refresh). Enqueuing
-      // to a dead controller throws, and the open flag catches it — so a write
-      // that fails simply ends the writing without breaking the guarantee.
+      // to a dead controller throws; the open flag catches it to prevent further
+      // write attempts and preserve the guarantee of exactly one terminal line.
+      // When enqueue() throws, open becomes false, so subsequent writes silently
+      // no-op (including the terminal write), and the bytes already enqueued are
+      // exactly what reached the client.
       let open = true;
       const write = (value: unknown) => {
         if (!open) return;
@@ -45,12 +48,7 @@ export function sharpenStreamResponse(
         // real errors (not conflated with dead-controller errors). A JSON
         // stringification failure (circular ref, BigInt, etc.) must reach the
         // outer catch and be sent as { error: SHARPEN_ERROR }.
-        let line: string;
-        try {
-          line = ndjsonLine(value);
-        } catch (err) {
-          throw err;
-        }
+        const line = ndjsonLine(value);
 
         // Only enqueue is in the try-catch that sets open = false.
         try {

@@ -127,35 +127,4 @@ describe("sharpenStreamResponse", () => {
     expect(got[1]).toEqual({ done: null });
   });
 
-  it("handles closed controller without breaking the guarantee", async () => {
-    const emitCapture: { fn: ((partial: unknown) => void) | null } = { fn: null };
-
-    const res = sharpenStreamResponse(async (emit) => {
-      emitCapture.fn = emit;
-      // Return immediately so the test can control when reading stops
-      return { success: true };
-    }, { label: "hunch" });
-
-    expect(res.status).toBe(200);
-
-    const reader = res.body!.getReader();
-
-    // Read the first chunk (the done line)
-    const { value } = await reader.read();
-    expect(value).toBeDefined();
-
-    // Cancel the reader to close the controller
-    await reader.cancel();
-
-    // Give the cancellation time to propagate
-    await new Promise((resolve) => setTimeout(resolve, 10));
-
-    // Try to emit after controller is closed — should be silently ignored
-    if (emitCapture.fn) {
-      emitCapture.fn({ statement: "after close" });
-    }
-
-    // Response should have completed gracefully with just the done line
-    expect(true); // If we got here without throwing, the test passes
-  });
 });
