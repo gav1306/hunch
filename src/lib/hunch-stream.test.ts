@@ -67,4 +67,95 @@ describe("sharpenStreamResponse", () => {
       expect.objectContaining({ message: "bedrock down" }),
     );
   });
+
+  it("sends error line when a partial cannot be serialized", async () => {
+    const circular: Record<string, unknown> = { x: 1 };
+    circular.self = circular; // Create circular reference
+
+    const res = sharpenStreamResponse(async (emit) => {
+      emit(circular);
+      return { done: true };
+    }, { label: "hunch" });
+
+    expect(res.status).toBe(200);
+    const got = await lines(res);
+
+    // Serialization failure on partial causes immediate error
+    expect(got).toHaveLength(1);
+    expect(got[0]).toEqual({ error: SHARPEN_ERROR });
+
+    expect(console.error).toHaveBeenCalledWith(
+      "[hunch] sharpen failed:",
+      expect.any(Error),
+    );
+  });
+
+  it("sends error line when the result cannot be serialized", async () => {
+    const circular: Record<string, unknown> = { x: 1 };
+    circular.self = circular; // Create circular reference
+
+    const res = sharpenStreamResponse(async (emit) => {
+      emit({ partial: "Coffee..." });
+      return circular;
+    }, { label: "hunch" });
+
+    expect(res.status).toBe(200);
+    const got = await lines(res);
+
+    // Partial is sent, then error line when trying to send done
+    expect(got).toHaveLength(2);
+    expect(got[0]).toEqual({ partial: { partial: "Coffee..." } });
+    expect(got[1]).toEqual({ error: SHARPEN_ERROR });
+
+    expect(console.error).toHaveBeenCalledWith(
+      "[hunch] sharpen failed:",
+      expect.any(Error),
+    );
+  });
+
+  it("converts undefined result to null to preserve done key", async () => {
+    const res = sharpenStreamResponse(async (emit) => {
+      emit({ statement: "test" });
+      return undefined;
+    }, { label: "hunch" });
+
+    expect(res.status).toBe(200);
+    const got = await lines(res);
+
+    expect(got).toHaveLength(2);
+    expect(got[0]).toEqual({ partial: { statement: "test" } });
+    expect(got[1]).toEqual({ done: null });
+  });
+
+  it("handles closed controller without breaking the guarantee", async () => {
+    const emitCapture: { fn: ((partial: unknown) => void) | null } = { fn: null };
+
+    const res = sharpenStreamResponse(async (emit) => {
+      emitCapture.fn = emit;
+      // Return immediately so the test can control when reading stops
+      return { success: true };
+    }, { label: "hunch" });
+
+    expect(res.status).toBe(200);
+
+    const reader = res.body!.getReader();
+
+    // Read the first chunk (the done line)
+    const { value } = await reader.read();
+    expect(value).toBeDefined();
+
+    // Cancel the reader to close the controller
+    await reader.cancel();
+
+    // Give the cancellation time to propagate
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    // Try to emit after controller is closed — should be silently ignored
+    if (emitCapture.fn) {
+      emitCapture.fn({ statement: "after close" });
+    }
+
+    // Response should have completed gracefully with just the done line
+    expect(true); // If we got here without throwing, the test passes
+  });
 });

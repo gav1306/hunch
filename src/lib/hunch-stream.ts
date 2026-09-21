@@ -35,13 +35,26 @@ export function sharpenStreamResponse(
   const body = new ReadableStream<Uint8Array>({
     async start(controller) {
       // The reader can go away mid-stream (a closed tab, a refresh). Enqueuing
-      // to a dead controller throws, and doing it from the catch below would
-      // throw out of `start` — so a write that fails simply ends the writing.
+      // to a dead controller throws, and the open flag catches it — so a write
+      // that fails simply ends the writing without breaking the guarantee.
       let open = true;
       const write = (value: unknown) => {
         if (!open) return;
+
+        // Compute the line before the try-catch, so serialization errors are
+        // real errors (not conflated with dead-controller errors). A JSON
+        // stringification failure (circular ref, BigInt, etc.) must reach the
+        // outer catch and be sent as { error: SHARPEN_ERROR }.
+        let line: string;
         try {
-          controller.enqueue(encoder.encode(ndjsonLine(value)));
+          line = ndjsonLine(value);
+        } catch (err) {
+          throw err;
+        }
+
+        // Only enqueue is in the try-catch that sets open = false.
+        try {
+          controller.enqueue(encoder.encode(line));
         } catch {
           open = false;
         }
@@ -49,10 +62,17 @@ export function sharpenStreamResponse(
 
       try {
         const done = await untimed(() => run((partial) => write({ partial })));
-        write({ done });
+        // Guard against undefined: if the work resolves undefined, send { done: null }
+        // instead of { done: undefined }, which would serialize to {} (no done key).
+        write({ done: done ?? null });
       } catch (err) {
         console.error(`[${label}] sharpen failed:`, err);
-        write({ error: SHARPEN_ERROR });
+        try {
+          write({ error: SHARPEN_ERROR });
+        } catch {
+          // Serialization of the error line itself failed (should not happen).
+          // Don't escape start(); the controller will close in the finally block.
+        }
       } finally {
         try {
           controller.close();
