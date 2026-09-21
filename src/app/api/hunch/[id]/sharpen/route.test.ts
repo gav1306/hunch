@@ -217,4 +217,23 @@ describe("POST /api/hunch/[id]/sharpen", () => {
     expect(res.status).toBe(409);
     expect(streamSharpenHunch).not.toHaveBeenCalled();
   });
+
+  it("refuses medication before any byte is streamed", async () => {
+    const res = await POST(
+      req({ rawText: "do I sleep better if I skip my antidepressant" }),
+      params,
+    );
+
+    expect(res.status).toBe(422);
+    expect(res.headers.get("Content-Type")).toContain("application/json");
+    expect(streamSharpenHunch).not.toHaveBeenCalled();
+  });
+
+  it("refuses an empty hunch before any byte is streamed", async () => {
+    const res = await POST(req({ rawText: "" }), params);
+
+    expect(res.status).toBe(400);
+    expect(res.headers.get("Content-Type")).toContain("application/json");
+    expect(streamSharpenHunch).not.toHaveBeenCalled();
+  });
 });
