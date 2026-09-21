@@ -288,21 +288,73 @@ describe("POST /api/hunch", () => {
       trackers: [],
       schedulable: true,
     });
-    vi.mocked(recallPriors).mockResolvedValue([{ cause: "caffeine", direction: "up", confidence: 0.8 }] as never);
+    vi.mocked(recallPriors).mockResolvedValue([
+      { cause: "caffeine", direction: "up", confidence: 0.8 },
+    ] as never);
+    // A realistic create() return — a hypothesis object and a parameter row —
+    // so exact equality below actually protects something: a raw Prisma row
+    // (unit/min/max as null, a retiredAt instead of retired) or a dropped
+    // hypothesis field would fail this, where toMatchObject would not.
     vi.mocked(db.hunch.create).mockResolvedValue({
       id: "h1",
       rawText: "coffee wrecks sleep",
       status: "sharpened",
-      hypothesis: { id: "hy1", statement: "Coffee after lunch makes me sleep worse." },
-      parameters: [],
+      hypothesis: {
+        id: "hy1",
+        statement: "Coffee after lunch makes me sleep worse.",
+        outcomeMetric: "hours of sleep from a tracker",
+        outcomeType: "continuous",
+        subject: "self",
+        confounders: [],
+        schedulable: true,
+      },
+      parameters: [
+        {
+          id: "p1",
+          label: "hours of sleep from a tracker",
+          type: "amount",
+          unit: null,
+          min: null,
+          max: null,
+          isPrimary: true,
+          isExposure: false,
+          sortOrder: 0,
+          retiredAt: null,
+        },
+      ],
     } as never);
 
     const res = await POST(req({ rawText: "coffee wrecks sleep", answers: [] }));
     const done = (await lines(res)).at(-1)!.done!;
 
-    expect(done.hunch).toMatchObject({ id: "h1", status: "sharpened" });
-    expect(done.hunch).toHaveProperty("parameters");
-    expect(done.priors).toHaveLength(1);
+    expect(done).toEqual({
+      hunch: {
+        id: "h1",
+        rawText: "coffee wrecks sleep",
+        status: "sharpened",
+        hypothesis: {
+          id: "hy1",
+          statement: "Coffee after lunch makes me sleep worse.",
+          outcomeMetric: "hours of sleep from a tracker",
+          outcomeType: "continuous",
+          subject: "self",
+          confounders: [],
+          schedulable: true,
+        },
+        parameters: [
+          {
+            id: "p1",
+            label: "hours of sleep from a tracker",
+            type: "amount",
+            isPrimary: true,
+            isExposure: false,
+            sortOrder: 0,
+            retired: false,
+          },
+        ],
+      },
+      priors: [{ cause: "caffeine", direction: "up", confidence: 0.8 }],
+    });
   });
 
   it("answers a failed write with an error line, after the partials it already streamed", async () => {
