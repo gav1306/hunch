@@ -243,11 +243,18 @@ describe("streamSharpenHunch", () => {
     expect(options.modelSettings.maxOutputTokens).toBe(1024);
   });
 
-  it("throws NoStructuredOutput when the model never completes an object", async () => {
+  it("throws NoStructuredOutput when the model never completes an object, but logs the real cause first", async () => {
+    const cause = new Error("no object");
     vi.mocked(hypothesisCoach.stream).mockResolvedValue(
-      fakeStream([{ statement: "I can't help with" }], Promise.reject(new Error("no object"))) as never,
+      fakeStream([{ statement: "I can't help with" }], Promise.reject(cause)) as never,
     );
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    await expect(streamSharpenHunch("skip my statin")).rejects.toBeInstanceOf(NoStructuredOutput);
+    try {
+      await expect(streamSharpenHunch("skip my statin")).rejects.toBeInstanceOf(NoStructuredOutput);
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("streamSharpenHunch"), cause);
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 });

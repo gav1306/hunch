@@ -268,10 +268,20 @@ export async function streamSharpenHunch(
     onPartial(partial as Partial<SharpenedHypothesisDraft>);
   }
 
-  // A refusal reaches us as a stream that produced prose and no object; the
-  // underlying rejection says nothing useful about why. Same error type the
-  // generated path throws, so the observe-only fallback still recognises it.
-  const object = await stream.object.catch(() => undefined);
+  // `stream.object` rejects for two cases we cannot cleanly tell apart from
+  // here: the model declining to answer (a refusal reaches us as prose and no
+  // object) and a genuine infrastructure failure (a dropped connection, a
+  // timeout, a malformed stream). Both are deliberately relabelled as the same
+  // NoStructuredOutput for callers — the routes turn every failure into the
+  // same message anyway, and the one caller that distinguishes
+  // NoStructuredOutput (the observe-only fallback) never reaches this path —
+  // but the original cause is logged here first, so it isn't silently lost.
+  let object: SharpenedHypothesisDraft | undefined;
+  try {
+    object = await stream.object;
+  } catch (err) {
+    console.error("streamSharpenHunch: stream.object rejected", err);
+  }
   if (!object) throw new NoStructuredOutput();
 
   if (process.env.HUNCH_TIMING === "1") {
