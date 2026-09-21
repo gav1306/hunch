@@ -92,7 +92,12 @@ describe.skipIf(!hasKey)("Hypothesis Coach, streamed", () => {
     // It actually streamed, and the statement led — that ordering is what the
     // form's display depends on.
     expect(partials.length).toBeGreaterThan(1);
-    expect(Object.keys(partials[0])).toContain("statement");
+    // The first partial can legitimately be `{}` — a frame arrives before any field
+    // name has. What matters is which field lands first: the form types the
+    // statement out, so the schema's order putting it first is load-bearing.
+    const firstWithFields = partials.find((p) => Object.keys(p).length > 0);
+    expect(firstWithFields).toBeDefined();
+    expect(Object.keys(firstWithFields!)[0]).toBe("statement");
 
     // The last partial is the finished object, so the text the user watched
     // appear is the text they end up with.
