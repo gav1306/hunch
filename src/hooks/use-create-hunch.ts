@@ -33,7 +33,16 @@ export class BlockedHunchError extends Error {
   }
 }
 
-/** What the Coach has written so far, in the schema's own field order. */
+/**
+ * What the Coach has written so far, in the schema's own field order.
+ *
+ * The model streams *deep* partials: `Partial<SharpenedHypothesisDraft>` only
+ * says `trackers` itself may be missing, but mid-stream `trackers[i]` can be
+ * an incomplete object too — `{ label: "sl" }` with no `type` yet, or absent
+ * past the end of what's arrived. This alias can't express that, which is why
+ * the form optional-chains through array entries instead of trusting them as
+ * complete trackers. Don't add a field read like `t.type` without a guard.
+ */
 export type PartialHypothesis = Partial<SharpenedHypothesisDraft>;
 
 type SharpenInput = {
