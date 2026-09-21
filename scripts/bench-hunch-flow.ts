@@ -213,11 +213,16 @@ async function call<T = Record<string, unknown>>(
   }
   const clientMs = performance.now() - start;
 
+  // Branch on the transport, not on whether JSON.parse throws: JSON.parse
+  // tolerates the trailing newline NDJSON always ends with, so a body that is
+  // exactly one line — a coach that throws before any partial, or a `done`
+  // with none — parses as valid JSON and would never reach the NDJSON
+  // handling below it. That's the common failure shape, so getting this
+  // wrong makes the bench silently record a streamed failure as a success.
   let status = res.status;
   let parsed: unknown = text;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
+  const ndjson = (res.headers.get("content-type") ?? "").includes("ndjson");
+  if (ndjson) {
     const terminal = terminalNdjson(text);
     if (terminal?.done !== undefined) parsed = terminal.done;
     else if (terminal?.error !== undefined) {
@@ -226,7 +231,13 @@ async function call<T = Record<string, unknown>>(
       parsed = { error: terminal.error };
       status = 502;
     }
-    // Otherwise left as text: an HTML error page from Next, say.
+    // Otherwise left as text: a torn stream with no terminal line at all.
+  } else {
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      // Left as text: an HTML error page from Next, say.
+    }
   }
 
   const header = res.headers.get("server-timing");
