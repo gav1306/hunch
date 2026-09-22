@@ -366,7 +366,9 @@ export function NewHunchForm({
           indistinguishable from a hung page.
 
           aria-live="off" on purpose: a screen reader announcing every partial
-          would be unusable. The finished statement is announced once, below.
+          would be unusable. The finished statement is spoken on arrival at the
+          confirm gate instead, which focuses the heading holding it — a live
+          region here loses the race with `router.push`, which unmounts it.
 
           No prefers-reduced-motion branch: this is text arriving, not an
           animation, and there is no cursor effect to suppress. */}
@@ -394,11 +396,6 @@ export function NewHunchForm({
           </p>
         </section>
       )}
-
-      {/* Announced once, when the stream has finished. */}
-      <p className="sr-only" aria-live="polite">
-        {createHunch.data ? `Sharpened: ${createHunch.data.hypothesis.statement}` : ""}
-      </p>
 
       {/* A refusal, not a failure. It gets a card and two doors rather than a
           red line: the person asking has usually noticed something real, and a
