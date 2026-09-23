@@ -6,6 +6,7 @@ import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowRightIcon, CheckIcon } from "lucide-react";
 import { CheckIn } from "@/components/check-in";
+import { browserToday } from "@/lib/browser-day";
 import type { HomeData, HomeHunch } from "@/lib/home";
 import { cn } from "@/lib/utils";
 import { verdictBadge } from "@/lib/verdict";
@@ -58,12 +59,7 @@ const SETUP_CTA: Record<
 /** "Starts tomorrow", "Starts in 3 days" — for an anchored trial with no day yet. */
 function startsCopy(iso: string): string {
   const start = new Date(iso);
-  const now = new Date();
-  const days = Math.round(
-    (Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()) -
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())) /
-      86_400_000,
-  );
+  const days = Math.round((start.getTime() - browserToday().getTime()) / 86_400_000);
   if (days <= 1) return "Starts tomorrow";
   return `Starts in ${days} days`;
 }

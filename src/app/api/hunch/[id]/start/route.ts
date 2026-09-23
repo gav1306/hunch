@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { canRun } from "@/lib/schemas/protocol";
 import { getSession } from "@/lib/session";
 import { startDateFor } from "@/lib/schedule";
-import { isKnownZone, localToday } from "@/lib/zone";
+import { canonicalZone, localToday } from "@/lib/zone";
 
 const startInputSchema = z.object({
   startOn: z.enum(["today", "tomorrow"]).default("today"),
@@ -26,9 +26,10 @@ const DEFAULT_REMINDER_HOUR = 20;
  * gone. This is the explicit action the "Start experiment" button now performs,
  * and it is the only place `startedAt` is ever written.
  *
- * `startOn: "tomorrow"` anchors the trial at the next UTC midnight. Nothing is
- * deferred or queued — `currentPhase` reports a future anchor as not-started, so
- * the trial simply has no loggable day until the date arrives.
+ * `startOn: "tomorrow"` anchors the trial at the next date in the user's own
+ * zone, stored as that date's UTC-midnight key. Nothing is deferred or queued
+ * — `currentPhase` reports a future anchor as not-started, so the trial simply
+ * has no loggable day until the date arrives.
  */
 export async function POST(
   request: Request,
@@ -90,7 +91,7 @@ export async function POST(
 
   // Day 1 is a date in the user's calendar. The zone they just sent wins; a
   // client that sent none falls back to the one on file.
-  const knownZone = zone && isKnownZone(zone) ? zone : undefined;
+  const knownZone = zone ? canonicalZone(zone) : undefined;
   const startedAt = startDateFor(
     parsed.data.startOn,
     localToday(knownZone ?? user?.timeZone ?? "UTC"),

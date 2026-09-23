@@ -27,11 +27,6 @@ export function utcMidnight(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
 
-/** Midnight UTC today. The key a check-in is filed under. */
-export function utcToday(now: Date = new Date()): Date {
-  return utcMidnight(now);
-}
-
 /** When the user wants day 1 to fall. */
 export type StartOn = "today" | "tomorrow";
 

@@ -112,11 +112,11 @@ describe("POST /api/hunch/[id]/start", () => {
   });
 
   it("switches daily reminders on for a user who has never had them", async () => {
-    const res = await POST(req({ startOn: "today", timeZone: "Asia/Kolkata" }), params);
+    const res = await POST(req({ startOn: "today", timeZone: "America/Los_Angeles" }), params);
     expect((await res.json()).remindersOn).toBe(20);
     expect(db.user.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: { reminderHour: 20, timeZone: "Asia/Kolkata" },
+        data: { reminderHour: 20, timeZone: "America/Los_Angeles" },
       }),
     );
   });

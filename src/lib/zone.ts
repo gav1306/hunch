@@ -14,13 +14,18 @@ import { localDateIn } from "@/lib/reminders";
  * day of a trial.
  */
 
-/** Does this runtime recognise the zone? Anything else is not worth storing. */
-export function isKnownZone(zone: string): boolean {
+/**
+ * The runtime's canonical spelling of a zone — "asia/kolkata" and "Asia/Kolkata"
+ * both become whatever Intl considers the one true id — or undefined when the
+ * runtime doesn't recognise it. A client-sent zone is free-text (case, and
+ * sometimes the alias, vary by device); comparing and storing it uncanonicalised
+ * made an unchanged zone look like a move and trip the refresh write.
+ */
+export function canonicalZone(zone: string): string | undefined {
   try {
-    new Intl.DateTimeFormat("en-GB", { timeZone: zone });
-    return true;
+    return new Intl.DateTimeFormat("en-GB", { timeZone: zone }).resolvedOptions().timeZone;
   } catch {
-    return false;
+    return undefined;
   }
 }
 

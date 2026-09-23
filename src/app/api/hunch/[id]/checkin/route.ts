@@ -9,7 +9,7 @@ import { checkInValuesInputSchema, validateParameterValue } from "@/lib/schemas/
 import type { ParameterType } from "@/lib/schemas/parameter";
 import { canRun, parseStoredDesign } from "@/lib/schemas/protocol";
 import { flagReading, typoFlag } from "@/lib/safety/reading-flags";
-import { isKnownZone, localToday, userTimeZone } from "@/lib/zone";
+import { canonicalZone, localToday, userTimeZone } from "@/lib/zone";
 
 /**
  * Phase 4: log a day's readings. The server derives the phase from the schedule
@@ -98,7 +98,7 @@ export async function POST(
   // Californian's 8pm log is still today, not tomorrow in UTC.
   const storedZone = await userTimeZone(session.user.id);
   const sentZone = parsed.data.timeZone;
-  const zone = sentZone && isKnownZone(sentZone) ? sentZone : storedZone;
+  const zone = (sentZone && canonicalZone(sentZone)) || storedZone;
   const today = localToday(zone);
   let loggedOn = today;
   if (parsed.data.loggedOn !== undefined) {
@@ -140,10 +140,6 @@ export async function POST(
     update: { phase: status.phase },
   });
 
-  if (zone !== storedZone) {
-    await db.user.update({ where: { id: session.user.id }, data: { timeZone: zone } });
-  }
-
   // Re-tapping a parameter overwrites today's reading for it; parameters the
   // user left blank keep whatever they already had.
   for (const row of parsed.data.values) {
@@ -152,6 +148,10 @@ export async function POST(
       create: { checkInId: checkIn.id, parameterId: row.parameterId, value: row.value },
       update: { value: row.value },
     });
+  }
+
+  if (zone !== storedZone) {
+    await db.user.update({ where: { id: session.user.id }, data: { timeZone: zone } });
   }
 
   const all = await db.checkIn.findMany({

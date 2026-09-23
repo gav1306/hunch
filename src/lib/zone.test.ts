@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/db", () => ({ db: { user: { findUnique: vi.fn() } } }));
 
-import { isKnownZone, localToday, userTimeZone } from "@/lib/zone";
+import { canonicalZone, localToday, userTimeZone } from "@/lib/zone";
 import { db } from "@/lib/db";
 
 describe("localToday", () => {
@@ -30,10 +30,13 @@ describe("localToday", () => {
   });
 });
 
-describe("isKnownZone", () => {
-  it("accepts an IANA zone and refuses garbage", () => {
-    expect(isKnownZone("Asia/Kolkata")).toBe(true);
-    expect(isKnownZone("Not/AZone")).toBe(false);
+describe("canonicalZone", () => {
+  it("canonicalises a case variant", () => {
+    expect(canonicalZone("america/los_angeles")).toBe("America/Los_Angeles");
+  });
+
+  it("returns undefined for garbage", () => {
+    expect(canonicalZone("Not/AZone")).toBeUndefined();
   });
 });
 

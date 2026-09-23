@@ -308,5 +308,16 @@ describe("POST /api/hunch/[id]/checkin", () => {
       expect(res.status).toBe(201);
       expect(db.user.update).not.toHaveBeenCalled();
     });
+
+    it("canonicalises a case variant before comparing it to the stored zone", async () => {
+      vi.mocked(userTimeZone).mockResolvedValue("America/Los_Angeles");
+      const res = await POST(
+        req({ values: [{ parameterId: "p1", value: 7 }], timeZone: "america/los_angeles" }),
+        params,
+      );
+      expect(res.status).toBe(201);
+      // Same zone as stored, just cased differently by the device — nothing to refresh.
+      expect(db.user.update).not.toHaveBeenCalled();
+    });
   });
 });
