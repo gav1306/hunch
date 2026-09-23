@@ -5,6 +5,7 @@ import { engineOutcomeType, pickPrimary } from "@/lib/parameters";
 import { currentPhase, utcDaysBetween } from "@/lib/schedule";
 import type { ParameterType } from "@/lib/schemas/parameter";
 import { canRun, parseStoredDesign } from "@/lib/schemas/protocol";
+import { localToday, userTimeZone } from "@/lib/zone";
 
 export type HomeHunch = {
   id: string;
@@ -60,10 +61,9 @@ export type HomeData = {
  * it up, or read the verdict.
  */
 export async function getHomeData(userId: string): Promise<HomeData> {
-  const now = new Date();
-  const today = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-  );
+  // The user's own calendar date. Every comparison below is date-only, so the
+  // day key stands in for "now" as well.
+  const today = localToday(await userTimeZone(userId));
 
   const hunches = await db.hunch.findMany({
     where: { userId },
@@ -87,7 +87,7 @@ export async function getHomeData(userId: string): Promise<HomeData> {
     if (h.protocol?.startedAt) {
       try {
         const design = parseStoredDesign(h.protocol.design);
-        const ph = currentPhase(h.protocol.startedAt, design, now);
+        const ph = currentPhase(h.protocol.startedAt, design, today);
 
         if (ph.started) {
           const total =
@@ -95,7 +95,7 @@ export async function getHomeData(userId: string): Promise<HomeData> {
             design.washoutDays * Math.max(0, design.phases.length - 1);
           const day = Math.min(
             total,
-            Math.max(1, utcDaysBetween(h.protocol.startedAt, now) + 1),
+            Math.max(1, utcDaysBetween(h.protocol.startedAt, today) + 1),
           );
           progress = { day, total };
         } else {
