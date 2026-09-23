@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
+import { isKnownZone } from "@/lib/zone";
 
 const bodySchema = z.object({
   /** 0-23 in the user's own zone, or null to turn reminders off. */
@@ -59,14 +60,4 @@ export async function PUT(request: Request) {
   });
 
   return NextResponse.json(user);
-}
-
-/** Does this runtime recognise the zone? Anything else is not worth storing. */
-function isKnownZone(zone: string): boolean {
-  try {
-    new Intl.DateTimeFormat("en-GB", { timeZone: zone });
-    return true;
-  } catch {
-    return false;
-  }
 }

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { canRun } from "@/lib/schemas/protocol";
 import { getSession } from "@/lib/session";
 import { startDateFor } from "@/lib/schedule";
+import { isKnownZone } from "@/lib/zone";
 
 const startInputSchema = z.object({
   startOn: z.enum(["today", "tomorrow"]).default("today"),
@@ -113,14 +114,4 @@ export async function POST(
     },
     { status: 200 },
   );
-}
-
-/** Does this runtime recognise the zone? Anything else is not worth storing. */
-function isKnownZone(zone: string): boolean {
-  try {
-    new Intl.DateTimeFormat("en-GB", { timeZone: zone });
-    return true;
-  } catch {
-    return false;
-  }
 }

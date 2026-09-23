@@ -6,17 +6,9 @@ import { BellIcon, BellOffIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { formatHour, REMINDER_HOURS } from "@/lib/reminders";
+import { browserZone } from "@/lib/browser-day";
 
 type Prefs = { reminderHour: number | null; timeZone: string };
-
-/** The browser's own zone, when it will tell us. */
-function browserZone(): string | undefined {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
-  } catch {
-    return undefined;
-  }
-}
 
 /**
  * When the daily reminder goes out.
