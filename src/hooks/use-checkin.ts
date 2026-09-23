@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { browserZone } from "@/lib/browser-day";
 import type { Belief } from "@/lib/schemas/belief";
 
 /** One reading the user is submitting for one parameter. */
@@ -38,7 +39,7 @@ async function postCheckIn(
   const res = await fetch(`/api/hunch/${hunchId}/checkin`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ values, ...(loggedOn ? { loggedOn } : {}) }),
+    body: JSON.stringify({ values, timeZone: browserZone(), ...(loggedOn ? { loggedOn } : {}) }),
   });
   const body = await res.json();
   if (!res.ok) {
