@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
@@ -162,5 +162,35 @@ describe("POST /api/hunch/[id]/start", () => {
 
   it("defaults to starting today when the body says nothing", async () => {
     expect((await POST(req({}), params)).status).toBe(200);
+  });
+
+  describe("on the user's own date", () => {
+    afterEach(() => vi.useRealTimers());
+
+    it("anchors 'today' on the Kolkata date at 01:30 IST, not the UTC one", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-01-15T20:00:00.000Z")); // 01:30 on the 16th in IST
+
+      const res = await POST(req({ startOn: "today", timeZone: "Asia/Kolkata" }), params);
+
+      expect(res.status).toBe(200);
+      const data = vi.mocked(db.protocol.update).mock.calls[0][0].data as { startedAt: Date };
+      expect(data.startedAt.toISOString()).toBe("2026-01-16T00:00:00.000Z");
+    });
+
+    it("uses the stored zone when the request sends none", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-01-15T20:00:00.000Z"));
+      vi.mocked(db.user.findUnique).mockResolvedValue({
+        reminderHour: 20,
+        remindersOptOut: false,
+        timeZone: "Asia/Kolkata",
+      } as never);
+
+      await POST(req({ startOn: "today" }), params);
+
+      const data = vi.mocked(db.protocol.update).mock.calls[0][0].data as { startedAt: Date };
+      expect(data.startedAt.toISOString()).toBe("2026-01-16T00:00:00.000Z");
+    });
   });
 });

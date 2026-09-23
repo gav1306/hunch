@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { canRun } from "@/lib/schemas/protocol";
 import { getSession } from "@/lib/session";
 import { startDateFor } from "@/lib/schedule";
-import { isKnownZone } from "@/lib/zone";
+import { isKnownZone, localToday } from "@/lib/zone";
 
 const startInputSchema = z.object({
   startOn: z.enum(["today", "tomorrow"]).default("today"),
@@ -76,8 +76,6 @@ export async function POST(
     );
   }
 
-  const startedAt = startDateFor(parsed.data.startOn);
-
   // Starting a trial is agreeing to log every day for a fortnight or more, so
   // it is also where daily reminders switch on — at 8pm in the user's own zone,
   // changeable in security, with an unsubscribe in every email. Never for a
@@ -85,10 +83,18 @@ export async function POST(
   // "hasn't been asked" and "said no".
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { reminderHour: true, remindersOptOut: true },
+    select: { reminderHour: true, remindersOptOut: true, timeZone: true },
   });
   const zone = parsed.data.timeZone;
   const switchOnReminders = user !== null && user.reminderHour === null && !user.remindersOptOut;
+
+  // Day 1 is a date in the user's calendar. The zone they just sent wins; a
+  // client that sent none falls back to the one on file.
+  const knownZone = zone && isKnownZone(zone) ? zone : undefined;
+  const startedAt = startDateFor(
+    parsed.data.startOn,
+    localToday(knownZone ?? user?.timeZone ?? "UTC"),
+  );
 
   // One transaction: a hunch is never "running" without an anchor, and never
   // anchored without being "running".
@@ -101,7 +107,7 @@ export async function POST(
         ...(switchOnReminders ? { reminderHour: DEFAULT_REMINDER_HOUR } : {}),
         // The zone is worth recording either way — it is how the app knows
         // which midnight a logged day belongs to.
-        ...(zone && isKnownZone(zone) ? { timeZone: zone } : {}),
+        ...(knownZone ? { timeZone: knownZone } : {}),
       },
     }),
   ]);
