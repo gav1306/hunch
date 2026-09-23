@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useClarify } from "@/hooks/use-clarify";
-import { BlockedHunchError, useCreateHunch } from "@/hooks/use-create-hunch";
+import { BlockedHunchError, useCreateHunch, type PartialHypothesis } from "@/hooks/use-create-hunch";
 import type { HunchInfo } from "@/hooks/use-hunch-info";
 import type { ClarifyingAnswer, ClarifyingQuestion } from "@/lib/schemas/clarify";
 import { PencilIcon } from "lucide-react";
@@ -117,7 +117,11 @@ export function NewHunchForm({
   /** Why the last press didn't do anything, when the form isn't ready yet. */
   const [nudge, setNudge] = useState<string | null>(null);
   const clarify = useClarify();
-  const createHunch = useCreateHunch(resuming?.id);
+  // What the Coach has written so far. Kept on an error rather than cleared:
+  // wiping text the user just watched appear reads as a crash, which is the
+  // opposite of what streaming is for.
+  const [partial, setPartial] = useState<PartialHypothesis | null>(null);
+  const createHunch = useCreateHunch(resuming?.id, setPartial);
 
   // Once sharpened, hand off to the protocol page — that's where the user
   // confirms the hypothesis and the plan is designed (Variation B: one page).
@@ -209,6 +213,7 @@ export function NewHunchForm({
       // run the very thing that was just declined.
       onError: (err) => {
         if (err instanceof BlockedHunchError) return;
+        setPartial(null);
         createHunch.mutate({ rawText: text, answers: [] });
       },
     });
@@ -226,6 +231,7 @@ export function NewHunchForm({
     const payload: ClarifyingAnswer[] = questions
       .filter((q) => (answers[q.id] ?? "").trim() !== "")
       .map((q) => ({ id: q.id, prompt: q.prompt, answer: answers[q.id].trim() }));
+    setPartial(null);
     createHunch.mutate({ rawText: rawText.trim(), answers: payload, priorIds });
   }
 
@@ -354,6 +360,43 @@ export function NewHunchForm({
         </p>
       )}
 
+      {/* The hypothesis as it is being written. The button still says
+          "Sharpening…" — it is still accurate, and it is where the eye already
+          is — but the wait is no longer blank: at 11.5s a blank button is
+          indistinguishable from a hung page.
+
+          aria-live="off" on purpose: a screen reader announcing every partial
+          would be unusable. The finished statement is spoken on arrival at the
+          confirm gate instead, which focuses the heading holding it — a live
+          region here loses the race with `router.push`, which unmounts it.
+
+          No prefers-reduced-motion branch: this is text arriving, not an
+          animation, and there is no cursor effect to suppress. */}
+      {partial && (
+        <section
+          aria-live="off"
+          className="mt-5 grid gap-2 rounded-xl border border-rule bg-card p-[clamp(20px,2.4vw,28px)]"
+        >
+          <p className="m-0 font-heading text-[clamp(18px,2.2vw,22px)] font-bold leading-snug tracking-[-0.01em] text-ink [overflow-wrap:anywhere]">
+            {partial.statement ?? "…"}
+          </p>
+          {/* Placeholders hold their lines from the first frame, so the shape
+              of what is coming is legible instead of jumping into existence. */}
+          <p className="m-0 font-mono text-sm text-muted-foreground [overflow-wrap:anywhere]">
+            Measuring:{" "}
+            {partial.outcomeMetric ?? <span className="opacity-50">…</span>}
+          </p>
+          <p className="m-0 font-mono text-sm text-muted-foreground [overflow-wrap:anywhere]">
+            Tracking:{" "}
+            {partial.trackers?.length ? (
+              partial.trackers.map((t) => t?.label).filter(Boolean).join(", ")
+            ) : (
+              <span className="opacity-50">…</span>
+            )}
+          </p>
+        </section>
+      )}
+
       {/* A refusal, not a failure. It gets a card and two doors rather than a
           red line: the person asking has usually noticed something real, and a
           dead end is why they'd leave. */}
@@ -387,6 +430,7 @@ export function NewHunchForm({
               variant="brand"
               size="touch"
               onClick={() => {
+                setPartial(null);
                 createHunch.reset();
                 clarify.reset();
                 document.getElementById("raw-text")?.focus();

@@ -7,8 +7,11 @@ import { draftsFromSharpened, toParameterDto } from "@/lib/parameters";
 import { sharpenRequestSchema } from "@/lib/schemas/clarify";
 import { MEDICATION_REFUSAL, medicationIntent } from "@/lib/safety/medication";
 import { getSession } from "@/lib/session";
-import { sharpenHunch } from "@/mastra/agents/hypothesis-coach";
+import { sharpenHunch, streamSharpenHunch } from "@/mastra/agents/hypothesis-coach";
 import { predesign } from "@/lib/design-draft/predesign";
+import { SHARPEN_ERROR, sharpenStreamResponse } from "@/lib/hunch-stream";
+import type { SharpenedHypothesis } from "@/lib/schemas/hypothesis";
+import type { Prior } from "@/lib/schemas/prior";
 
 /**
  * Re-sharpen a hunch the user already dropped, in place.
@@ -63,18 +66,10 @@ export async function POST(
     );
   }
 
-  try {
-    const priors = await recallPriors(
-      session.user.id,
-      parsed.data.rawText,
-      parsed.data.priorIds,
-    );
-    const sharpened = await sharpenHunch(
-      parsed.data.rawText,
-      priors,
-      parsed.data.answers,
-      parsed.data.observeOnly,
-    );
+  const { rawText, answers, priorIds, observeOnly } = parsed.data;
+
+  /** Rewrite this hunch's hypothesis, its parameters and its design draft. */
+  async function persist(sharpened: SharpenedHypothesis, priors: Prior[]) {
     const drafts = draftsFromSharpened(sharpened);
     const hypothesisData = {
       statement: sharpened.statement,
@@ -84,7 +79,7 @@ export async function POST(
       // it is rewritten too. Null when the Coach didn't give one, rather than
       // leaving the previous statement's direction attached to a new claim.
       expectedDirection: sharpened.expectedDirection ?? null,
-            subject: sharpened.subject,
+      subject: sharpened.subject,
       confounders: sharpened.confounders,
       schedulable: sharpened.schedulable,
     };
@@ -92,14 +87,14 @@ export async function POST(
     const updated = await db.$transaction(async (tx) => {
       // The proposed set belongs to the old hypothesis; a new one proposes its
       // own. Nothing is logged yet, so nothing hangs off these rows.
-      await tx.parameter.deleteMany({ where: { hunchId: hunch.id } });
+      await tx.parameter.deleteMany({ where: { hunchId: hunch!.id } });
       // A protocol designed for the old statement no longer describes this hunch.
-      await tx.protocol.deleteMany({ where: { hunchId: hunch.id } });
+      await tx.protocol.deleteMany({ where: { hunchId: hunch!.id } });
 
       return tx.hunch.update({
-        where: { id: hunch.id },
+        where: { id: hunch!.id },
         data: {
-          rawText: parsed.data.rawText,
+          rawText,
           status: "sharpened",
           hypothesis: {
             upsert: { create: hypothesisData, update: hypothesisData },
@@ -122,17 +117,42 @@ export async function POST(
     });
 
     // The old draft was designed from the old hypothesis; this one replaces it.
-    if (!parsed.data.observeOnly) after(() => untimed(() => predesign(updated.id)));
+    // See the note in `src/app/api/hunch/route.ts` on scheduling from inside a
+    // streaming body.
+    if (!observeOnly) {
+      try {
+        after(() => untimed(() => predesign(updated.id)));
+      } catch (err) {
+        // If this fallback is ever taken in production, the background
+        // pre-design is running detached — which on some deploy targets means
+        // not at all — and the confirm gate silently regresses to the long
+        // inline design a previous change removed. Worth a log scan.
+        console.error("[re-sharpen] after() unavailable, pre-designing detached:", err);
+        void untimed(() => predesign(updated.id)).catch(() => {});
+      }
+    }
 
-    return NextResponse.json(
-      { hunch: { ...updated, parameters: updated.parameters.map(toParameterDto) }, priors },
-      { status: 200 },
-    );
-  } catch (err) {
-    console.error("[hunch] re-sharpen failed:", err);
-    return NextResponse.json(
-      { error: "Couldn't sharpen your hunch right now. Please try again in a moment." },
-      { status: 502 },
-    );
+    return { hunch: { ...updated, parameters: updated.parameters.map(toParameterDto) }, priors };
   }
+
+  // A log stays on JSON, for the same reason it does on the create route.
+  if (observeOnly) {
+    try {
+      const priors = await recallPriors(session.user.id, rawText, priorIds);
+      const sharpened = await sharpenHunch(rawText, priors, answers, true);
+      return NextResponse.json(await persist(sharpened, priors), { status: 200 });
+    } catch (err) {
+      console.error("[hunch] re-sharpen failed:", err);
+      return NextResponse.json({ error: SHARPEN_ERROR }, { status: 502 });
+    }
+  }
+
+  return sharpenStreamResponse(
+    async (emit) => {
+      const priors = await recallPriors(session.user.id, rawText, priorIds);
+      const sharpened = await streamSharpenHunch(rawText, priors, answers, false, emit);
+      return persist(sharpened, priors);
+    },
+    { label: "re-sharpen" },
+  );
 }

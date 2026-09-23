@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRightIcon, RotateCcwIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ProtocolStepper } from "@/components/protocol-stepper";
 import { ObservationalPlan } from "@/components/observational-plan";
 import { AbandonHunch } from "@/components/hunch/abandon-hunch";
@@ -132,6 +132,26 @@ export function ProtocolView({ id }: { id: string }) {
   const refusalReason = design.data?.safety.reason; // only present on a fresh design
   const refused = protocol?.safetyState === "refused";
   const approved = !!protocol && !refused;
+  const atConfirmGate = !!hypothesis && !approved && !refused && !design.isPending;
+
+  // A client-side navigation leaves the reading cursor at the top of the
+  // document, so a screen reader lands on this page silent: the statement the
+  // user just watched stream in on the form is never spoken. Moving focus to
+  // the heading that holds it speaks it, and parks the cursor on the gate's
+  // own controls rather than on page chrome.
+  //
+  // Focus, not a live region, because the form tried a live region and lost
+  // the race — `router.push` unmounts it before a polite announcement is read.
+  //
+  // Once only. Refusing and coming back, or a `useHunchInfo` refetch, must not
+  // yank focus out from under someone already working the gate.
+  const gateHeading = useRef<HTMLHeadingElement>(null);
+  const announcedGate = useRef(false);
+  useEffect(() => {
+    if (announcedGate.current || !gateHeading.current) return;
+    announcedGate.current = true;
+    gateHeading.current.focus();
+  }, [atConfirmGate]);
 
   return (
     <div>
@@ -148,11 +168,17 @@ export function ProtocolView({ id }: { id: string }) {
       )}
 
       {/* Confirm gate — no protocol yet, hypothesis in hand, not mid-design */}
-      {hypothesis && !approved && !refused && !design.isPending && (
+      {atConfirmGate && hypothesis && (
         <div>
           <div className="min-w-0 rounded-lg border border-rule border-l-2 border-l-s1 bg-card p-[clamp(16px,2vw,20px)]">
             <p className={cn(LABEL, "m-0")}>What you&apos;re testing</p>
-            <h2 className="mt-2 mb-0 font-heading text-[clamp(17px,2.4vw,22px)] leading-snug font-semibold tracking-[-0.01em] text-ink [overflow-wrap:anywhere]">
+            {/* tabIndex/outline-none: focusable so the statement can be spoken on
+                arrival, with no stray ring for a mouse user. */}
+            <h2
+              ref={gateHeading}
+              tabIndex={-1}
+              className="mt-2 mb-0 font-heading text-[clamp(17px,2.4vw,22px)] leading-snug font-semibold tracking-[-0.01em] text-ink outline-none [overflow-wrap:anywhere]"
+            >
               {hypothesis.statement}
             </h2>
             <p className="mt-2.5 mb-0 font-mono text-xs text-muted-foreground [overflow-wrap:anywhere]">

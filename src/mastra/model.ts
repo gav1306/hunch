@@ -17,19 +17,47 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 export const OPENROUTER_MODEL_ID =
   process.env.OPENROUTER_MODEL_ID ?? "anthropic/claude-sonnet-5";
 
-const openrouter = createOpenAICompatible({
-  name: "openrouter",
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY ?? "",
-  // OpenRouter honours `response_format: json_schema`, but the generic
-  // OpenAI-compatible provider assumes it doesn't and falls back to asking for
-  // JSON in the prompt — which returns objects missing required keys. Every
-  // agent here parses a Zod schema, so the schema has to reach the API.
-  supportsStructuredOutputs: true,
-});
+function openrouterProvider(
+  transformRequestBody?: (args: Record<string, unknown>) => Record<string, unknown>,
+) {
+  return createOpenAICompatible({
+    name: "openrouter",
+    baseURL: "https://openrouter.ai/api/v1",
+    apiKey: process.env.OPENROUTER_API_KEY ?? "",
+    // OpenRouter honours `response_format: json_schema`, but the generic
+    // OpenAI-compatible provider assumes it doesn't and falls back to asking for
+    // JSON in the prompt — which returns objects missing required keys. Every
+    // agent here parses a Zod schema, so the schema has to reach the API.
+    supportsStructuredOutputs: true,
+    transformRequestBody,
+  });
+}
+
+const openrouter = openrouterProvider();
 
 /** Claude Sonnet 5 — the default for every agent. */
 export const claudeModel = openrouter(OPENROUTER_MODEL_ID);
+
+/**
+ * The same model with the provider's extended thinking turned off.
+ *
+ * Measured against the live API on 2026-09-21, same prompt and schema, three
+ * runs each way: with thinking on, the whole hypothesis is emitted in 1-60ms at
+ * the very end of a 6.9-10.1s wait — there is nothing to stream, so the user
+ * watches a blank button and then sees a finished object. With it off the wait
+ * falls to about 3s and its last second is the object arriving in pieces.
+ *
+ * `reasoning` is a top-level OpenRouter body field with no typed setting in the
+ * generic OpenAI-compatible provider, so it is written onto the request here.
+ *
+ * Scoped deliberately: the Hypothesis Coach is the one agent whose output a
+ * person sits and watches being written. Every other agent keeps `claudeModel`
+ * and its thinking — they answer into a page that is already on screen.
+ */
+export const claudeModelNoThinking = openrouterProvider((args) => ({
+  ...args,
+  reasoning: { enabled: false },
+}))(OPENROUTER_MODEL_ID);
 
 export const OPENROUTER_FAST_MODEL_ID =
   process.env.OPENROUTER_FAST_MODEL_ID ?? "anthropic/claude-haiku-4.5";

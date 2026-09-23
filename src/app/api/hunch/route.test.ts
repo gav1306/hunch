@@ -7,7 +7,12 @@ vi.mock("next/server", async (importOriginal) => ({
 }));
 vi.mock("@/lib/auth", () => ({ auth: { api: { getSession: vi.fn() } } }));
 vi.mock("@/lib/memory/recall", () => ({ recallPriors: vi.fn(async () => []) }));
-vi.mock("@/mastra/agents/hypothesis-coach", () => ({ sharpenHunch: vi.fn() }));
+vi.mock("@/mastra/agents/hypothesis-coach", () => ({
+  sharpenHunch: vi.fn(),
+  streamSharpenHunch: vi.fn(),
+  // The route does `err instanceof NoStructuredOutput` on the observe-only path.
+  NoStructuredOutput: class NoStructuredOutput extends Error {},
+}));
 vi.mock("@/lib/design-draft/predesign", () => ({ predesign: vi.fn() }));
 vi.mock("@/lib/db", () => ({
   db: { hunch: { create: vi.fn() } },
@@ -17,13 +22,35 @@ import { POST } from "./route";
 import { after } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { sharpenHunch } from "@/mastra/agents/hypothesis-coach";
+import { sharpenHunch, streamSharpenHunch } from "@/mastra/agents/hypothesis-coach";
 import { recallPriors } from "@/lib/memory/recall";
 import { predesign } from "@/lib/design-draft/predesign";
 import { parseServerTiming, timed, withTiming } from "@/lib/timing";
+import { readNdjson } from "@/lib/ndjson";
+import { SHARPEN_ERROR } from "@/lib/hunch-stream";
+import { sharpenedHypothesisSchema } from "@/lib/schemas/hypothesis";
 
 const req = (body: unknown) =>
   new Request("http://t/api/hunch", { method: "POST", body: JSON.stringify(body) });
+
+type Line = { partial?: unknown; done?: { hunch?: { id: string }; priors?: unknown[] }; error?: string };
+
+/** Drain a streamed sharpen into its lines. */
+async function lines(res: Response): Promise<Line[]> {
+  const out: Line[] = [];
+  for await (const line of readNdjson(res.body!)) out.push(line as Line);
+  return out;
+}
+
+/** The streaming coach, resolving to `sharpened` after emitting `partials`. */
+function coachStreams(sharpened: unknown, partials: unknown[] = []) {
+  vi.mocked(streamSharpenHunch).mockImplementation(
+    async (_raw, _priors, _answers, _observeOnly, onPartial) => {
+      for (const p of partials) onPartial?.(p as never);
+      return sharpened as never;
+    },
+  );
+}
 
 describe("POST /api/hunch", () => {
   beforeEach(() => {
@@ -68,7 +95,7 @@ describe("POST /api/hunch", () => {
   });
 
   it("persists the outcome as the primary parameter plus the proposed trackers", async () => {
-    vi.mocked(sharpenHunch).mockResolvedValue({
+    coachStreams({
       statement: "Coffee after lunch makes me sleep worse.",
       outcomeMetric: "hours of sleep from a tracker",
       outcomeType: "continuous",
@@ -84,7 +111,9 @@ describe("POST /api/hunch", () => {
     } as never);
 
     const res = await POST(req({ rawText: "coffee wrecks sleep", answers: [] }));
-    expect(res.status).toBe(201);
+    const got = await lines(res);
+    expect(res.status).toBe(200);
+    expect(got.at(-1)).toHaveProperty("done");
 
     const arg = vi.mocked(db.hunch.create).mock.calls[0][0] as {
       data: { parameters: { create: { label: string; isPrimary: boolean; sortOrder: number }[] } };
@@ -102,7 +131,7 @@ describe("POST /api/hunch", () => {
   });
 
   it("reuses the priors clarify already recalled for this text", async () => {
-    vi.mocked(sharpenHunch).mockResolvedValue({
+    coachStreams({
       statement: "Coffee after lunch makes me sleep worse.",
       outcomeMetric: "hours of sleep from a tracker",
       outcomeType: "continuous",
@@ -113,19 +142,39 @@ describe("POST /api/hunch", () => {
     });
     vi.mocked(db.hunch.create).mockResolvedValue({ id: "h1", parameters: [] } as never);
 
-    await POST(req({ rawText: "coffee wrecks sleep", answers: [], priorIds: ["h_caf"] }));
+    const res = await POST(req({ rawText: "coffee wrecks sleep", answers: [], priorIds: ["h_caf"] }));
+    await lines(res);
 
     expect(recallPriors).toHaveBeenCalledWith("u1", "coffee wrecks sleep", ["h_caf"]);
   });
 
-  it("502s when the coach throws", async () => {
-    vi.mocked(sharpenHunch).mockRejectedValue(new Error("bedrock down"));
+  it("answers a coach that throws with an error line, not a bare 500", async () => {
+    vi.mocked(streamSharpenHunch).mockRejectedValue(new Error("bedrock down"));
+
     const res = await POST(req({ rawText: "coffee wrecks sleep", answers: [] }));
-    expect(res.status).toBe(502);
+
+    expect(res.status).toBe(200);
+    expect(await lines(res)).toEqual([{ error: SHARPEN_ERROR }]);
+  });
+
+  // The spec lists the final Zod parse failing as its own case. It reaches the
+  // route by the same road — `streamSharpenHunch` throws — so it is asserted
+  // here as the thing that actually differs: a rejection carrying a ZodError
+  // must not escape as a 500 either.
+  it("answers a hypothesis that fails validation with an error line", async () => {
+    vi.mocked(streamSharpenHunch).mockImplementation(async (_raw, _priors, _answers, _observe, onPartial) => {
+      onPartial?.({ statement: "Coffee after lun" } as never);
+      return sharpenedHypothesisSchema.parse({ statement: "" }) as never;
+    });
+
+    const got = await lines(await POST(req({ rawText: "coffee wrecks sleep", answers: [] })));
+
+    expect(got[0]).toHaveProperty("partial");
+    expect(got.at(-1)).toEqual({ error: SHARPEN_ERROR });
   });
 
   it("starts designing the new hunch's plan once it is saved", async () => {
-    vi.mocked(sharpenHunch).mockResolvedValue({
+    coachStreams({
       statement: "Coffee after lunch makes me sleep worse.",
       outcomeMetric: "hours of sleep from a tracker",
       outcomeType: "continuous",
@@ -136,7 +185,8 @@ describe("POST /api/hunch", () => {
     });
     vi.mocked(db.hunch.create).mockResolvedValue({ id: "h1", parameters: [] } as never);
 
-    await POST(req({ rawText: "coffee wrecks sleep", answers: [] }));
+    const res = await POST(req({ rawText: "coffee wrecks sleep", answers: [] }));
+    await lines(res);
 
     expect(after).toHaveBeenCalledTimes(1);
     // `after` also accepts a promise; the routes always pass a function.
@@ -162,8 +212,8 @@ describe("POST /api/hunch", () => {
   });
 
   it("designs nothing ahead when sharpening fails or is refused", async () => {
-    vi.mocked(sharpenHunch).mockRejectedValue(new Error("bedrock down"));
-    await POST(req({ rawText: "coffee wrecks sleep", answers: [] }));
+    vi.mocked(streamSharpenHunch).mockRejectedValue(new Error("bedrock down"));
+    await lines(await POST(req({ rawText: "coffee wrecks sleep", answers: [] })));
     await POST(req({ rawText: "do I sleep better if I skip my antidepressant" }));
 
     expect(after).not.toHaveBeenCalled();
@@ -171,7 +221,7 @@ describe("POST /api/hunch", () => {
 
   it("keeps the scheduled design untimed, even if it later runs inside a live record", async () => {
     vi.stubEnv("HUNCH_TIMING", "1");
-    vi.mocked(sharpenHunch).mockResolvedValue({
+    coachStreams({
       statement: "Coffee after lunch makes me sleep worse.",
       outcomeMetric: "hours of sleep from a tracker",
       outcomeType: "continuous",
@@ -185,7 +235,8 @@ describe("POST /api/hunch", () => {
       await timed("predesign-step", async () => 1);
     });
 
-    await POST(req({ rawText: "coffee wrecks sleep", answers: [] }));
+    const res = await POST(req({ rawText: "coffee wrecks sleep", answers: [] }));
+    await lines(res);
     const scheduled = vi.mocked(after).mock.calls[0][0] as () => Promise<void>;
 
     // The `after()` mock above doesn't reproduce Next's real context-inheriting
@@ -202,5 +253,207 @@ describe("POST /api/hunch", () => {
 
     const names = parseServerTiming(later.headers.get("Server-Timing")).map((s) => s.name);
     expect(names).not.toContain("predesign-step");
+  });
+
+  it("streams the coach's partials before the hunch it saved", async () => {
+    coachStreams(
+      {
+        statement: "Coffee after lunch makes me sleep worse.",
+        outcomeMetric: "hours of sleep from a tracker",
+        outcomeType: "continuous",
+        subject: "self",
+        confounders: [],
+        trackers: [],
+        schedulable: true,
+      },
+      [{ statement: "Coffee after lun" }, { statement: "Coffee after lunch makes me sleep worse." }],
+    );
+    vi.mocked(db.hunch.create).mockResolvedValue({ id: "h1", hypothesis: {}, parameters: [] } as never);
+
+    const res = await POST(req({ rawText: "coffee wrecks sleep", answers: [] }));
+    const got = await lines(res);
+
+    expect(res.headers.get("Content-Type")).toContain("application/x-ndjson");
+    expect(got.map((l) => Object.keys(l)[0])).toEqual(["partial", "partial", "done"]);
+    expect(got[0].partial).toEqual({ statement: "Coffee after lun" });
+  });
+
+  it("carries the same payload in `done` that the JSON body carried", async () => {
+    coachStreams({
+      statement: "Coffee after lunch makes me sleep worse.",
+      outcomeMetric: "hours of sleep from a tracker",
+      outcomeType: "continuous",
+      subject: "self",
+      confounders: [],
+      trackers: [],
+      schedulable: true,
+    });
+    vi.mocked(recallPriors).mockResolvedValue([
+      { cause: "caffeine", direction: "up", confidence: 0.8 },
+    ] as never);
+    // A realistic create() return — a hypothesis object and a parameter row —
+    // so exact equality below actually protects something: a raw Prisma row
+    // (unit/min/max as null, a retiredAt instead of retired) or a dropped
+    // hypothesis field would fail this, where toMatchObject would not.
+    vi.mocked(db.hunch.create).mockResolvedValue({
+      id: "h1",
+      rawText: "coffee wrecks sleep",
+      status: "sharpened",
+      hypothesis: {
+        id: "hy1",
+        statement: "Coffee after lunch makes me sleep worse.",
+        outcomeMetric: "hours of sleep from a tracker",
+        outcomeType: "continuous",
+        subject: "self",
+        confounders: [],
+        schedulable: true,
+      },
+      parameters: [
+        {
+          id: "p1",
+          label: "hours of sleep from a tracker",
+          type: "amount",
+          unit: null,
+          min: null,
+          max: null,
+          isPrimary: true,
+          isExposure: false,
+          sortOrder: 0,
+          retiredAt: null,
+        },
+      ],
+    } as never);
+
+    const res = await POST(req({ rawText: "coffee wrecks sleep", answers: [] }));
+    const done = (await lines(res)).at(-1)!.done!;
+
+    expect(done).toEqual({
+      hunch: {
+        id: "h1",
+        rawText: "coffee wrecks sleep",
+        status: "sharpened",
+        hypothesis: {
+          id: "hy1",
+          statement: "Coffee after lunch makes me sleep worse.",
+          outcomeMetric: "hours of sleep from a tracker",
+          outcomeType: "continuous",
+          subject: "self",
+          confounders: [],
+          schedulable: true,
+        },
+        parameters: [
+          {
+            id: "p1",
+            label: "hours of sleep from a tracker",
+            type: "amount",
+            isPrimary: true,
+            isExposure: false,
+            sortOrder: 0,
+            retired: false,
+          },
+        ],
+      },
+      priors: [{ cause: "caffeine", direction: "up", confidence: 0.8 }],
+    });
+  });
+
+  it("answers a failed write with an error line, after the partials it already streamed", async () => {
+    coachStreams(
+      {
+        statement: "Coffee after lunch makes me sleep worse.",
+        outcomeMetric: "hours of sleep from a tracker",
+        outcomeType: "continuous",
+        subject: "self",
+        confounders: [],
+        trackers: [],
+        schedulable: true,
+      },
+      [{ statement: "Coffee after lun" }],
+    );
+    vi.mocked(db.hunch.create).mockRejectedValue(new Error("db down"));
+
+    const got = await lines(await POST(req({ rawText: "coffee wrecks sleep", answers: [] })));
+
+    expect(got[0]).toHaveProperty("partial");
+    expect(got.at(-1)).toEqual({ error: SHARPEN_ERROR });
+  });
+
+  it("refuses medication before any byte is streamed", async () => {
+    const res = await POST(req({ rawText: "do I sleep better if I skip my antidepressant" }));
+
+    expect(res.status).toBe(422);
+    expect(res.headers.get("Content-Type")).toContain("application/json");
+    expect(streamSharpenHunch).not.toHaveBeenCalled();
+  });
+
+  it("keeps a log on JSON, so its diary fallback is untouched", async () => {
+    vi.mocked(sharpenHunch).mockResolvedValue({
+      statement: "I feel more tired on some days than others.",
+      outcomeMetric: "tiredness rated 1-5",
+      outcomeType: "continuous",
+      subject: "self",
+      confounders: [],
+      trackers: [],
+    } as never);
+    vi.mocked(db.hunch.create).mockResolvedValue({ id: "h1", parameters: [] } as never);
+
+    const res = await POST(req({ rawText: "am I tired", observeOnly: true }));
+
+    expect(res.status).toBe(201);
+    expect(res.headers.get("Content-Type")).toContain("application/json");
+    expect(streamSharpenHunch).not.toHaveBeenCalled();
+    expect(sharpenHunch).toHaveBeenCalled();
+  });
+
+  it("logs and still pre-designs detached when after() throws outside request scope", async () => {
+    coachStreams({
+      statement: "Coffee after lunch makes me sleep worse.",
+      outcomeMetric: "hours of sleep from a tracker",
+      outcomeType: "continuous",
+      subject: "self",
+      confounders: [],
+      trackers: [],
+      schedulable: true,
+    });
+    vi.mocked(db.hunch.create).mockResolvedValue({ id: "h1", parameters: [] } as never);
+    // The fallback does `predesign(...).catch(...)`, so it needs a real
+    // promise here — mockImplementationOnce so this doesn't bleed into the
+    // next test's default `predesign` mock.
+    vi.mocked(predesign).mockResolvedValueOnce(undefined as never);
+    vi.mocked(after).mockImplementationOnce(() => {
+      throw new Error("outside request scope");
+    });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const res = await POST(req({ rawText: "coffee wrecks sleep", answers: [] }));
+    await lines(res);
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[hunch] after() unavailable, pre-designing detached:",
+      expect.any(Error),
+    );
+    expect(predesign).toHaveBeenCalledWith("h1");
+    errorSpy.mockRestore();
+  });
+
+  it("leaves the coach out of Server-Timing, because the header goes out first", async () => {
+    vi.stubEnv("HUNCH_TIMING", "1");
+    coachStreams({
+      statement: "Coffee after lunch makes me sleep worse.",
+      outcomeMetric: "hours of sleep from a tracker",
+      outcomeType: "continuous",
+      subject: "self",
+      confounders: [],
+      trackers: [],
+      schedulable: true,
+    });
+    vi.mocked(db.hunch.create).mockResolvedValue({ id: "h1", hypothesis: {}, parameters: [] } as never);
+
+    const res = await POST(req({ rawText: "coffee wrecks sleep", answers: [] }));
+    await lines(res);
+
+    const names = parseServerTiming(res.headers.get("Server-Timing")).map((s) => s.name);
+    expect(names).toContain("total");
+    expect(names).not.toContain("coach");
   });
 });

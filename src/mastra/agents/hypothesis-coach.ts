@@ -1,5 +1,5 @@
 import { Agent } from "@mastra/core/agent";
-import { claudeModel } from "@/mastra/model";
+import { claudeModelNoThinking } from "@/mastra/model";
 import { llmUsage, timed } from "@/lib/timing";
 import {
   sharpenedHypothesisObjectSchema,
@@ -15,13 +15,16 @@ import type { ClarifyingAnswer } from "@/lib/schemas/clarify";
  * falsifiable hypothesis with a measurable outcome, an outcome type that drives
  * the Bayesian model choice, and the confounders worth controlling for.
  *
- * Claude (Sonnet 5) runs via the shared `claudeModel` instance. See
- * `src/mastra/model.ts`.
+ * Claude (Sonnet 5) runs with the provider's extended thinking turned off, via
+ * `claudeModelNoThinking`. The Coach is the one agent a person sits and watches
+ * write: with thinking on, the model spends the whole wait reasoning and then
+ * emits the hypothesis in one burst, so there is nothing to stream. See the
+ * note in `src/mastra/model.ts`.
  */
 export const hypothesisCoach = new Agent({
   id: "hypothesis-coach",
   name: "Hypothesis Coach",
-  model: claudeModel,
+  model: claudeModelNoThinking,
   instructions: `You are the Hypothesis Coach for Hunch, a personal-science copilot.
 
 A user gives you a vague hunch about their own life ("coffee wrecks my sleep",
@@ -226,4 +229,71 @@ export async function sharpenHunch(
   // response.object has already been validated against the unrefined shape,
   // defaults filled. The cross-field rules run here, after the fallback.
   return sharpenedHypothesisSchema.parse(normaliseSchedulability(response.object));
+}
+
+/**
+ * The Coach, streamed. Same prompt, same schema, same token cap as
+ * `sharpenHunch` — the difference is only that the caller sees the object
+ * being assembled instead of waiting for it.
+ *
+ * It does not make the Coach faster: the same tokens take the same time.
+ * Latency here is very nearly a readout of output length (~2.2s plus ~8.5ms
+ * per token), so the app cannot know whether it is handing the user a 4s wait
+ * or an 11.5s one. Streaming makes that wait legible.
+ *
+ * Deliberately NOT wrapped in `timed("coach", …)`: the caller has already
+ * returned its response, so the `Server-Timing` header this would write into
+ * has gone out. With timing on the run logs its own line instead.
+ */
+export async function streamSharpenHunch(
+  rawText: string,
+  priors: Prior[] = [],
+  answers: ClarifyingAnswer[] = [],
+  observeOnly = false,
+  onPartial: (partial: Partial<SharpenedHypothesisDraft>) => void = () => {},
+): Promise<SharpenedHypothesis> {
+  const start = performance.now();
+  const stream = await hypothesisCoach.stream(
+    buildSharpenPrompt(rawText, priors, answers, observeOnly),
+    {
+      // The unrefined shape, for the same reason `sharpenHunch` uses it:
+      // Mastra validates with the refinements too, so the refined schema would
+      // throw on "unschedulable, no yes/no" before normaliseSchedulability
+      // below could repair it.
+      structuredOutput: { schema: sharpenedHypothesisObjectSchema },
+      modelSettings: { maxOutputTokens: 1024 },
+    },
+  );
+
+  // Partials arrive in the schema's field order — statement first, trackers
+  // last. See the note on `sharpenedHypothesisObjectSchema`.
+  for await (const partial of stream.objectStream) {
+    onPartial(partial as Partial<SharpenedHypothesisDraft>);
+  }
+
+  // `stream.object` rejects for two cases we cannot cleanly tell apart from
+  // here: the model declining to answer (a refusal reaches us as prose and no
+  // object) and a genuine infrastructure failure (a dropped connection, a
+  // timeout, a malformed stream). Both are deliberately relabelled as the same
+  // NoStructuredOutput for callers — the routes turn every failure into the
+  // same message anyway, and the one caller that distinguishes
+  // NoStructuredOutput (the observe-only fallback) never reaches this path —
+  // but the original cause is logged here first, so it isn't silently lost.
+  let object: SharpenedHypothesisDraft | undefined;
+  try {
+    object = await stream.object;
+  } catch (err) {
+    console.error("streamSharpenHunch: stream.object rejected", err);
+  }
+  if (!object) throw new NoStructuredOutput();
+
+  if (process.env.HUNCH_TIMING === "1") {
+    const usage = await stream.totalUsage.catch(() => undefined);
+    console.log(
+      `[timing] coach (streamed) dur=${(performance.now() - start).toFixed(1)} ` +
+        `in=${usage?.inputTokens ?? "?"} out=${usage?.outputTokens ?? "?"}`,
+    );
+  }
+
+  return sharpenedHypothesisSchema.parse(normaliseSchedulability(object));
 }

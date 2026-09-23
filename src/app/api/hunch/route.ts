@@ -7,9 +7,16 @@ import { recallPriors } from "@/lib/memory/recall";
 import { draftsFromSharpened, toParameterDto } from "@/lib/parameters";
 import { sharpenRequestSchema } from "@/lib/schemas/clarify";
 import { MEDICATION_REFUSAL, medicationIntent } from "@/lib/safety/medication";
-import { NoStructuredOutput, sharpenHunch } from "@/mastra/agents/hypothesis-coach";
+import {
+  NoStructuredOutput,
+  sharpenHunch,
+  streamSharpenHunch,
+} from "@/mastra/agents/hypothesis-coach";
 import { diaryFallback } from "@/lib/safety/diary-fallback";
 import { predesign } from "@/lib/design-draft/predesign";
+import { SHARPEN_ERROR, sharpenStreamResponse } from "@/lib/hunch-stream";
+import type { SharpenedHypothesis } from "@/lib/schemas/hypothesis";
+import type { Prior } from "@/lib/schemas/prior";
 
 /**
  * Core loop, step one: drop a hunch -> Hypothesis Coach sharpens it -> persist
@@ -38,35 +45,19 @@ async function createHunch(request: Request) {
     );
   }
 
-  try {
-    const priors = await recallPriors(
-      session.user.id,
-      parsed.data.rawText,
-      parsed.data.priorIds,
-    );
-    let sharpened;
-    try {
-      sharpened = await sharpenHunch(
-        parsed.data.rawText,
-        priors,
-        parsed.data.answers,
-        parsed.data.observeOnly,
-      );
-    } catch (err) {
-      // A diary keeps its promise even when the coach won't answer. Asked about
-      // coming off a statin the model returns prose rather than an object, and
-      // failing here would put the dead end back one step later — after the user
-      // had already been told the app would keep the record.
-      if (!(parsed.data.observeOnly && err instanceof NoStructuredOutput)) throw err;
-      sharpened = diaryFallback(parsed.data.rawText);
-    }
+  const { rawText, answers, priorIds, observeOnly } = parsed.data;
 
+  /**
+   * Persist the sharpened hunch with the parameter set the confirm gate will
+   * edit, and build the body both roads out of here return.
+   */
+  async function persist(sharpened: SharpenedHypothesis, priors: Prior[]) {
     const drafts = draftsFromSharpened(sharpened);
 
     const hunch = await db.hunch.create({
       data: {
-        userId: session.user.id,
-        rawText: parsed.data.rawText,
+        userId: session!.user.id,
+        rawText,
         status: "sharpened",
         hypothesis: {
           create: {
@@ -99,21 +90,62 @@ async function createHunch(request: Request) {
 
     // Design the plan while the user reads the confirm gate; confirm takes it
     // if nothing it depends on changed. A log never gets a designed plan.
-    if (!parsed.data.observeOnly) after(() => untimed(() => predesign(hunch.id)));
+    // `after()` is still available from inside the streaming body — the request
+    // is open until the stream closes — but a hunch that is already saved must
+    // not fail over scheduling, so a refusal falls back to running it detached.
+    if (!observeOnly) {
+      try {
+        after(() => untimed(() => predesign(hunch.id)));
+      } catch (err) {
+        // If this fallback is ever taken in production, the background
+        // pre-design is running detached — which on some deploy targets means
+        // not at all — and the confirm gate silently regresses to the long
+        // inline design a previous change removed. Worth a log scan.
+        console.error("[hunch] after() unavailable, pre-designing detached:", err);
+        void untimed(() => predesign(hunch.id)).catch(() => {});
+      }
+    }
 
-    return NextResponse.json(
-      { hunch: { ...hunch, parameters: hunch.parameters.map(toParameterDto) }, priors },
-      { status: 201 },
-    );
-  } catch (err) {
-    // The Coach (LLM) or the DB write failed. Always answer with JSON so the
-    // client shows a graceful message instead of choking on an empty body.
-    console.error("[hunch] sharpen failed:", err);
-    return NextResponse.json(
-      { error: "Couldn't sharpen your hunch right now. Please try again in a moment." },
-      { status: 502 },
-    );
+    return { hunch: { ...hunch, parameters: hunch.parameters.map(toParameterDto) }, priors };
   }
+
+  // A log stays on JSON. It is the one path whose visible output can be thrown
+  // away and replaced — the model returns prose, `sharpenHunch` throws, and
+  // `diaryFallback` writes the hypothesis from the user's own words — so
+  // streaming it would mean streaming text the app is about to discard.
+  if (observeOnly) {
+    try {
+      const priors = await recallPriors(session.user.id, rawText, priorIds);
+      let sharpened;
+      try {
+        sharpened = await sharpenHunch(rawText, priors, answers, true);
+      } catch (err) {
+        // A diary keeps its promise even when the coach won't answer. Asked
+        // about coming off a statin the model returns prose rather than an
+        // object, and failing here would put the dead end back one step later
+        // — after the user had already been told the app would keep the record.
+        if (!(err instanceof NoStructuredOutput)) throw err;
+        sharpened = diaryFallback(rawText);
+      }
+      return NextResponse.json(await persist(sharpened, priors), { status: 201 });
+    } catch (err) {
+      console.error("[hunch] sharpen failed:", err);
+      return NextResponse.json({ error: SHARPEN_ERROR }, { status: 502 });
+    }
+  }
+
+  // Everything that can still refuse — auth, empty input, medication — has run
+  // above, with a real status code. From here the answer is a stream: the
+  // hypothesis types out while the Coach writes it, and a failure past the
+  // first byte arrives as the stream's last line instead of a 502.
+  return sharpenStreamResponse(
+    async (emit) => {
+      const priors = await recallPriors(session.user.id, rawText, priorIds);
+      const sharpened = await streamSharpenHunch(rawText, priors, answers, false, emit);
+      return persist(sharpened, priors);
+    },
+    { label: "hunch" },
+  );
 }
 
 export const POST = withTiming(createHunch);
