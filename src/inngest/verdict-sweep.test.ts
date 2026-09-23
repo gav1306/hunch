@@ -98,8 +98,41 @@ describe("runVerdictSweep", () => {
     vi.mocked(concludeTrial)
       .mockResolvedValueOnce({ ok: false, status: 502, error: "Analyst down" })
       .mockResolvedValueOnce({ ok: true, row: {} as never });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     expect(await runVerdictSweep(step, now)).toEqual({ due: 2, concluded: 1, failed: 1 });
+    expect(errorSpy).toHaveBeenCalledWith("[verdict-sweep] conclude failed", "h1", expect.anything());
+
+    errorSpy.mockRestore();
+  });
+
+  it("a malformed design can't stop the sweep for everyone else", async () => {
+    const broken = { ...candidate("h1"), protocol: { startedAt, design: { phases: "garbage" } } };
+    vi.mocked(db.hunch.findMany).mockResolvedValue([broken, candidate("h2")] as never);
+    zones(["u-h1", "UTC"], ["u-h2", "UTC"]);
+    vi.mocked(db.hunch.findUnique).mockImplementation((async (args: { where: { id: string } }) =>
+      loaded(args.where.id)) as never);
+    vi.mocked(concludeTrial).mockResolvedValue({ ok: true, row: {} as never });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect(await runVerdictSweep(step, now)).toEqual({ due: 1, concluded: 1, failed: 0 });
+    expect(concludeTrial).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(concludeTrial).mock.calls[0][1]).toBe("u-h2");
+    expect(errorSpy).toHaveBeenCalledWith("[verdict-sweep] skipping hunch", "h1", expect.anything());
+
+    errorSpy.mockRestore();
+  });
+
+  it("a deterministic 409 is skipped, not counted as concluded or failed", async () => {
+    vi.mocked(db.hunch.findMany).mockResolvedValue([candidate("h1")] as never);
+    zones(["u-h1", "UTC"]);
+    vi.mocked(db.hunch.findUnique).mockImplementation((async (args: { where: { id: string } }) =>
+      loaded(args.where.id)) as never);
+    vi.mocked(concludeTrial).mockResolvedValue({ ok: false, status: 409, error: "still running" });
+
+    // The inline fake `step` never throws unless the function body throws, so
+    // this also proves the step wasn't retried.
+    expect(await runVerdictSweep(step, now)).toEqual({ due: 1, concluded: 0, failed: 0 });
   });
 
   it("skips a hunch that gained a verdict, or was archived, before its step ran", async () => {

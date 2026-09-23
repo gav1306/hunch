@@ -63,8 +63,15 @@ export async function runVerdictSweep(
     return hunches
       .filter((h) => {
         if (!h.protocol?.startedAt) return false;
-        const design = parseStoredDesign(h.protocol.design, h.hypothesis?.outcomeMetric);
-        return isDueForVerdict(h.protocol.startedAt, design, zones.get(h.userId) ?? "UTC", now);
+        try {
+          const design = parseStoredDesign(h.protocol.design, h.hypothesis?.outcomeMetric);
+          return isDueForVerdict(h.protocol.startedAt, design, zones.get(h.userId) ?? "UTC", now);
+        } catch (err) {
+          // A malformed design shouldn't fail the sweep for every other user's
+          // hunch — leave it for a human to fix and move on.
+          console.error("[verdict-sweep] skipping hunch", h.id, err);
+          return false;
+        }
       })
       .map((h) => ({ id: h.id, timeZone: zones.get(h.userId) ?? "UTC" }));
   });
@@ -81,14 +88,21 @@ export async function runVerdictSweep(
           return "skipped" as const;
         }
         const result = await concludeTrial(hunch, hunch.userId, localToday(timeZone, now));
-        // Throwing makes Inngest retry this step alone.
-        if (!result.ok) throw new Error(`conclude ${id}: ${result.status} ${result.error}`);
+        if (!result.ok) {
+          // 409s are `concludeTrial`'s deterministic refusals (not started,
+          // still running, a diary) — nothing a retry, tonight or any other
+          // night, would change.
+          if (result.status === 409) return "skipped" as const;
+          // Throwing makes Inngest retry this step alone.
+          throw new Error(`conclude ${id}: ${result.status} ${result.error}`);
+        }
         return "concluded" as const;
       });
       if (outcome === "concluded") concluded++;
-    } catch {
+    } catch (err) {
       // Out of retries. Tomorrow's sweep tries again, and a first view still
       // computes inline in the meantime.
+      console.error("[verdict-sweep] conclude failed", id, err);
       failed++;
     }
   }
@@ -100,6 +114,7 @@ export const verdictSweep = inngest.createFunction(
   {
     id: "verdict-sweep",
     name: "Freeze the verdicts of finished trials",
+    retries: 2,
     triggers: [{ cron: "15 0 * * *" }],
   },
   async ({ step }) => runVerdictSweep(step as unknown as SweepStep),
