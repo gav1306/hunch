@@ -1145,3 +1145,22 @@ ended yesterday.
 - Not run live: Step 3 (verdict renders at once / `Server-Timing`) and the grace-day check-in. Both need an
   authenticated session for the throwaway user. The verdict route's frozen-verdict path and the last-day
   check-in are covered by unit tests only.
+
+Second run 2026-10-01, after rebasing onto `origin/main` (#36), same setup: dev server on :3100 with
+`DEV_AUTH_BYPASS=1 HUNCH_TIMING=1`, Inngest dev server, dev Postgres. The 6 running unverdicted hunches
+were archived for the run and restored after; seeded rows, and the `CausalEdge` the sweep wrote, were deleted.
+`dev-user` (stored zone `Asia/Calcutta`) got three 7+7-day phased trials.
+
+- Sweep: run `01M3TY35KATW40HV8VMWCTXEG7` → `{ due: 1, concluded: 1, failed: 0 }`. `find-due` 138ms,
+  `conclude-<id>` 6.0s, for the trial that ended 2 days ago only. The one that ended yesterday stayed `running`.
+- Step 3: `GET /api/hunch/<id>/verdict` on the frozen trial → `200`, `Server-Timing: db-load;dur=3.2, total;dur=8.8`
+  (first hit after compile: `db-load;dur=13.3, total;dur=40.6`). No Analyst on the read.
+- Step 4 (grace): on the grace day, a check-in with `loggedOn` = the last scheduled day → `201`, filed under that
+  day in phase B. A check-in for today itself → `409 This trial is complete.`, as for any day after the schedule.
+- Task 5 step 3 (Playwright Chromium 139 with `timezoneId`, at 05:15Z = 22:15 PDT Sep 30 / 10:45 IST Oct 1, on a
+  trial whose day 5 is Oct 1):
+  - `America/Los_Angeles`: strip reads "4 of 4 days logged"; Log today posts `timeZone: America/Los_Angeles`,
+    upserts Sep 30 (no Oct 1 row), and the stored zone becomes `America/Los_Angeles`.
+  - `Asia/Kolkata`: strip reads "Day 5, 1 Oct — today, not logged yet"; Log today files Oct 1 and the stored
+    zone flips back. Chromium itself reports this zone as `Asia/Calcutta`, so that is what is sent and stored —
+    the legacy name comes from the browser, not from canonicalising.
