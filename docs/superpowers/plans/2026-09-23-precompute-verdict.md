@@ -1132,4 +1132,16 @@ Append the observed run outputs to this plan under "Results", then report ready 
 
 ## Results
 
-(Filled in by Task 8.)
+Run 2026-09-24, Inngest dev server against `next dev` on :3100, dev Postgres. Before the run, every
+running unverdicted hunch already in the dev DB (6, incl. e2e-hunch-18014) had `archivedAt` set so the
+sweep couldn't freeze it; they were un-archived afterwards. A throwaway user (zone Asia/Kolkata) got two
+7+7-day phased trials with 14 check-ins each: one whose schedule ended 2 days ago, one whose schedule
+ended yesterday.
+
+- Step 2: run `01M392DZYRDNCV5GD2QEMQV8ET` → `{ due: 1, concluded: 1, failed: 0 }`. Steps: `find-due`,
+  `conclude-<id>` for the 2-days-ago trial only. That hunch is `concluded`, verdict `helped` / `normal-normal`.
+  The step took 5.6s (the Analyst call), so the user doesn't wait on it.
+- Step 4: in the same run, the trial that ended yesterday was not due. It is still `running` with no verdict.
+- Not run live: Step 3 (verdict renders at once / `Server-Timing`) and the grace-day check-in. Both need an
+  authenticated session for the throwaway user. The verdict route's frozen-verdict path and the last-day
+  check-in are covered by unit tests only.
