@@ -176,6 +176,10 @@ describe("POST /api/hunch/[id]/start", () => {
       expect(res.status).toBe(200);
       const data = vi.mocked(db.protocol.update).mock.calls[0][0].data as { startedAt: Date };
       expect(data.startedAt.toISOString()).toBe("2026-01-16T00:00:00.000Z");
+      // Stored as the browser spelled it, not as the runtime's ICU does (Asia/Calcutta).
+      expect(db.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ timeZone: "Asia/Kolkata" }) }),
+      );
     });
 
     it("uses the stored zone when the request sends none", async () => {

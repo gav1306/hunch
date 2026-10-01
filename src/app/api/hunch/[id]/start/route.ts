@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { canRun } from "@/lib/schemas/protocol";
 import { getSession } from "@/lib/session";
 import { startDateFor } from "@/lib/schedule";
-import { canonicalZone, localToday } from "@/lib/zone";
+import { knownZone, localToday } from "@/lib/zone";
 
 const startInputSchema = z.object({
   startOn: z.enum(["today", "tomorrow"]).default("today"),
@@ -91,10 +91,10 @@ export async function POST(
 
   // Day 1 is a date in the user's calendar. The zone they just sent wins; a
   // client that sent none falls back to the one on file.
-  const knownZone = zone ? canonicalZone(zone) : undefined;
+  const sentZone = knownZone(zone);
   const startedAt = startDateFor(
     parsed.data.startOn,
-    localToday(knownZone ?? user?.timeZone ?? "UTC"),
+    localToday(sentZone ?? user?.timeZone ?? "UTC"),
   );
 
   // One transaction: a hunch is never "running" without an anchor, and never
@@ -108,7 +108,7 @@ export async function POST(
         ...(switchOnReminders ? { reminderHour: DEFAULT_REMINDER_HOUR } : {}),
         // The zone is worth recording either way — it is how the app knows
         // which midnight a logged day belongs to.
-        ...(knownZone ? { timeZone: knownZone } : {}),
+        ...(sentZone ? { timeZone: sentZone } : {}),
       },
     }),
   ]);

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/db", () => ({ db: { user: { findUnique: vi.fn() } } }));
 
-import { canonicalZone, localToday, userTimeZone } from "@/lib/zone";
+import { canonicalZone, knownZone, localToday, sameZone, userTimeZone } from "@/lib/zone";
 import { db } from "@/lib/db";
 
 describe("localToday", () => {
@@ -37,6 +37,29 @@ describe("canonicalZone", () => {
 
   it("returns undefined for garbage", () => {
     expect(canonicalZone("Not/AZone")).toBeUndefined();
+  });
+});
+
+describe("knownZone", () => {
+  it("keeps the zone as sent, alias and all", () => {
+    // Node's ICU spells Asia/Kolkata "Asia/Calcutta"; the user should never see that.
+    expect(knownZone("Asia/Kolkata")).toBe("Asia/Kolkata");
+  });
+
+  it("returns undefined for garbage or nothing", () => {
+    expect(knownZone("Not/AZone")).toBeUndefined();
+    expect(knownZone(undefined)).toBeUndefined();
+  });
+});
+
+describe("sameZone", () => {
+  it("treats an alias and a case variant as the same zone", () => {
+    expect(sameZone("Asia/Kolkata", "Asia/Calcutta")).toBe(true);
+    expect(sameZone("america/los_angeles", "America/Los_Angeles")).toBe(true);
+  });
+
+  it("tells different zones apart", () => {
+    expect(sameZone("Asia/Kolkata", "UTC")).toBe(false);
   });
 });
 

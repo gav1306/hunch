@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
-import { canonicalZone } from "@/lib/zone";
+import { knownZone } from "@/lib/zone";
 
 const bodySchema = z.object({
   /** 0-23 in the user's own zone, or null to turn reminders off. */
@@ -42,7 +42,7 @@ export async function PUT(request: Request) {
   }
 
   const { reminderHour, timeZone } = parsed.data;
-  const zone = timeZone ? canonicalZone(timeZone) : undefined;
+  const zone = knownZone(timeZone);
 
   const user = await db.user.update({
     where: { id: session.user.id },

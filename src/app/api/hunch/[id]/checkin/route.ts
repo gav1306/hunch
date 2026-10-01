@@ -9,7 +9,7 @@ import { checkInValuesInputSchema, validateParameterValue } from "@/lib/schemas/
 import type { ParameterType } from "@/lib/schemas/parameter";
 import { canRun, parseStoredDesign } from "@/lib/schemas/protocol";
 import { flagReading, typoFlag } from "@/lib/safety/reading-flags";
-import { canonicalZone, localToday, userTimeZone } from "@/lib/zone";
+import { knownZone, localToday, sameZone, userTimeZone } from "@/lib/zone";
 
 /**
  * Phase 4: log a day's readings. The server derives the phase from the schedule
@@ -97,8 +97,7 @@ export async function POST(
   // The user's own day, judged by the zone of the device in their hand — a
   // Californian's 8pm log is still today, not tomorrow in UTC.
   const storedZone = await userTimeZone(session.user.id);
-  const sentZone = parsed.data.timeZone;
-  const zone = (sentZone && canonicalZone(sentZone)) || storedZone;
+  const zone = knownZone(parsed.data.timeZone) ?? storedZone;
   const today = localToday(zone);
   let loggedOn = today;
   if (parsed.data.loggedOn !== undefined) {
@@ -150,7 +149,7 @@ export async function POST(
     });
   }
 
-  if (zone !== storedZone) {
+  if (!sameZone(zone, storedZone)) {
     await db.user.update({ where: { id: session.user.id }, data: { timeZone: zone } });
   }
 

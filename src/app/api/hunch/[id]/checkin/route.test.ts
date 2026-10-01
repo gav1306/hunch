@@ -319,5 +319,16 @@ describe("POST /api/hunch/[id]/checkin", () => {
       // Same zone as stored, just cased differently by the device — nothing to refresh.
       expect(db.user.update).not.toHaveBeenCalled();
     });
+
+    it("doesn't rewrite a stored alias of the same zone", async () => {
+      // US/Pacific is a legacy alias the runtime resolves to America/Los_Angeles.
+      vi.mocked(userTimeZone).mockResolvedValue("US/Pacific");
+      const res = await POST(
+        req({ values: [{ parameterId: "p1", value: 7 }], timeZone: "America/Los_Angeles" }),
+        params,
+      );
+      expect(res.status).toBe(201);
+      expect(db.user.update).not.toHaveBeenCalled();
+    });
   });
 });

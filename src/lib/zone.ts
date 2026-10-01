@@ -15,11 +15,11 @@ import { localDateIn } from "@/lib/reminders";
  */
 
 /**
- * The runtime's canonical spelling of a zone — "asia/kolkata" and "Asia/Kolkata"
- * both become whatever Intl considers the one true id — or undefined when the
- * runtime doesn't recognise it. A client-sent zone is free-text (case, and
- * sometimes the alias, vary by device); comparing and storing it uncanonicalised
- * made an unchanged zone look like a move and trip the refresh write.
+ * The runtime's canonical spelling of a zone — "america/los_angeles" and
+ * "US/Pacific" both become "America/Los_Angeles" — or undefined when the runtime
+ * doesn't recognise it. For comparing zones only: ICU's canonical id can be a
+ * legacy alias (Node spells Asia/Kolkata "Asia/Calcutta"), so it is never what
+ * gets stored or shown.
  */
 export function canonicalZone(zone: string): string | undefined {
   try {
@@ -27,6 +27,20 @@ export function canonicalZone(zone: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+/** A client-sent zone, as sent, when the runtime recognises it; undefined otherwise. */
+export function knownZone(zone: string | undefined): string | undefined {
+  return zone !== undefined && canonicalZone(zone) !== undefined ? zone : undefined;
+}
+
+/**
+ * Do two zone strings name the same zone? A client-sent zone is free-text (case,
+ * and sometimes the alias, vary by device); comparing it raw made an unchanged
+ * zone look like a move and trip the refresh write.
+ */
+export function sameZone(a: string, b: string): boolean {
+  return canonicalZone(a) === canonicalZone(b);
 }
 
 /** Today in `timeZone`, as the UTC-midnight key a check-in is filed under. */
