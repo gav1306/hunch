@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
-import { knownZone } from "@/lib/zone";
+import { knownZone, zoneName } from "@/lib/zone";
 
 const bodySchema = z.object({
   /** 0-23 in the user's own zone, or null to turn reminders off. */
@@ -21,7 +21,9 @@ export async function GET() {
     where: { id: session.user.id },
     select: { reminderHour: true, timeZone: true },
   });
-  return NextResponse.json(user ?? { reminderHour: null, timeZone: "UTC" });
+  if (!user) return NextResponse.json({ reminderHour: null, timeZone: "UTC" });
+  // Rows saved before knownZone renamed aliases can still hold one.
+  return NextResponse.json({ ...user, timeZone: zoneName(user.timeZone) });
 }
 
 /**
@@ -59,5 +61,5 @@ export async function PUT(request: Request) {
     select: { reminderHour: true, timeZone: true },
   });
 
-  return NextResponse.json(user);
+  return NextResponse.json({ ...user, timeZone: zoneName(user.timeZone) });
 }

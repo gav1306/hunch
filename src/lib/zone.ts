@@ -29,9 +29,33 @@ export function canonicalZone(zone: string): string | undefined {
   }
 }
 
-/** A client-sent zone, as sent, when the runtime recognises it; undefined otherwise. */
+/**
+ * Renamed zones whose old name ICU still treats as canonical, so runtimes hand
+ * it out: Chromium reports India's zone as "Asia/Calcutta" itself, and storing
+ * what the browser sent still showed the user a name their country dropped.
+ */
+export const CURRENT_ZONE_NAMES: Readonly<Record<string, string>> = {
+  "Asia/Calcutta": "Asia/Kolkata",
+  "Asia/Saigon": "Asia/Ho_Chi_Minh",
+  "Asia/Katmandu": "Asia/Kathmandu",
+  "Asia/Rangoon": "Asia/Yangon",
+  "Asia/Dacca": "Asia/Dhaka",
+  "Europe/Kiev": "Europe/Kyiv",
+  "America/Godthab": "America/Nuuk",
+  "Atlantic/Faeroe": "Atlantic/Faroe",
+};
+
+/** A zone by its current name — for anything stored or shown. */
+export function zoneName(zone: string): string {
+  return CURRENT_ZONE_NAMES[zone] ?? zone;
+}
+
+/**
+ * A client-sent zone when the runtime recognises it — as sent, except that a
+ * legacy alias becomes the zone's current name — and undefined otherwise.
+ */
 export function knownZone(zone: string | undefined): string | undefined {
-  return zone !== undefined && canonicalZone(zone) !== undefined ? zone : undefined;
+  return zone !== undefined && canonicalZone(zone) !== undefined ? zoneName(zone) : undefined;
 }
 
 /**

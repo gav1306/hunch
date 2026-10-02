@@ -3,7 +3,15 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/db", () => ({ db: { user: { findUnique: vi.fn() } } }));
 
-import { canonicalZone, knownZone, localToday, sameZone, userTimeZone } from "@/lib/zone";
+import {
+  CURRENT_ZONE_NAMES,
+  canonicalZone,
+  knownZone,
+  localToday,
+  sameZone,
+  userTimeZone,
+  zoneName,
+} from "@/lib/zone";
 import { db } from "@/lib/db";
 
 describe("localToday", () => {
@@ -46,9 +54,33 @@ describe("knownZone", () => {
     expect(knownZone("Asia/Kolkata")).toBe("Asia/Kolkata");
   });
 
+  it("swaps a legacy alias a browser sends for the zone's current name", () => {
+    // Chromium 139 reports India's zone as "Asia/Calcutta" itself.
+    expect(knownZone("Asia/Calcutta")).toBe("Asia/Kolkata");
+    expect(knownZone("Europe/Kiev")).toBe("Europe/Kyiv");
+  });
+
   it("returns undefined for garbage or nothing", () => {
     expect(knownZone("Not/AZone")).toBeUndefined();
     expect(knownZone(undefined)).toBeUndefined();
+  });
+});
+
+describe("zoneName", () => {
+  it("shows a stored legacy alias by the zone's current name", () => {
+    expect(zoneName("Asia/Calcutta")).toBe("Asia/Kolkata");
+    expect(zoneName("Asia/Saigon")).toBe("Asia/Ho_Chi_Minh");
+  });
+
+  it("leaves every other zone alone", () => {
+    expect(zoneName("America/Los_Angeles")).toBe("America/Los_Angeles");
+    expect(zoneName("UTC")).toBe("UTC");
+  });
+
+  it("names only zones the runtime recognises", () => {
+    for (const current of Object.values(CURRENT_ZONE_NAMES)) {
+      expect(canonicalZone(current)).toBeDefined();
+    }
   });
 });
 
