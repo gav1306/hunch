@@ -3,7 +3,7 @@ import "server-only";
 import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
 import { concludeTrial, VERDICT_INCLUDE } from "@/lib/conclude-trial";
-import { currentPhase } from "@/lib/schedule";
+import { graceOver } from "@/lib/schedule";
 import { parseStoredDesign, type ProtocolDesign } from "@/lib/schemas/protocol";
 import { localToday } from "@/lib/zone";
 
@@ -15,8 +15,8 @@ import { localToday } from "@/lib/zone";
  * the schedule ended, in the user's own zone. Freezing a verdict makes the
  * hunch `concluded`, and a concluded hunch refuses check-ins, so concluding the
  * moment the schedule ends would take away filling in the last day the morning
- * after. A user who opens the hunch inside that grace day still gets the
- * inline compute, exactly as before.
+ * after. A user who opens the hunch inside that grace day is offered the
+ * missed days first; asking for the verdict then computes it inline.
  */
 
 /** The schedule had already ended by yesterday, in the user's zone. */
@@ -26,8 +26,7 @@ export function isDueForVerdict(
   timeZone: string,
   now: Date,
 ): boolean {
-  const yesterday = new Date(localToday(timeZone, now).getTime() - 86_400_000);
-  return currentPhase(startedAt, design, yesterday).done;
+  return graceOver(startedAt, design, localToday(timeZone, now));
 }
 
 /** The slice of Inngest's `step` the sweep uses — narrow so tests can pass a fake. */

@@ -22,6 +22,8 @@ export type BeliefResponse = {
   startsOn: string | null;
   /** How many days the exposure happened, or null when the hunch carries none. */
   exposure: ExposureReport | null;
+  /** The day after the schedule ended, verdict not yet frozen: the last day can still be filled in. */
+  inGrace: boolean;
 };
 
 async function fetchBelief(hunchId: string): Promise<BeliefResponse> {

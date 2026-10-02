@@ -118,3 +118,14 @@ export function currentPhase(
     started: true,
   };
 }
+
+/**
+ * Is the day of grace after the schedule over? The last scheduled day can still
+ * be filled in the morning after, so a trial only stops taking check-ins — and
+ * the nightly sweep only freezes its verdict — once the schedule had already
+ * ended by yesterday. `today` is the user's own day, as a UTC-midnight key.
+ */
+export function graceOver(startedAt: Date, design: ProtocolDesign, today: Date): boolean {
+  const yesterday = new Date(today.getTime() - 86_400_000);
+  return currentPhase(startedAt, design, yesterday).done;
+}
