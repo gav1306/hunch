@@ -10,9 +10,14 @@
  * shapes are testable without a database.
  */
 
-import { verdictHeadline } from "@/lib/verdict";
+import {
+  exposureDropped,
+  exposureSummary,
+  observationalCaveat,
+  verdictHeadline,
+} from "@/lib/verdict";
 import { isExposedReading } from "@/lib/parameters";
-import type { VerdictCategory } from "@/lib/schemas/verdict";
+import type { ExposureReport, VerdictCategory } from "@/lib/schemas/verdict";
 import type { ProtocolShape } from "@/lib/schemas/protocol";
 
 export type ExportParameter = {
@@ -46,6 +51,8 @@ export type ExportHunch = {
   shape: ProtocolShape;
   /** The daily yes/no an observational trial derives its arms from, or null. */
   exposureId: string | null;
+  /** The yes/no's day counts, built the way the verdict card builds them; null without one. */
+  exposure: ExposureReport | null;
   parameters: ExportParameter[];
   checkIns: ExportCheckIn[];
   verdict: ExportVerdict | null;
@@ -122,16 +129,29 @@ export function toText(h: ExportHunch): string {
     // The file follows the verdict page's headline, not home's badge: an export
     // is read once and carefully, so it gets the sentence, not the chip.
     const primary = h.parameters.find((p) => p.isPrimary);
+    const e = h.exposure;
+    const observational = e?.observational === true;
     const headline = verdictHeadline(
       v.category as VerdictCategory,
       primary ? { label: primary.label, unit: primary.unit ?? undefined } : null,
+      e,
     );
     lines.push(`${headline} — ${Math.round(v.pEffect * 100)}% sure`);
+    // Every sentence below is the verdict card's own, from the same helpers —
+    // the file outlives the app and must not tell a different story.
+    const summary = e ? exposureSummary(e) : null;
+    if (summary) lines.push(summary);
+    const dropped = observational && e ? exposureDropped(e) : null;
+    if (dropped) lines.push(dropped);
     lines.push(v.narrative);
+    const days = observational
+      ? `${v.nB} yes-days, ${v.nA} no-days`
+      : `${v.nA} baseline days, ${v.nB} intervention days`;
     lines.push(
       `Effect: ${v.effect.toFixed(2)} (95% credible interval ${v.ci[0].toFixed(2)} to ` +
-        `${v.ci[1].toFixed(2)}); ${v.nA} baseline days, ${v.nB} intervention days.`,
+        `${v.ci[1].toFixed(2)}); ${days}.`,
     );
+    if (observational && e) lines.push(observationalCaveat(e));
   } else {
     lines.push("VERDICT");
     lines.push("No verdict yet — this experiment is still running.");
