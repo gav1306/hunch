@@ -12,6 +12,8 @@ export const priorSchema = z.object({
   effectSize: z.number(),
   confidence: z.number().min(0).max(1),
   sourceHunchId: z.string().trim().min(1),
+  /** "correlational" when it came from an observational trial — seen together, never tested. */
+  kind: z.enum(["causal", "correlational"]).default("causal"),
 });
 export type Prior = z.infer<typeof priorSchema>;
 

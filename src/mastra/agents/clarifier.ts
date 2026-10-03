@@ -6,6 +6,7 @@ import {
   type ClarifyingQuestions,
 } from "@/lib/schemas/clarify";
 import type { Prior } from "@/lib/schemas/prior";
+import { priorsBlock } from "@/lib/memory/priors";
 
 /**
  * The Clarifier (pre-coach). Reads a vague hunch and asks at most three tappable
@@ -57,18 +58,17 @@ export async function askClarifying(
   rawText: string,
   priors: Prior[] = [],
 ): Promise<ClarifyingQuestions> {
-  const priorsBlock =
-    priors.length > 0
-      ? `\n\nThe user already learned these related findings; don't ask about them again:\n${priors
-          .map((p) => `- ${p.cause} (${p.direction}, ${Math.round(p.confidence * 100)}% confident)`)
-          .join("\n")}`
-      : "";
+  const priorsText = priorsBlock(priors, {
+    tested: "The user already learned these related findings; don't ask about them again:",
+    untested:
+      "These went together in the user's own logs but were never tested — fine to ask about:",
+  });
 
   const response = await timed(
     "clarifier",
     () =>
       clarifier.generate(
-        `Ask the clarifying questions for this hunch:\n\n"${rawText}"${priorsBlock}`,
+        `Ask the clarifying questions for this hunch:\n\n"${rawText}"${priorsText}`,
         {
           structuredOutput: { schema: clarifyingQuestionsSchema },
           modelSettings: { maxOutputTokens: 1024 },

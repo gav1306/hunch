@@ -39,6 +39,21 @@ function baseHypothesis(overrides: Partial<SharpenedHypothesis> = {}): Sharpened
 }
 
 describe("buildSharpenPrompt", () => {
+  it("tells a tested finding from one that only went together", () => {
+    const base = { effect: "sleep", direction: "decreases" as const, effectSize: -1, confidence: 0.8 };
+    const p = buildSharpenPrompt("coffee wrecks sleep", [
+      { ...base, cause: "Coffee after 2pm hurts sleep", sourceHunchId: "h1", kind: "causal" },
+      { ...base, cause: "Late screens hurt sleep", sourceHunchId: "h2", kind: "correlational" },
+    ], []);
+    const tested = p.indexOf("do not contradict them");
+    const leads = p.indexOf("treat them as leads, not facts");
+    expect(tested).toBeGreaterThan(-1);
+    expect(leads).toBeGreaterThan(tested);
+    expect(p.slice(tested, leads)).toContain("Coffee after 2pm");
+    expect(p.slice(leads)).toContain("Late screens");
+    expect(p.slice(tested, leads)).not.toContain("Late screens");
+  });
+
   it("includes the raw hunch", () => {
     const p = buildSharpenPrompt("coffee wrecks sleep", [], []);
     expect(p).toContain("coffee wrecks sleep");
