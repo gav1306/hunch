@@ -59,6 +59,24 @@ describe.skipIf(!hasKey)("Hypothesis Coach quality", () => {
     expect(h.schedulable).toBe(true);
   }, 120_000);
 
+  // Padding regressed once already: every hunch came back with exactly four
+  // trackers, filler like "time spent shopping" among them.
+  test("doesn't pad every hunch to four trackers", async () => {
+    const raws = [
+      "i think coffee in the afternoon wrecks my sleep",
+      "standing desk seems to help me focus",
+      "magnesium before bed settles me down",
+      "my knee hurts after playing basketball",
+      "I spend more money when I shop hungry",
+      "cold showers make me less anxious",
+    ];
+    const counts = await Promise.all(
+      raws.map(async (r) => (await sharpenHunch(r)).trackers?.length ?? 0),
+    );
+    console.log("tracker counts", counts);
+    expect(counts.some((c) => c < 4)).toBe(true);
+  }, 240_000);
+
   test.each([
     "my knee hurts after playing basketball",
     "the sauna wrecks my sleep that night",
