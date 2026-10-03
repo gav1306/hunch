@@ -15,6 +15,7 @@ import {
 } from "@/lib/parameters";
 import { currentPhase } from "@/lib/schedule";
 import { parseStoredDesign } from "@/lib/schemas/protocol";
+import { localToday, userTimeZone } from "@/lib/zone";
 
 /**
  * Phase 4: compute-on-read belief. Reads every check-in for the hunch, runs the
@@ -65,7 +66,11 @@ async function readBelief(
 
   let schedule = null;
   if (hunch.protocol?.startedAt && design) {
-    schedule = currentPhase(hunch.protocol.startedAt, design, new Date());
+    schedule = currentPhase(
+      hunch.protocol.startedAt,
+      design,
+      localToday(await userTimeZone(session.user.id)),
+    );
   }
 
   return NextResponse.json({

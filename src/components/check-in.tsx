@@ -15,6 +15,7 @@ import { ArrowRightIcon, CheckIcon, MinusIcon, PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { browserToday } from "@/lib/browser-day";
 import { cn } from "@/lib/utils";
 
 /**
@@ -461,13 +462,8 @@ export function CheckIn({
 
 /** "tomorrow", "in 3 days" — how far off a scheduled start is. */
 function startsIn(iso: string): string {
-  const start = new Date(iso);
-  const now = new Date();
-  const days = Math.round(
-    (Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()) -
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())) /
-      86_400_000,
-  );
+  const start = new Date(iso); // a UTC-midnight day key
+  const days = Math.round((start.getTime() - browserToday().getTime()) / 86_400_000);
   return days <= 1 ? "tomorrow" : `in ${days} days`;
 }
 

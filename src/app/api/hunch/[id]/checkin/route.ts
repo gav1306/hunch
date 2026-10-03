@@ -4,18 +4,20 @@ import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { computeBelief } from "@/lib/bayes";
 import { armRows, engineOutcomeType, pickExposure, pickPrimary } from "@/lib/parameters";
-import { currentPhase, utcMidnight, utcToday as utcTodayFrom } from "@/lib/schedule";
+import { currentPhase, utcMidnight } from "@/lib/schedule";
 import { checkInValuesInputSchema, validateParameterValue } from "@/lib/schemas/parameter";
 import type { ParameterType } from "@/lib/schemas/parameter";
 import { canRun, parseStoredDesign } from "@/lib/schemas/protocol";
 import { flagReading, typoFlag } from "@/lib/safety/reading-flags";
+import { knownZone, localToday, sameZone, userTimeZone } from "@/lib/zone";
 
 /**
  * Phase 4: log a day's readings. The server derives the phase from the schedule
  * (never trusts the client), refuses washout / pre-start / post-end days, and
- * upserts one CheckIn bucket per UTC day with one CheckInValue per parameter the
- * client sent. Partial payloads are fine; every value is validated against its
- * own parameter before anything is written. Returns the recomputed belief (from
+ * upserts one CheckIn bucket per day — the user's own, not UTC's, see
+ * `src/lib/zone.ts` — with one CheckInValue per parameter the client sent.
+ * Partial payloads are fine; every value is validated against its own
+ * parameter before anything is written. Returns the recomputed belief (from
  * the primary parameter only) so the meter narrows immediately.
  *
  * `loggedOn` names an earlier day, for the corrections the adherence strip
@@ -92,7 +94,11 @@ export async function POST(
     }
   }
 
-  const today = utcTodayFrom();
+  // The user's own day, judged by the zone of the device in their hand — a
+  // Californian's 8pm log is still today, not tomorrow in UTC.
+  const storedZone = await userTimeZone(session.user.id);
+  const zone = knownZone(parsed.data.timeZone) ?? storedZone;
+  const today = localToday(zone);
   let loggedOn = today;
   if (parsed.data.loggedOn !== undefined) {
     const asked = new Date(parsed.data.loggedOn);
@@ -141,6 +147,10 @@ export async function POST(
       create: { checkInId: checkIn.id, parameterId: row.parameterId, value: row.value },
       update: { value: row.value },
     });
+  }
+
+  if (!sameZone(zone, storedZone)) {
+    await db.user.update({ where: { id: session.user.id }, data: { timeZone: zone } });
   }
 
   const all = await db.checkIn.findMany({

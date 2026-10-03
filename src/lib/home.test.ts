@@ -1,10 +1,15 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/db", () => ({ db: { hunch: { findMany: vi.fn() } } }));
+vi.mock("@/lib/zone", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/zone")>()),
+  userTimeZone: vi.fn(async () => "UTC"),
+}));
 
 import { getHomeData } from "@/lib/home";
 import { db } from "@/lib/db";
+import { userTimeZone } from "@/lib/zone";
 
 const design = {
   phases: [
@@ -161,5 +166,38 @@ describe("getHomeData archived hunches", () => {
     const data = await getHomeData("u1");
     expect(data.hasAny).toBe(true);
     expect(data.archived).toHaveLength(1);
+  });
+});
+
+describe("getHomeData on the user's own day", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    // 20:00 PDT on 22 Sep — already 23 Sep in UTC.
+    vi.setSystemTime(new Date("2026-09-23T03:00:00.000Z"));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("counts days and looks up today's log by the user's date", async () => {
+    vi.mocked(userTimeZone).mockResolvedValue("America/Los_Angeles");
+    vi.mocked(db.hunch.findMany).mockResolvedValue([
+      hunch({
+        status: "running",
+        protocol: {
+          design,
+          safetyState: "approved",
+          startedAt: new Date("2026-09-20T00:00:00.000Z"),
+        },
+      }),
+    ] as never);
+
+    const data = await getHomeData("u1");
+
+    // 20, 21, 22 Sep: day 3 in Los Angeles (UTC would say day 4).
+    expect(data.today[0].progress).toEqual({ day: 3, total: 10 });
+    const include = vi.mocked(db.hunch.findMany).mock.calls[0][0]!.include as {
+      checkIns: { where: { loggedOn: Date } };
+    };
+    expect(include.checkIns.where.loggedOn.toISOString()).toBe("2026-09-22T00:00:00.000Z");
   });
 });

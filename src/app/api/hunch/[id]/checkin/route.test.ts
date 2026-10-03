@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 vi.mock("@/lib/auth", () => ({ auth: { api: { getSession: vi.fn() } } }));
@@ -7,12 +7,19 @@ vi.mock("@/lib/db", () => ({
     hunch: { findFirst: vi.fn() },
     checkIn: { upsert: vi.fn(async () => ({ id: "c1", phase: "A" })), findMany: vi.fn(async () => []) },
     checkInValue: { upsert: vi.fn() },
+    user: { update: vi.fn() },
   },
+}));
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/zone", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/zone")>()),
+  userTimeZone: vi.fn(async () => "UTC"),
 }));
 
 import { POST } from "./route";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { userTimeZone } from "@/lib/zone";
 
 const req = (body: unknown) =>
   new Request("http://t/api/hunch/h1/checkin", { method: "POST", body: JSON.stringify(body) });
@@ -234,6 +241,94 @@ describe("POST /api/hunch/[id]/checkin", () => {
         params,
       );
       expect(res.status).toBe(400);
+    });
+  });
+
+  describe("local days", () => {
+    // A 14-day trial whose last day is 22 Sep: days 9..22 Sep.
+    const lastDay = {
+      ...running,
+      protocol: { ...running.protocol, startedAt: new Date("2026-09-09T00:00:00.000Z") },
+    };
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      vi.useFakeTimers();
+      // 20:00 PDT on 22 Sep — already 23 Sep in UTC.
+      vi.setSystemTime(new Date("2026-09-23T03:00:00.000Z"));
+      vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "u1" } } as never);
+      vi.mocked(db.hunch.findFirst).mockResolvedValue(lastDay as never);
+    });
+    afterEach(() => vi.useRealTimers());
+
+    it("accepts a Californian's evening log on the last day, filed under their date", async () => {
+      vi.mocked(userTimeZone).mockResolvedValue("America/Los_Angeles");
+
+      const res = await POST(
+        req({ values: [{ parameterId: "p1", value: 7 }], timeZone: "America/Los_Angeles" }),
+        params,
+      );
+
+      expect(res.status).toBe(201);
+      const where = vi.mocked(db.checkIn.upsert).mock.calls[0][0].where as {
+        hunchId_loggedOn: { hunchId: string; loggedOn: Date };
+      };
+      expect(where.hunchId_loggedOn.loggedOn.toISOString()).toBe("2026-09-22T00:00:00.000Z");
+      // Same zone as stored: nothing to refresh.
+      expect(db.user.update).not.toHaveBeenCalled();
+    });
+
+    it("still refuses that log for a user whose zone is UTC", async () => {
+      vi.mocked(userTimeZone).mockResolvedValue("UTC");
+      const res = await POST(req({ values: [{ parameterId: "p1", value: 7 }] }), params);
+      expect(res.status).toBe(409);
+    });
+
+    it("stores the zone the device sent when it differs, after the log is written", async () => {
+      vi.mocked(userTimeZone).mockResolvedValue("UTC");
+
+      const res = await POST(
+        req({ values: [{ parameterId: "p1", value: 7 }], timeZone: "America/Los_Angeles" }),
+        params,
+      );
+
+      expect(res.status).toBe(201);
+      expect(db.user.update).toHaveBeenCalledWith({
+        where: { id: "u1" },
+        data: { timeZone: "America/Los_Angeles" },
+      });
+    });
+
+    it("ignores a zone it can't read", async () => {
+      vi.mocked(userTimeZone).mockResolvedValue("America/Los_Angeles");
+      const res = await POST(
+        req({ values: [{ parameterId: "p1", value: 7 }], timeZone: "Not/AZone" }),
+        params,
+      );
+      expect(res.status).toBe(201);
+      expect(db.user.update).not.toHaveBeenCalled();
+    });
+
+    it("canonicalises a case variant before comparing it to the stored zone", async () => {
+      vi.mocked(userTimeZone).mockResolvedValue("America/Los_Angeles");
+      const res = await POST(
+        req({ values: [{ parameterId: "p1", value: 7 }], timeZone: "america/los_angeles" }),
+        params,
+      );
+      expect(res.status).toBe(201);
+      // Same zone as stored, just cased differently by the device — nothing to refresh.
+      expect(db.user.update).not.toHaveBeenCalled();
+    });
+
+    it("doesn't rewrite a stored alias of the same zone", async () => {
+      // US/Pacific is a legacy alias the runtime resolves to America/Los_Angeles.
+      vi.mocked(userTimeZone).mockResolvedValue("US/Pacific");
+      const res = await POST(
+        req({ values: [{ parameterId: "p1", value: 7 }], timeZone: "America/Los_Angeles" }),
+        params,
+      );
+      expect(res.status).toBe(201);
+      expect(db.user.update).not.toHaveBeenCalled();
     });
   });
 });

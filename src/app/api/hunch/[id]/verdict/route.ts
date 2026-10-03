@@ -11,6 +11,7 @@ import { writeEdgeData } from "@/lib/memory/causal-graph";
 import { runAnalysis } from "@/mastra/workflows/analysis";
 import { verdictSchema, type ExposureReport, type Verdict } from "@/lib/schemas/verdict";
 import { parseStoredDesign } from "@/lib/schemas/protocol";
+import { localToday, userTimeZone } from "@/lib/zone";
 
 /**
  * Shape a persisted Verdict row into the API DTO (ciLow/ciHigh -> ci tuple).
@@ -114,7 +115,11 @@ async function readVerdict(
     armRows(hunch.checkIns, primary?.id, { shape: design.shape, exposureId: exposureParam?.id ?? null }),
     outcomeType,
   );
-  const schedule = currentPhase(hunch.protocol.startedAt, design, new Date());
+  const schedule = currentPhase(
+    hunch.protocol.startedAt,
+    design,
+    localToday(await userTimeZone(session.user.id)),
+  );
 
   const category = classifyVerdict(belief, schedule);
   if (category === null) {

@@ -1,5 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/zone", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/zone")>()),
+  userTimeZone: vi.fn(async () => "UTC"),
+}));
 vi.mock("@/lib/db", () => ({
   db: {
     hunch: { findFirst: vi.fn(), update: vi.fn() },

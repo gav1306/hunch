@@ -114,6 +114,11 @@ export const checkInValuesInputSchema = z.object({
    * this only says which one is meant.
    */
   loggedOn: z.iso.datetime().optional(),
+  /**
+   * The browser's IANA zone. Decides which calendar day "today" is, and is
+   * stored on the user when it differs — see `src/lib/zone.ts`.
+   */
+  timeZone: z.string().trim().min(1).max(64).optional(),
 });
 export type CheckInValuesInput = z.infer<typeof checkInValuesInputSchema>;
 

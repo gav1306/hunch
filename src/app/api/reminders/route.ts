@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
+import { knownZone, zoneName } from "@/lib/zone";
 
 const bodySchema = z.object({
   /** 0-23 in the user's own zone, or null to turn reminders off. */
@@ -20,7 +21,9 @@ export async function GET() {
     where: { id: session.user.id },
     select: { reminderHour: true, timeZone: true },
   });
-  return NextResponse.json(user ?? { reminderHour: null, timeZone: "UTC" });
+  if (!user) return NextResponse.json({ reminderHour: null, timeZone: "UTC" });
+  // Rows saved before knownZone renamed aliases can still hold one.
+  return NextResponse.json({ ...user, timeZone: zoneName(user.timeZone) });
 }
 
 /**
@@ -41,7 +44,7 @@ export async function PUT(request: Request) {
   }
 
   const { reminderHour, timeZone } = parsed.data;
-  const zone = timeZone && isKnownZone(timeZone) ? timeZone : undefined;
+  const zone = knownZone(timeZone);
 
   const user = await db.user.update({
     where: { id: session.user.id },
@@ -58,15 +61,5 @@ export async function PUT(request: Request) {
     select: { reminderHour: true, timeZone: true },
   });
 
-  return NextResponse.json(user);
-}
-
-/** Does this runtime recognise the zone? Anything else is not worth storing. */
-function isKnownZone(zone: string): boolean {
-  try {
-    new Intl.DateTimeFormat("en-GB", { timeZone: zone });
-    return true;
-  } catch {
-    return false;
-  }
+  return NextResponse.json({ ...user, timeZone: zoneName(user.timeZone) });
 }

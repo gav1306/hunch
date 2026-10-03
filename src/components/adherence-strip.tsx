@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CheckIn } from "@/components/check-in";
 import { adherenceStrip, adherenceSummary, type AdherenceDay } from "@/lib/adherence";
 import { isExposedReading } from "@/lib/parameters";
+import { browserToday } from "@/lib/browser-day";
 import { cn } from "@/lib/utils";
 import type { ProtocolDesign } from "@/lib/schemas/protocol";
 import type { Parameter } from "@/lib/schemas/parameter";
@@ -41,7 +42,7 @@ export function AdherenceStrip({
   design,
   checkIns,
   parameters,
-  today = new Date(),
+  today = browserToday(),
 }: {
   hunchId: string;
   startedAt: Date;

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { canRun } from "@/lib/schemas/protocol";
 import { getSession } from "@/lib/session";
 import { startDateFor } from "@/lib/schedule";
+import { knownZone, localToday } from "@/lib/zone";
 
 const startInputSchema = z.object({
   startOn: z.enum(["today", "tomorrow"]).default("today"),
@@ -25,9 +26,10 @@ const DEFAULT_REMINDER_HOUR = 20;
  * gone. This is the explicit action the "Start experiment" button now performs,
  * and it is the only place `startedAt` is ever written.
  *
- * `startOn: "tomorrow"` anchors the trial at the next UTC midnight. Nothing is
- * deferred or queued — `currentPhase` reports a future anchor as not-started, so
- * the trial simply has no loggable day until the date arrives.
+ * `startOn: "tomorrow"` anchors the trial at the next date in the user's own
+ * zone, stored as that date's UTC-midnight key. Nothing is deferred or queued
+ * — `currentPhase` reports a future anchor as not-started, so the trial simply
+ * has no loggable day until the date arrives.
  */
 export async function POST(
   request: Request,
@@ -75,8 +77,6 @@ export async function POST(
     );
   }
 
-  const startedAt = startDateFor(parsed.data.startOn);
-
   // Starting a trial is agreeing to log every day for a fortnight or more, so
   // it is also where daily reminders switch on — at 8pm in the user's own zone,
   // changeable in security, with an unsubscribe in every email. Never for a
@@ -84,10 +84,18 @@ export async function POST(
   // "hasn't been asked" and "said no".
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { reminderHour: true, remindersOptOut: true },
+    select: { reminderHour: true, remindersOptOut: true, timeZone: true },
   });
   const zone = parsed.data.timeZone;
   const switchOnReminders = user !== null && user.reminderHour === null && !user.remindersOptOut;
+
+  // Day 1 is a date in the user's calendar. The zone they just sent wins; a
+  // client that sent none falls back to the one on file.
+  const sentZone = knownZone(zone);
+  const startedAt = startDateFor(
+    parsed.data.startOn,
+    localToday(sentZone ?? user?.timeZone ?? "UTC"),
+  );
 
   // One transaction: a hunch is never "running" without an anchor, and never
   // anchored without being "running".
@@ -100,7 +108,7 @@ export async function POST(
         ...(switchOnReminders ? { reminderHour: DEFAULT_REMINDER_HOUR } : {}),
         // The zone is worth recording either way — it is how the app knows
         // which midnight a logged day belongs to.
-        ...(zone && isKnownZone(zone) ? { timeZone: zone } : {}),
+        ...(sentZone ? { timeZone: sentZone } : {}),
       },
     }),
   ]);
@@ -113,14 +121,4 @@ export async function POST(
     },
     { status: 200 },
   );
-}
-
-/** Does this runtime recognise the zone? Anything else is not worth storing. */
-function isKnownZone(zone: string): boolean {
-  try {
-    new Intl.DateTimeFormat("en-GB", { timeZone: zone });
-    return true;
-  } catch {
-    return false;
-  }
 }
