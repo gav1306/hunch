@@ -6,6 +6,7 @@ import type {
   Tracker,
 } from "@/lib/schemas/parameter";
 import type { ProtocolShape } from "@/lib/schemas/protocol";
+import { SCALE_MAX, SCALE_MIN } from "@/lib/schemas/parameter";
 import type { ExposureReport } from "@/lib/schemas/verdict";
 
 /** A day's check-in with its per-parameter readings, as read from the DB. */
@@ -54,6 +55,20 @@ function sameLabel(a: string, b: string): boolean {
 }
 
 /**
+ * A scale is 1-5 by kind, not by row: the check-in renders five taps and
+ * `validateParameterValue` refuses anything else. Pin every stored scale to
+ * that, so a Coach or Designer that wrote "1-10" can't leave a label
+ * advertising a range the control doesn't offer. Other kinds keep their own.
+ */
+export function normalizeScale<
+  T extends { type: string; unit?: string | null; min?: number | null; max?: number | null },
+>(p: T): T {
+  if (p.type !== "scale") return p;
+  // The cast: TS can't prove a spread with overridden keys is still `T`.
+  return { ...p, unit: `${SCALE_MIN}-${SCALE_MAX}`, min: SCALE_MIN, max: SCALE_MAX } as T;
+}
+
+/**
  * The starting parameter set for a freshly sharpened hunch: the outcome metric
  * as the primary, then (when the hunch carries one) the exposure — the daily
  * yes/no an observational trial derives its arms from — then the Coach's
@@ -91,7 +106,7 @@ export function draftsFromSharpened(s: {
     .filter((t) => !sameLabel(t.label, s.outcomeMetric))
     .filter((t) => !exposure || !sameLabel(t.label, exposure.label))
     .slice(0, trackerCap)
-    .map((t) => ({ ...t, isPrimary: false, isExposure: false }));
+    .map((t) => normalizeScale({ ...t, isPrimary: false, isExposure: false }));
 
   return exposure ? [primary, exposure, ...trackers] : [primary, ...trackers];
 }

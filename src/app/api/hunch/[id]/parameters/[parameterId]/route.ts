@@ -4,7 +4,6 @@ import { z } from "zod";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { toParameterDto } from "@/lib/parameters";
-import { parseStoredDesign } from "@/lib/schemas/protocol";
 
 const retireSchema = z.object({ retired: z.boolean() });
 
@@ -20,10 +19,8 @@ const retireSchema = z.object({ retired: z.boolean() });
  * from, and a trial that stops logging it has no result. The UI renders no
  * control for it, and this refuses the request anyway.
  *
- * The exposure is refused the same way, but only on an observational trial —
- * there it is the daily yes/no the arms are derived from, so losing it costs
- * the result. On a phased trial the schedule assigns the arms and the
- * exposure is only an adherence count, so it retires like any other tracker.
+ * The exposure is refused the same way on every trial — it is how the trial
+ * knows whether the change happened that day.
  */
 export async function PATCH(
   request: Request,
@@ -47,7 +44,6 @@ export async function PATCH(
   // someone else's trial is a 404 like any other miss.
   const parameter = await db.parameter.findFirst({
     where: { id: parameterId, hunchId: id, hunch: { userId: session.user.id } },
-    include: { hunch: { include: { protocol: true } } },
   });
   if (!parameter) {
     return NextResponse.json(
@@ -61,20 +57,15 @@ export async function PATCH(
       { status: 409 },
     );
   }
-  // On an observational trial the exposure IS the arm assignment — retiring it
-  // mid-trial leaves later days with no way to tell A from B. A hunch with no
-  // protocol yet has no shape to speak of, so treat it as "phased" and let the
-  // retirement through.
+  // The yes/no is how the trial knows whether the change happened: on an
+  // observational trial it assigns the arms, on a phased one it is the
+  // adherence count. Stop it mid-trial and the strip and the count line
+  // disagree about every day after.
   if (parameter.isExposure && parsed.data.retired) {
-    const shape = parameter.hunch.protocol
-      ? parseStoredDesign(parameter.hunch.protocol.design).shape
-      : "phased";
-    if (shape === "observational") {
-      return NextResponse.json(
-        { error: "This is how we tell your days apart — it has to keep running." },
-        { status: 409 },
-      );
-    }
+    return NextResponse.json(
+      { error: "This is how we know whether the change happened — it has to keep running." },
+      { status: 409 },
+    );
   }
 
   const updated = await db.parameter.update({

@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
-import { activeParameters, toParameterDto } from "@/lib/parameters";
+import { activeParameters, normalizeScale, toParameterDto } from "@/lib/parameters";
 import { MAX_ACTIVE_PARAMETERS, trackerAddSchema } from "@/lib/schemas/parameter";
 
 /**
@@ -55,14 +55,15 @@ export async function POST(
     );
   }
 
+  const t = normalizeScale(parsed.data);
   const parameter = await db.parameter.create({
     data: {
       hunchId: hunch.id,
-      label: parsed.data.label,
-      type: parsed.data.type,
-      unit: parsed.data.unit ?? null,
-      min: parsed.data.min ?? null,
-      max: parsed.data.max ?? null,
+      label: t.label,
+      type: t.type,
+      unit: t.unit ?? null,
+      min: t.min ?? null,
+      max: t.max ?? null,
       // Never from the payload. A running trial has its primary and it is frozen
       // for the length of the trial.
       isPrimary: false,

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  beliefHeading,
+  runningCaveat,
   classifyVerdict,
   exposureDropped,
   exposureSummary,
@@ -242,5 +244,30 @@ describe("verdictBadge", () => {
         expect(verdictBadge(c, d)).not.toMatch(banned);
       }
     }
+  });
+});
+
+describe("beliefHeading", () => {
+  it("asks whether it's real on a scheduled trial", () => {
+    expect(beliefHeading(false)).toBe("Likelihood it's real");
+  });
+  it("asks only whether they go together on an observational one", () => {
+    expect(beliefHeading(true)).toBe("Likelihood they go together");
+  });
+});
+
+describe("runningCaveat", () => {
+  const obs = { label: "Played basketball", exposed: 0, unexposed: 0, unknown: 0, observational: true };
+  it("stays quiet before an observational trial starts — there are no days yet", () => {
+    expect(runningCaveat(obs, false)).toBe(null);
+  });
+  it("speaks once it has started", () => {
+    expect(runningCaveat(obs, true)).toContain("what went together");
+  });
+  it("never speaks on a phased trial", () => {
+    expect(runningCaveat({ ...obs, observational: false }, true)).toBe(null);
+  });
+  it("never speaks without a yes/no", () => {
+    expect(runningCaveat(null, true)).toBe(null);
   });
 });

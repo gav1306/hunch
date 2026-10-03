@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { selectCandidatePriors, toPriors } from "@/lib/memory/priors";
+import { priorsBlock, selectCandidatePriors, toPriors } from "@/lib/memory/priors";
+import { priorSchema } from "@/lib/schemas/prior";
 import type { CausalEdge } from "@/generated/prisma/client";
 
 const edge = (over: Partial<CausalEdge>): CausalEdge => ({
   id: "e", userId: "u", cause: "", effect: "", direction: "increases",
-  effectSize: 1, confidence: 0.9, sourceHunchId: "h", createdAt: new Date(),
+  effectSize: 1, confidence: 0.9, sourceHunchId: "h", kind: "causal", createdAt: new Date(),
   ...over,
 });
 
@@ -55,5 +56,50 @@ describe("toPriors", () => {
   });
   it("drops ids that were not in the candidate set (hallucinated)", () => {
     expect(toPriors([caffeine], ["h_ghost"])).toEqual([]);
+  });
+});
+
+describe("toPriors and the edge's kind", () => {
+  it("carries a correlational edge's kind through", () => {
+    const corr = { ...caffeine, kind: "correlational" };
+    expect(toPriors([corr], ["h_caf"])[0].kind).toBe("correlational");
+  });
+});
+
+describe("priorSchema", () => {
+  it("reads a prior written before kind existed as causal", () => {
+    const old = {
+      cause: "c", effect: "e", direction: "increases",
+      effectSize: 1, confidence: 0.9, sourceHunchId: "h",
+    };
+    expect(priorSchema.parse(old).kind).toBe("causal");
+  });
+});
+
+describe("priorsBlock", () => {
+  const lead = { tested: "TESTED:", untested: "UNTESTED:" };
+  const tested = {
+    cause: "Coffee after 2pm hurts sleep", effect: "sleep", direction: "decreases" as const,
+    effectSize: -1, confidence: 0.82, sourceHunchId: "h1", kind: "causal" as const,
+  };
+  const seen = {
+    ...tested, cause: "Late screens hurt sleep", confidence: 0.71, sourceHunchId: "h2",
+    kind: "correlational" as const,
+  };
+
+  it("is empty with no priors", () => {
+    expect(priorsBlock([], lead)).toBe("");
+  });
+
+  it("lists each kind under its own lead", () => {
+    expect(priorsBlock([tested, seen], lead)).toBe(
+      "\n\nTESTED:\n- Coffee after 2pm hurts sleep (decreases, 82% confident)" +
+        "\n\nUNTESTED:\n- Late screens hurt sleep (decreases, 71% confident)",
+    );
+  });
+
+  it("omits a lead with nothing under it", () => {
+    expect(priorsBlock([seen], lead).startsWith("\n\nUNTESTED:")).toBe(true);
+    expect(priorsBlock([tested], lead)).not.toContain("UNTESTED");
   });
 });

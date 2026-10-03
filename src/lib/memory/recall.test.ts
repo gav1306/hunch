@@ -10,7 +10,7 @@ import { recallRelevantPriors } from "@/mastra/agents/memory";
 
 const edge = (over: Partial<CausalEdge>): CausalEdge => ({
   id: "e", userId: "u1", cause: "", effect: "", direction: "increases",
-  effectSize: 1, confidence: 0.9, sourceHunchId: "h", createdAt: new Date(),
+  effectSize: 1, confidence: 0.9, sourceHunchId: "h", kind: "causal", createdAt: new Date(),
   ...over,
 });
 

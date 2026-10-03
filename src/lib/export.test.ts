@@ -8,6 +8,7 @@ const hunch: ExportHunch = {
   startedAt: new Date("2026-08-01T00:00:00.000Z"),
   shape: "phased",
   exposureId: null,
+  exposure: null,
   parameters: [
     { id: "p1", label: "sleep quality", unit: "1-10", isPrimary: true },
     { id: "p2", label: "caffeine, mg", unit: null },
@@ -48,6 +49,10 @@ const observationalHunch: ExportHunch = {
   ...hunch,
   shape: "observational",
   exposureId: "exp",
+  // The report as the route builds it; its counts are the whole trial's, not
+  // these three sample rows'.
+  exposure: { label: "Played basketball", exposed: 9, unexposed: 11, unknown: 1, observational: true },
+  verdict: { ...hunch.verdict!, category: "hurt", nA: 11, nB: 9 },
   parameters: [
     { id: "p1", label: "knee pain", unit: "1-10", isPrimary: true },
     { id: "exp", label: "played basketball", unit: null },
@@ -182,5 +187,52 @@ describe("exportFilename", () => {
 
   it("falls back to a generic name when the statement slugs to nothing", () => {
     expect(exportFilename({ ...hunch, statement: "!!!" }, "txt")).toBe("hunch.txt");
+  });
+});
+
+describe("toText — observational verdict", () => {
+  const text = toText(observationalHunch);
+
+  it("counts yes-days and no-days, never baseline and intervention", () => {
+    expect(text).toContain("9 yes-days, 11 no-days");
+    expect(text).not.toMatch(/baseline days|intervention days/);
+  });
+
+  it("says what went together, as the verdict card does", () => {
+    expect(text).toContain("shows what went together, not what caused what");
+  });
+
+  it("carries the card's day count and dropped-day lines", () => {
+    expect(text).toContain("Played basketball on 9 of 21 logged days.");
+    expect(text).toContain("1 day had no answer either way");
+  });
+
+  it("uses the card's headline for a thin trial", () => {
+    const thin = toText({
+      ...observationalHunch,
+      verdict: { ...observationalHunch.verdict!, category: "inconclusive_insufficient" },
+    });
+    expect(thin).toContain('Too few days either side of "Played basketball"');
+  });
+
+  it("writes no exposure lines before there is a verdict", () => {
+    const running = toText({ ...observationalHunch, verdict: null });
+    expect(running).not.toContain("what went together");
+  });
+});
+
+describe("toText — phased verdict", () => {
+  it("keeps baseline and intervention days and no caveat", () => {
+    const text = toText(hunch);
+    expect(text).toContain("7 baseline days, 7 intervention days");
+    expect(text).not.toContain("what went together");
+  });
+
+  it("adds the adherence line when the trial carries a yes/no", () => {
+    const text = toText({
+      ...hunch,
+      exposure: { label: "Skipped coffee", exposed: 5, unexposed: 2, unknown: 0, observational: false },
+    });
+    expect(text).toContain("Skipped coffee on 5 of 7 intervention days.");
   });
 });

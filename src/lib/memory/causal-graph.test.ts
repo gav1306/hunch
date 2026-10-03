@@ -8,6 +8,7 @@ const base = {
   outcomeMetric: "hours of sleep from a tracker",
   hunchId: "h1",
   userId: "u1",
+  shape: "phased" as const,
 };
 
 describe("writeEdgeData", () => {
@@ -21,6 +22,7 @@ describe("writeEdgeData", () => {
       effectSize: 2.0,
       confidence: 0.97,
       sourceHunchId: "h1",
+      kind: "causal",
     });
   });
   it("maps hurt -> decreases", () => {
@@ -49,5 +51,22 @@ describe("writeEdgeData and the subject", () => {
 
   it("treats a missing subject as self, so hunches written before it keep working", () => {
     expect(writeEdgeData({ ...base, category: "helped" })).not.toBe(null);
+  });
+});
+
+describe("writeEdgeData and the trial's shape", () => {
+  it("marks an observational trial's finding correlational", () => {
+    const edge = writeEdgeData({ ...base, shape: "observational", category: "helped" });
+    expect(edge?.kind).toBe("correlational");
+  });
+
+  it("marks a phased trial's finding causal", () => {
+    expect(writeEdgeData({ ...base, category: "hurt" })?.kind).toBe("causal");
+  });
+
+  it("still writes nothing for an observational trial with too few days", () => {
+    expect(
+      writeEdgeData({ ...base, shape: "observational", category: "inconclusive_insufficient" }),
+    ).toBe(null);
   });
 });

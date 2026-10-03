@@ -6,7 +6,7 @@ const hasKey = Boolean(process.env.OPENROUTER_API_KEY);
 
 const edge = (over: Partial<CausalEdge>): CausalEdge => ({
   id: "e", userId: "u", cause: "", effect: "", direction: "increases",
-  effectSize: 1, confidence: 0.9, sourceHunchId: "h", createdAt: new Date(),
+  effectSize: 1, confidence: 0.9, sourceHunchId: "h", kind: "causal", createdAt: new Date(),
   ...over,
 });
 

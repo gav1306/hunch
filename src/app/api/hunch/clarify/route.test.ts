@@ -54,6 +54,7 @@ describe("POST /api/hunch/clarify", () => {
           effectSize: 0.4,
           confidence: 0.8,
           sourceHunchId: "h_caf",
+          kind: "causal",
         },
       ],
       priorIds: ["h_caf"],

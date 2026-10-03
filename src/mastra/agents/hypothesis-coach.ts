@@ -8,6 +8,7 @@ import {
   type SharpenedHypothesisDraft,
 } from "@/lib/schemas/hypothesis";
 import type { Prior } from "@/lib/schemas/prior";
+import { priorsBlock } from "@/lib/memory/priors";
 import type { ClarifyingAnswer } from "@/lib/schemas/clarify";
 
 /**
@@ -138,12 +139,12 @@ export function buildSharpenPrompt(
   answers: ClarifyingAnswer[],
   observeOnly = false,
 ): string {
-  const priorsBlock =
-    priors.length > 0
-      ? `\n\nThe user has already learned these related findings; take them into account, do not contradict them:\n${priors
-          .map((p) => `- ${p.cause} (${p.direction}, ${Math.round(p.confidence * 100)}% confident)`)
-          .join("\n")}`
-      : "";
+  const priorsText = priorsBlock(priors, {
+    tested:
+      "The user has already learned these related findings; take them into account, do not contradict them:",
+    untested:
+      "These went together in the user's own logs, but were never tested — treat them as leads, not facts:",
+  });
 
   const answersBlock =
     answers.length > 0
@@ -168,7 +169,7 @@ export function buildSharpenPrompt(
       ].join("\n")
     : "";
 
-  return `Sharpen this hunch into a testable hypothesis:\n\n"${rawText}"${answersBlock}${priorsBlock}${observeBlock}`;
+  return `Sharpen this hunch into a testable hypothesis:\n\n"${rawText}"${answersBlock}${priorsText}${observeBlock}`;
 }
 
 /**

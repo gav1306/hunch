@@ -152,3 +152,20 @@ export function verdictBadge(
   if (!expectedDirection) return measured === "up" ? "Increase" : "Decrease";
   return measured === expectedDirection ? "Confirmed" : "Reversed";
 }
+
+/**
+ * The meter's heading. An observational trial can't say a change is "real" —
+ * the user chose their days — only how likely the two went together.
+ */
+export function beliefHeading(observational: boolean): string {
+  return observational ? "Likelihood they go together" : "Likelihood it's real";
+}
+
+/**
+ * The caveat under a running trial's meter: only on an observational trial,
+ * and only once it has started — before then there are no answered days for
+ * "the days you answered yes to" to mean.
+ */
+export function runningCaveat(e: ExposureReport | null, started: boolean): string | null {
+  return started && e?.observational ? observationalCaveat(e) : null;
+}

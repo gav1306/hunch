@@ -66,8 +66,28 @@ export function toPriors(
       effectSize: e.effectSize ?? 0,
       confidence: e.confidence ?? 0,
       sourceHunchId: e.sourceHunchId,
+      kind: e.kind,
     }))
     .map((p) => priorSchema.safeParse(p))
     .filter((r) => r.success)
     .map((r) => r.data);
+}
+
+/**
+ * The priors as prompt text, tested findings and things that only went
+ * together under separate leads — an observational result must never reach a
+ * model as something it may not contradict. Empty string when there are none.
+ */
+export function priorsBlock(
+  priors: Prior[],
+  lead: { tested: string; untested: string },
+): string {
+  const line = (p: Prior) =>
+    `- ${p.cause} (${p.direction}, ${Math.round(p.confidence * 100)}% confident)`;
+  const tested = priors.filter((p) => p.kind === "causal");
+  const untested = priors.filter((p) => p.kind === "correlational");
+  return [
+    tested.length > 0 ? `\n\n${lead.tested}\n${tested.map(line).join("\n")}` : "",
+    untested.length > 0 ? `\n\n${lead.untested}\n${untested.map(line).join("\n")}` : "",
+  ].join("");
 }

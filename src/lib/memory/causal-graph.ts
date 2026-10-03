@@ -1,6 +1,10 @@
 import { db } from "@/lib/db";
 import type { CausalEdge } from "@/generated/prisma/client";
 import type { VerdictCategory } from "@/lib/schemas/verdict";
+import type { ProtocolShape } from "@/lib/schemas/protocol";
+
+/** How far a stored finding can be trusted: tested, or only seen together. */
+export type EdgeKind = "causal" | "correlational";
 
 /** The row shape written to CausalEdge (matches db.causalEdge.create's `data`). */
 export type CausalEdgeInput = {
@@ -10,6 +14,7 @@ export type CausalEdgeInput = {
   direction: "increases" | "decreases" | "none";
   effectSize: number;
   confidence: number;
+  kind: EdgeKind;
   sourceHunchId: string;
 };
 
@@ -36,6 +41,8 @@ export function writeEdgeData(input: {
   userId: string;
   /** "other" when the thing measured wasn't the user. Absent means self. */
   subject?: string;
+  /** The trial's design. An observational one only shows what went together. */
+  shape: ProtocolShape;
 }): CausalEdgeInput | null {
   // A plant's result is not a fact about this person. The trial still runs and
   // still gets its verdict; it simply never enters the model of *them*.
@@ -49,6 +56,7 @@ export function writeEdgeData(input: {
     direction,
     effectSize: input.effect,
     confidence: input.pEffect,
+    kind: input.shape === "observational" ? "correlational" : "causal",
     sourceHunchId: input.hunchId,
   };
 }

@@ -162,6 +162,20 @@ describe("POST /api/hunch/[id]/protocol", () => {
     expect(tx.parameter.deleteMany).not.toHaveBeenCalled();
   });
 
+  it("stores a confirmed scale as 1-5 whatever range it arrived with", async () => {
+    const res = await POST(
+      req({
+        parameters: [
+          primary,
+          { label: "stress", type: "scale", unit: "1-10", min: 1, max: 10, isPrimary: false },
+        ],
+      }),
+      params,
+    );
+    expect(res.status).toBe(201);
+    expect(createdRows()[1]).toMatchObject({ label: "stress", unit: "1-5", min: 1, max: 5 });
+  });
+
   it("persists the confirmed isExposure flag", async () => {
     const res = await POST(req({ parameters: [primary, exposure] }), params);
     expect(res.status).toBe(201);
