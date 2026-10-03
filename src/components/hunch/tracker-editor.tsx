@@ -33,8 +33,7 @@ const KIND_ITEM =
 
 /**
  * One tracker, with the door out of it. The primary gets no door, and neither
- * does the yes/no an observational trial's days are compared by — without it
- * there is no comparison, and the route refuses to retire it.
+ * does the daily yes/no — the route refuses to retire it on any trial.
  */
 function TrackerRow({
   hunchId,
@@ -48,12 +47,17 @@ function TrackerRow({
   const retire = useRetireTracker(hunchId);
   const panel = useConfirmPanel();
 
-  if (p.isPrimary || (observational && p.isExposure)) {
+  if (p.isPrimary || p.isExposure) {
     return (
       <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1 border-b border-rule py-3">
         <span className="text-sm text-ink">{p.label}</span>
         <span className={LABEL}>
-          {p.isPrimary ? "main measure" : "days we compare"} · runs the whole trial
+          {p.isPrimary
+            ? "main measure"
+            : observational
+              ? "days we compare"
+              : "did the change happen"}{" "}
+          · runs the whole trial
         </span>
       </div>
     );

@@ -108,32 +108,33 @@ describe("PATCH /api/hunch/[id]/parameters/[parameterId]", () => {
     expect(db.parameter.update).not.toHaveBeenCalled();
   });
 
-  it("refuses to retire the exposure on an observational trial — it assigns the arms", async () => {
+  it.each([
+    ["observational", observationalProtocol],
+    ["phased", phasedProtocol],
+    ["not yet designed", null],
+  ])("refuses to retire the yes/no — %s trial", async (_, protocol) => {
     vi.mocked(db.parameter.findFirst).mockResolvedValue({
       ...tracker,
       isExposure: true,
-      hunch: { protocol: observationalProtocol },
+      hunch: { protocol },
     } as never);
     const res = await PATCH(req({ retired: true }), params);
     expect(res.status).toBe(409);
     expect(await res.json()).toMatchObject({
-      error: "This is how we tell your days apart — it has to keep running.",
+      error: "This is how we know whether the change happened — it has to keep running.",
     });
     expect(db.parameter.update).not.toHaveBeenCalled();
   });
 
-  it("retires the exposure on a phased trial like any other tracker", async () => {
+  it("un-retires the exposure on a phased trial too", async () => {
     vi.mocked(db.parameter.findFirst).mockResolvedValue({
       ...tracker,
       isExposure: true,
+      retiredAt: new Date("2026-09-01T00:00:00.000Z"),
       hunch: { protocol: phasedProtocol },
     } as never);
-    const res = await PATCH(req({ retired: true }), params);
+    const res = await PATCH(req({ retired: false }), params);
     expect(res.status).toBe(200);
-    const arg = vi.mocked(db.parameter.update).mock.calls[0][0] as unknown as {
-      data: { retiredAt: Date | null };
-    };
-    expect(arg.data.retiredAt).toBeInstanceOf(Date);
   });
 
   it("un-retires the exposure even on an observational trial — un-retiring is unaffected", async () => {
