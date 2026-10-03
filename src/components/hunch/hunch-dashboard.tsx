@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { ClipboardListIcon } from "lucide-react";
 import { AdherenceStrip } from "@/components/adherence-strip";
@@ -33,6 +34,9 @@ export function HunchDashboard({
 }) {
   const query = useBelief(id);
   const info = useHunchInfo(id);
+  // On the grace day the verdict waits until the user asks for it: computing
+  // it freezes the trial, and with it the last day they could still fill in.
+  const [verdictNow, setVerdictNow] = useState(false);
 
   const content = () => {
     if (query.isPending) {
@@ -72,7 +76,9 @@ export function HunchDashboard({
       );
     }
 
-    return concluded ? (
+    const grace = concluded && query.data.inGrace && !verdictNow;
+
+    return concluded && !grace ? (
       <VerdictView hunchId={id} statement={statement} archived={archived} />
     ) : (
       <div className="grid gap-5">
@@ -103,16 +109,39 @@ export function HunchDashboard({
             parameters={parameters}
           />
         )}
-        <CheckIn
-          hunchId={id}
-          schedule={schedule}
-          parameters={parameters}
-          phaseAction={phaseAction}
-          startsOn={startsOn}
-          hasPlan={info.data?.protocol != null}
-          firstPhaseAction={info.data?.protocol?.design.phases[0]?.action}
-          design={info.data?.protocol?.design}
-        />
+        {grace ? (
+          <section className="rounded-lg border border-rule bg-card p-[clamp(20px,2.4vw,28px)]">
+            <p className="m-0 text-xs tracking-[0.16em] text-muted-foreground uppercase">
+              Trial complete
+            </p>
+            <p className="mt-3 mb-0 text-sm leading-relaxed text-ink">
+              Missed a day? Tap it above and fill it in &mdash; you can until midnight.
+              Your verdict will be ready tomorrow.
+            </p>
+            <Button
+              variant="brand"
+              size="touch"
+              className="mt-5 border-rule"
+              onClick={() => setVerdictNow(true)}
+            >
+              See the verdict now
+            </Button>
+            <p className="mt-2 mb-0 text-xs text-muted-foreground">
+              Seeing it now locks in what you&rsquo;ve logged.
+            </p>
+          </section>
+        ) : (
+          <CheckIn
+            hunchId={id}
+            schedule={schedule}
+            parameters={parameters}
+            phaseAction={phaseAction}
+            startsOn={startsOn}
+            hasPlan={info.data?.protocol != null}
+            firstPhaseAction={info.data?.protocol?.design.phases[0]?.action}
+            design={info.data?.protocol?.design}
+          />
+        )}
         {/* Only while it's running. A concluded trial's set is history — the
             verdict was computed from it, so editing it would misdescribe what
             was actually measured. */}

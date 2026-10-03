@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentPhase, startDateFor } from "@/lib/schedule";
+import { currentPhase, graceOver, startDateFor } from "@/lib/schedule";
 import type { ProtocolDesign } from "@/lib/schemas/protocol";
 
 // ABA, 3 days per phase, 1 washout day between phases.
@@ -166,5 +166,21 @@ describe("startDateFor", () => {
     const next = new Date(Date.UTC(2026, 0, 16, 7, 0, 0));
     expect(currentPhase(s, design, next).started).toBe(true);
     expect(currentPhase(s, design, next).dayInPhase).toBe(0);
+  });
+});
+
+describe("graceOver", () => {
+  // Day index 10 is the last scheduled day; 11 is the grace day.
+  it("is false on the last scheduled day", () => {
+    expect(graceOver(start, design, day(10))).toBe(false);
+  });
+
+  it("is false on the grace day, the first day after the schedule", () => {
+    expect(graceOver(start, design, day(11))).toBe(false);
+  });
+
+  it("is true from the day after the grace day", () => {
+    expect(graceOver(start, design, day(12))).toBe(true);
+    expect(graceOver(start, design, day(40))).toBe(true);
   });
 });

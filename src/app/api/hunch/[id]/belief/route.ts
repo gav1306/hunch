@@ -13,7 +13,7 @@ import {
   pickPrimary,
   toParameterDto,
 } from "@/lib/parameters";
-import { currentPhase } from "@/lib/schedule";
+import { currentPhase, graceOver } from "@/lib/schedule";
 import { parseStoredDesign } from "@/lib/schemas/protocol";
 import { localToday, userTimeZone } from "@/lib/zone";
 
@@ -65,12 +65,14 @@ async function readBelief(
   );
 
   let schedule = null;
+  let inGrace = false;
   if (hunch.protocol?.startedAt && design) {
-    schedule = currentPhase(
-      hunch.protocol.startedAt,
-      design,
-      localToday(await userTimeZone(session.user.id)),
-    );
+    const today = localToday(await userTimeZone(session.user.id));
+    schedule = currentPhase(hunch.protocol.startedAt, design, today);
+    inGrace =
+      hunch.status === "running" &&
+      schedule.done &&
+      !graceOver(hunch.protocol.startedAt, design, today);
   }
 
   return NextResponse.json({
@@ -91,6 +93,10 @@ async function readBelief(
     // The anchor itself, so a trial the user scheduled for tomorrow can say
     // when it begins rather than just reporting that it hasn't.
     startsOn: hunch.protocol?.startedAt?.toISOString() ?? null,
+    // The day after the schedule ends, before anything froze the verdict: the
+    // last day can still be filled in, so the dashboard offers the missed days
+    // before the verdict rather than freezing it on sight.
+    inGrace,
     // Computed from the check-ins on every request, exactly like the belief
     // above it — a frozen count would disagree the moment a user corrects a
     // day through the adherence strip.

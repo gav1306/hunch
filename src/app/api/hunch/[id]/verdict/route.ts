@@ -3,15 +3,11 @@ import { NextResponse } from "next/server";
 import { timed, withTiming } from "@/lib/timing";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
-import { computeBelief } from "@/lib/bayes";
-import { armRows, engineOutcomeType, exposureReport, pickExposure, pickPrimary } from "@/lib/parameters";
-import { currentPhase } from "@/lib/schedule";
-import { classifyVerdict } from "@/lib/verdict";
-import { writeEdgeData } from "@/lib/memory/causal-graph";
-import { runAnalysis } from "@/mastra/workflows/analysis";
+import { exposureReport, pickExposure, pickPrimary } from "@/lib/parameters";
 import { verdictSchema, type ExposureReport, type Verdict } from "@/lib/schemas/verdict";
 import { parseStoredDesign } from "@/lib/schemas/protocol";
 import { localToday, userTimeZone } from "@/lib/zone";
+import { concludeTrial, VERDICT_INCLUDE, type VerdictRow } from "@/lib/conclude-trial";
 
 /**
  * Shape a persisted Verdict row into the API DTO (ciLow/ciHigh -> ci tuple).
@@ -23,10 +19,7 @@ import { localToday, userTimeZone } from "@/lib/zone";
  * `exposureReport` below.
  */
 function toDto(
-  row: {
-    category: string; narrative: string; pEffect: number; effect: number;
-    ciLow: number; ciHigh: number; nA: number; nB: number; model: string;
-  },
+  row: VerdictRow,
   outcome: { label: string; unit?: string } | null,
   exposure: ExposureReport | null,
 ): Verdict {
@@ -63,16 +56,7 @@ async function readVerdict(
   const hunch = await timed("db-load", () =>
     db.hunch.findFirst({
       where: { id, userId: session.user.id },
-      include: {
-        hypothesis: true,
-        protocol: true,
-        verdict: true,
-        parameters: true,
-        checkIns: {
-          orderBy: { loggedAt: "asc" },
-          include: { values: { select: { parameterId: true, value: true } } },
-        },
-      },
+      include: VERDICT_INCLUDE,
     }),
   );
   if (!hunch || !hunch.hypothesis) {
@@ -98,98 +82,17 @@ async function readVerdict(
     return NextResponse.json({ verdict: toDto(hunch.verdict, outcome, report) });
   }
 
-  if (!hunch.protocol?.startedAt || !design) {
-    return NextResponse.json({ error: "This trial hasn't started." }, { status: 409 });
-  }
-  // A diary has one arm. The engine compares two, and inventing a contrast the
-  // data does not contain would be fabricating a result.
-  if (hunch.protocol.safetyState === "observe-only") {
-    return NextResponse.json(
-      { error: "This one is a log, not a trial — there's nothing to compare it against." },
-      { status: 409 },
-    );
-  }
-
-  const outcomeType = engineOutcomeType(primary?.type ?? hunch.hypothesis.outcomeType);
-  const belief = computeBelief(
-    armRows(hunch.checkIns, primary?.id, { shape: design.shape, exposureId: exposureParam?.id ?? null }),
-    outcomeType,
-  );
-  const schedule = currentPhase(
-    hunch.protocol.startedAt,
-    design,
+  const result = await concludeTrial(
+    hunch,
+    session.user.id,
     localToday(await userTimeZone(session.user.id)),
   );
-
-  const category = classifyVerdict(belief, schedule);
-  if (category === null) {
-    return NextResponse.json({ error: "This trial is still running." }, { status: 409 });
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
   }
-
-  let verdict;
-  try {
-    verdict = await runAnalysis({
-      category,
-      belief,
-      statement: hunch.hypothesis.statement,
-      outcomeMetric: hunch.hypothesis.outcomeMetric,
-      observational: design.shape === "observational",
-      exposureLabel: exposureParam?.label ?? null,
-    });
-  } catch {
-    // The Analyst call (or its structured-output parse) failed. Nothing is
-    // persisted, so the next read retries cleanly.
-    return NextResponse.json(
-      { error: "Could not generate your verdict. Please try again." },
-      { status: 502 },
-    );
-  }
-
-  const edgeInput = writeEdgeData({
-    category: verdict.category,
-    effect: verdict.effect,
-    pEffect: verdict.pEffect,
-    statement: hunch.hypothesis.statement,
-    outcomeMetric: hunch.hypothesis.outcomeMetric,
-    hunchId: hunch.id,
-    userId: session.user.id,
-    subject: hunch.hypothesis.subject,
+  return NextResponse.json({
+    verdict: result.fresh ? { ...result.fresh, exposure: report } : toDto(result.row, outcome, report),
   });
-
-  try {
-    await db.$transaction([
-      db.verdict.create({
-        data: {
-          hunchId: hunch.id,
-          category: verdict.category,
-          narrative: verdict.narrative,
-          pEffect: verdict.pEffect,
-          effect: verdict.effect,
-          ciLow: verdict.ci[0],
-          ciHigh: verdict.ci[1],
-          nA: verdict.nA,
-          nB: verdict.nB,
-          model: verdict.model,
-        },
-      }),
-      db.hunch.update({ where: { id: hunch.id }, data: { status: "concluded" } }),
-      ...(edgeInput ? [db.causalEdge.create({ data: edgeInput })] : []),
-    ]);
-  } catch {
-    // A concurrent first-read won the race and already wrote the verdict (the
-    // @@unique on hunchId rejects the second insert). Serve the stored one so
-    // both requests see the same frozen verdict instead of a 500.
-    const existing = await db.verdict.findUnique({ where: { hunchId: hunch.id } });
-    if (existing) {
-      return NextResponse.json({ verdict: toDto(existing, outcome, report) });
-    }
-    return NextResponse.json(
-      { error: "Could not save your verdict. Please try again." },
-      { status: 500 },
-    );
-  }
-
-  return NextResponse.json({ verdict: { ...verdict, exposure: report } });
 }
 
 export const GET = withTiming(readVerdict);

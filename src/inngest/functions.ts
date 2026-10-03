@@ -8,6 +8,7 @@ import { buildReminder, type ReminderHunch } from "@/lib/reminder-email";
 import { isReminderDue, localDateIn, signUnsubscribe } from "@/lib/reminders";
 import { currentPhase } from "@/lib/schedule";
 import { parseStoredDesign } from "@/lib/schemas/protocol";
+import { verdictSweep } from "@/inngest/verdict-sweep";
 
 /** Where the links in the email point. */
 function appUrl(): string {
@@ -159,4 +160,4 @@ export const sendReminder = inngest.createFunction(
   },
 );
 
-export const functions = [reminderSweep, sendReminder];
+export const functions = [reminderSweep, sendReminder, verdictSweep];
