@@ -130,7 +130,9 @@ export function toText(h: ExportHunch): string {
     // is read once and carefully, so it gets the sentence, not the chip.
     const primary = h.parameters.find((p) => p.isPrimary);
     const e = h.exposure;
-    const observational = e?.observational === true;
+    // The trial's shape, not the report, decides the wording — the same test
+    // THE DAYS below uses, so the file can't contradict itself.
+    const observational = h.shape === "observational";
     const headline = verdictHeadline(
       v.category as VerdictCategory,
       primary ? { label: primary.label, unit: primary.unit ?? undefined } : null,

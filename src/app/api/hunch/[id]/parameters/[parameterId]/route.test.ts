@@ -135,6 +135,10 @@ describe("PATCH /api/hunch/[id]/parameters/[parameterId]", () => {
     } as never);
     const res = await PATCH(req({ retired: false }), params);
     expect(res.status).toBe(200);
+    const arg = vi.mocked(db.parameter.update).mock.calls[0][0] as unknown as {
+      data: { retiredAt: Date | null };
+    };
+    expect(arg.data.retiredAt).toBeNull();
   });
 
   it("un-retires the exposure even on an observational trial — un-retiring is unaffected", async () => {
