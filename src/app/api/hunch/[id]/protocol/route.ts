@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { timed, withTiming } from "@/lib/timing";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
-import { pickExposure, toParameterDto } from "@/lib/parameters";
+import { normalizeScale, pickExposure, toParameterDto } from "@/lib/parameters";
 import { parameterListSchema } from "@/lib/schemas/parameter";
 import { designProtocol, resolveSafetyState } from "@/mastra/workflows/design";
 import { designFingerprint, designInputFor } from "@/lib/design-draft/fingerprint";
@@ -140,7 +140,7 @@ async function designHunch(
       // Replace, not merge: the confirmed list is the whole truth for this hunch.
       await tx.parameter.deleteMany({ where: { hunchId: hunch.id } });
       await tx.parameter.createMany({
-        data: confirmedRows.map((p, i) => ({
+        data: confirmedRows.map(normalizeScale).map((p, i) => ({
           hunchId: hunch.id,
           label: p.label,
           type: p.type,

@@ -12,8 +12,18 @@ import {
   toParameterDto,
 } from "@/lib/parameters";
 import { parameterSchema } from "@/lib/schemas/parameter";
+import { normalizeScale } from "@/lib/parameters";
 
 describe("draftsFromSharpened", () => {
+  test("stores a Coach's 1-10 scale as 1-5", () => {
+    const drafts = draftsFromSharpened({
+      outcomeMetric: "sleep",
+      outcomeType: "continuous",
+      trackers: [{ label: "Stress", type: "scale", unit: "1-10", min: 1, max: 10 }],
+    });
+    expect(drafts[1]).toMatchObject({ label: "Stress", unit: "1-5", min: 1, max: 5 });
+  });
+
   test("makes the outcome metric the primary, first in order", () => {
     const rows = draftsFromSharpened({
       outcomeMetric: "hours of sleep from a tracker",
@@ -441,5 +451,22 @@ describe("toParameterDto retirement", () => {
 
   test("sends a boolean, not a date — the client only asks whether", () => {
     expect(typeof toParameterDto({ ...base, retiredAt: new Date() }).retired).toBe("boolean");
+  });
+});
+
+describe("normalizeScale", () => {
+  test("pins a 1-10 scale to 1-5", () => {
+    expect(normalizeScale({ label: "Energy", type: "scale", unit: "1-10", min: 1, max: 10 }))
+      .toEqual({ label: "Energy", type: "scale", unit: "1-5", min: 1, max: 5 });
+  });
+
+  test("fills a scale with no range", () => {
+    expect(normalizeScale({ label: "Mood", type: "scale" }))
+      .toMatchObject({ unit: "1-5", min: 1, max: 5 });
+  });
+
+  test("leaves an amount's own bounds alone", () => {
+    const amount = { label: "Sleep", type: "amount", unit: "hrs", min: 0, max: 14 };
+    expect(normalizeScale(amount)).toEqual(amount);
   });
 });

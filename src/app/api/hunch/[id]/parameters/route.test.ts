@@ -56,6 +56,18 @@ describe("POST /api/hunch/[id]/parameters", () => {
     expect(arg.data.isPrimary).toBe(false);
   });
 
+  it("stores an added scale as 1-5 whatever range it arrived with", async () => {
+    const res = await POST(
+      req({ label: "Stress", type: "scale", unit: "1-10", min: 1, max: 10 }),
+      params,
+    );
+    expect(res.status).toBe(201);
+    const arg = vi.mocked(db.parameter.create).mock.calls[0][0] as unknown as {
+      data: { unit: string; min: number; max: number };
+    };
+    expect(arg.data).toMatchObject({ unit: "1-5", min: 1, max: 5 });
+  });
+
   it("refuses once five are already active", async () => {
     vi.mocked(db.hunch.findFirst).mockResolvedValue({
       ...running,
