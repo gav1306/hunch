@@ -94,7 +94,7 @@ export function VerdictView({
       <p className="m-0 text-sm leading-relaxed text-ink [overflow-wrap:anywhere]">
         {v.narrative}
       </p>
-      {hasStats && <BeliefMeter belief={beliefFrom(v)} />}
+      {hasStats && <BeliefMeter belief={beliefFrom(v)} observational={v.exposure?.observational === true} />}
       {v.exposure?.observational && (
         <p className="m-0 text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
           {observationalCaveat(v.exposure)}

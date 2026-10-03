@@ -12,7 +12,7 @@ import { VerdictView } from "@/components/verdict";
 import { Button } from "@/components/ui/button";
 import { useBelief } from "@/hooks/use-belief";
 import { useHunchInfo } from "@/hooks/use-hunch-info";
-import { exposureSummary } from "@/lib/verdict";
+import { exposureSummary, runningCaveat } from "@/lib/verdict";
 import { cn } from "@/lib/utils";
 
 /**
@@ -63,7 +63,9 @@ export function HunchDashboard({
 
     // Null until a day has been counted, so a phased trial's first baseline
     // doesn't show "on 0 of 0".
-    const exposureLine = query.data.exposure ? exposureSummary(query.data.exposure) : null;
+    const exposure = query.data.exposure ?? null;
+    const exposureLine = exposure ? exposureSummary(exposure) : null;
+    const caveat = runningCaveat(exposure, schedule?.started === true);
 
     if (isDiary && concluded) {
       return (
@@ -88,13 +90,20 @@ export function HunchDashboard({
           </p>
         ) : (
           <>
-            <BeliefMeter belief={belief} />
+            <BeliefMeter belief={belief} observational={exposure?.observational === true} />
             {/* An observational trial can starve quietly — a verdict that
                 says "not enough days" at the end is too late to act on. A
                 phased trial that also carries an exposure gets the same
                 line, computed over its phase-B days. */}
             {schedule?.started && exposureLine && (
               <p className="m-0 text-sm text-muted-foreground">{exposureLine}</p>
+            )}
+            {/* Same caveat the verdict card carries — the running meter must
+                not read as cause and effect for days the user chose. */}
+            {caveat && (
+              <p className="m-0 text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
+                {caveat}
+              </p>
             )}
           </>
         )}

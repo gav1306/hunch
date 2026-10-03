@@ -1,6 +1,7 @@
 "use client";
 
 import type { Belief } from "@/lib/schemas/belief";
+import { beliefHeading } from "@/lib/verdict";
 
 /**
  * The live belief meter. Headline = P(effect > 0) as a percent; below it a
@@ -8,7 +9,14 @@ import type { Belief } from "@/lib/schemas/belief";
  * straddling the center line reads as uncertain; one fully to a side reads as
  * confident. Hand-rolled SVG — no charting dependency. Brand system.
  */
-export function BeliefMeter({ belief }: { belief: Belief }) {
+export function BeliefMeter({
+  belief,
+  observational = false,
+}: {
+  belief: Belief;
+  /** The days were the user's own choice, so the meter can only say they went together. */
+  observational?: boolean;
+}) {
   const pct = Math.round(belief.pEffect * 100);
   const warming = belief.state === "warming-up";
 
@@ -21,7 +29,7 @@ export function BeliefMeter({ belief }: { belief: Belief }) {
   return (
     <section className="max-w-full min-w-0 rounded-lg border border-rule bg-card p-[clamp(20px,2.4vw,28px)]">
       <h2 className="m-0 text-xs font-normal tracking-[0.16em] text-muted-foreground uppercase">
-        Likelihood it&apos;s real
+        {beliefHeading(observational)}
       </h2>
       <p className="mt-2 mb-0 font-heading text-[clamp(44px,7vw,60px)] leading-none font-bold tracking-[-0.02em] tabular-nums text-ink">
         {warming ? "—" : `${pct}%`}
