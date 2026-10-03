@@ -161,6 +161,10 @@ model CausalEdge {
   direction     String // "increases" | "decreases" | "none"
   effectSize    Float?
   confidence    Float? // calibrated posterior confidence
+  /// "causal" when a scheduled trial assigned the days; "correlational" when
+  /// the user's own yes/no did (an observational trial) — what went together,
+  /// not what caused what.
+  kind          String   @default("causal")
   sourceHunchId String?
   createdAt     DateTime @default(now())
 

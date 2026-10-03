@@ -103,6 +103,7 @@ export async function concludeTrial(
     hunchId: hunch.id,
     userId,
     subject: hunch.hypothesis.subject,
+    shape: design.shape,
   });
 
   const row: VerdictRow = {
