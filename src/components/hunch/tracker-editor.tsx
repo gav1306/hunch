@@ -198,8 +198,10 @@ function AddTracker({ hunchId }: { hunchId: string }) {
  * Adding and retiring trackers mid-trial.
  *
  * The primary is listed but has no control: it is the measure the verdict is
- * computed from, and a trial that stops logging it has no result. The route
- * refuses it too — this only avoids offering something that would be refused.
+ * computed from, and a trial that stops logging it has no result. Neither does
+ * the daily yes/no, on any trial — it is how the trial knows whether the change
+ * happened. The route refuses both too; this only avoids offering something
+ * that would be refused.
  *
  * The add control disappears at the cap rather than erroring on submit; being
  * told "no" after typing is worse than not being offered.
@@ -211,7 +213,7 @@ export function TrackerEditor({
 }: {
   hunchId: string;
   parameters: Parameter[];
-  /** The trial's arms come from its daily yes/no, which is then not retirable. */
+  /** Names the daily yes/no's row: "days we compare" here, "did the change happen" on a phased trial. */
   observational: boolean;
 }) {
   const atCap = parameters.length >= MAX_ACTIVE_PARAMETERS;

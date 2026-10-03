@@ -51,6 +51,19 @@ Rules:
 });
 
 /**
+ * The clarifier's prompt for a raw hunch and its recalled priors. Exported so
+ * the wording is unit-testable without a live model call.
+ */
+export function buildClarifyPrompt(rawText: string, priors: Prior[]): string {
+  const priorsText = priorsBlock(priors, {
+    tested: "The user already learned these related findings; don't ask about them again:",
+    untested:
+      "These went together in the user's own logs but were never tested — fine to ask about:",
+  });
+  return `Ask the clarifying questions for this hunch:\n\n"${rawText}"${priorsText}`;
+}
+
+/**
  * Ask the clarifying questions for a raw hunch. Priors (past findings) are
  * passed so the questions don't re-litigate what the user already knows.
  */
@@ -58,17 +71,11 @@ export async function askClarifying(
   rawText: string,
   priors: Prior[] = [],
 ): Promise<ClarifyingQuestions> {
-  const priorsText = priorsBlock(priors, {
-    tested: "The user already learned these related findings; don't ask about them again:",
-    untested:
-      "These went together in the user's own logs but were never tested — fine to ask about:",
-  });
-
   const response = await timed(
     "clarifier",
     () =>
       clarifier.generate(
-        `Ask the clarifying questions for this hunch:\n\n"${rawText}"${priorsText}`,
+        buildClarifyPrompt(rawText, priors),
         {
           structuredOutput: { schema: clarifyingQuestionsSchema },
           modelSettings: { maxOutputTokens: 1024 },

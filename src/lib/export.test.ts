@@ -236,3 +236,11 @@ describe("toText — phased verdict", () => {
     expect(text).toContain("Skipped coffee on 5 of 7 intervention days.");
   });
 });
+
+describe("toText — observational trial whose yes/no row is missing", () => {
+  it("still counts in the trial's own terms, as THE DAYS section does", () => {
+    const text = toText({ ...observationalHunch, exposure: null });
+    expect(text).toContain("9 yes-days, 11 no-days");
+    expect(text).not.toMatch(/baseline days|intervention days/);
+  });
+});

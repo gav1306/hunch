@@ -101,7 +101,7 @@ model Parameter {
   hunchId    String
   label      String // human label, e.g. "hours of sleep"
   type       String // "binary" | "scale" | "count" | "amount"
-  unit       String? // optional display unit, e.g. "hrs", "1-10"
+  unit       String? // optional display unit, e.g. "hrs", "mg"; a scale is always "1-5"
   min        Float? // optional bound (continuous scales)
   max        Float?
   isPrimary  Boolean   @default(false)
