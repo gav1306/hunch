@@ -8,7 +8,7 @@ import { BlockedHunchError, useCreateHunch, type PartialHypothesis } from "@/hoo
 import type { HunchInfo } from "@/hooks/use-hunch-info";
 import type { ClarifyingAnswer, ClarifyingQuestion } from "@/lib/schemas/clarify";
 import { PencilIcon } from "lucide-react";
-import { ConfirmBot } from "@/components/hunch/confirm-bot";
+import { CoachColumn, type CoachStep } from "@/components/hunch/coach-column";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -85,6 +85,23 @@ function QuestionCard({
       )}
     </div>
   );
+}
+
+type Step = "idle" | "asking" | "answering" | "committing" | "done";
+
+/** The Coach's three moves on this screen, read off the form's step. */
+function coachSteps(s: Step): CoachStep[] {
+  return [
+    { label: "Your words", state: s === "idle" ? "now" : "done" },
+    {
+      label: "A couple of quick questions",
+      state: s === "asking" || s === "answering" ? "now" : s === "idle" ? "later" : "done",
+    },
+    {
+      label: "Sharpened into a test",
+      state: s === "committing" ? "now" : s === "done" ? "done" : "later",
+    },
+  ];
 }
 
 export function NewHunchForm({
@@ -251,7 +268,7 @@ export function NewHunchForm({
   return (
     // data-wide opens the slim shell to 1200px for the two columns.
     <div data-wide className="flex flex-wrap items-start gap-[clamp(28px,4vw,56px)]">
-      <CoachColumn step={step} />
+      <CoachColumn steps={coachSteps(step)} busy={step === "asking" || step === "committing"} />
       <div className="min-w-0 flex-[999_1_520px]">
       <style>{`
         @keyframes hunch-btn-sweep { from { background-position: 220% 0 } to { background-position: -220% 0 } }
@@ -451,73 +468,5 @@ export function NewHunchForm({
       ) : null}
       </div>
     </div>
-  );
-}
-
-type Step = "idle" | "asking" | "answering" | "committing" | "done";
-
-/** Where each of the Coach's three moves stands, read off the form's step. */
-const COACH_STEPS: { label: string; state: (s: Step) => "done" | "now" | "later" }[] = [
-  { label: "Your words", state: (s) => (s === "idle" ? "now" : "done") },
-  {
-    label: "A couple of quick questions",
-    state: (s) =>
-      s === "asking" || s === "answering" ? "now" : s === "idle" ? "later" : "done",
-  },
-  {
-    label: "Sharpened into a test",
-    state: (s) => (s === "committing" ? "now" : s === "done" ? "done" : "later"),
-  },
-];
-
-/**
- * The left column: the robot, and the Coach's three moves ticking off as the
- * form goes through them. The page was one 640px column on a wide screen;
- * this is the handoff's two-column composition, the same as the auth
- * screens. Hidden on phones, where the form comes first and the 3D scene
- * isn't worth loading.
- */
-function CoachColumn({ step }: { step: Step }) {
-  return (
-    <aside className="hidden flex-[1_1_320px] flex-col items-center gap-5 pt-6 md:flex md:max-w-[400px]">
-      <div className="flex w-full justify-center bg-[radial-gradient(closest-side,color-mix(in_srgb,var(--s1)_26%,transparent),color-mix(in_srgb,var(--s2)_10%,transparent)_60%,transparent)] py-6">
-        <ConfirmBot play size={220} />
-      </div>
-      <p className="m-0 text-xs tracking-[0.16em] text-muted-foreground uppercase">
-        <span aria-hidden className="mr-2 text-s1">
-          ✦
-        </span>
-        {step === "asking" || step === "committing" ? "The coach is on it" : "The coach"}
-      </p>
-      <ol className="m-0 grid list-none gap-2.5 p-0 text-sm">
-        {COACH_STEPS.map((c) => {
-          const state = c.state(step);
-          return (
-            <li
-              key={c.label}
-              className={cn(
-                "flex items-baseline gap-2.5",
-                state === "later" ? "text-muted-foreground" : "text-ink",
-              )}
-            >
-              <span
-                aria-hidden
-                className={cn(
-                  "w-3 text-center",
-                  state === "done" && "text-good",
-                  state === "now" && "text-s1",
-                )}
-              >
-                {state === "done" ? "✓" : state === "now" ? "●" : "○"}
-              </span>
-              {c.label}
-              <span className="sr-only">
-                {state === "done" ? " (done)" : state === "now" ? " (now)" : ""}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-    </aside>
   );
 }

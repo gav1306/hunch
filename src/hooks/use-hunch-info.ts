@@ -23,6 +23,8 @@ export type HunchInfo = {
     design: ProtocolDesign;
     powerInfo: PowerInfo;
     confounders: Confounder[];
+    /** Set once the trial is started (or scheduled to start); null while planned. */
+    startedAt?: string | null;
   };
 };
 
