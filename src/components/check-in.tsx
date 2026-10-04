@@ -258,11 +258,15 @@ export function CheckIn({
   );
 
   const fields = shown.map((p) => (
-    <div key={p.id} className="grid min-w-0 gap-2">
+    // Compact dissolves the wrapper so the label takes its own line and the
+    // control sits beside the Log button, instead of a long label pushing Log
+    // onto a row of its own.
+    <div key={p.id} className={compact ? "contents" : "grid min-w-0 gap-2"}>
       <label
         htmlFor={`checkin-${p.id}`}
         className={cn(
           "leading-tight [overflow-wrap:anywhere]",
+          compact && "basis-full",
           // The primary measure is the one the verdict is computed from, so on
           // the full form it is set like a heading rather than a field label.
           p.isPrimary && !compact
@@ -316,6 +320,9 @@ export function CheckIn({
           }}
           disabled={disabled}
           aria-label={p.label}
+          // On a home card the five taps share the card's width, as wide a
+          // target as the space allows.
+          className={compact ? "w-full" : undefined}
         >
           {Array.from({ length: SCALE_MAX - SCALE_MIN + 1 }, (_, i) =>
             String(SCALE_MIN + i),
@@ -328,7 +335,10 @@ export function CheckIn({
               // audit already made this app honour everywhere else. This is the
               // control people tap every day, so it matches the yes/no pair
               // beside it rather than the primitive's default.
-              className="min-h-11 min-w-11 border border-rule font-mono text-sm aria-pressed:border-ink aria-pressed:bg-ink aria-pressed:text-paper"
+              className={cn(
+                "min-h-11 min-w-11 border border-rule font-mono text-sm aria-pressed:border-ink aria-pressed:bg-ink aria-pressed:text-paper",
+                compact && "flex-1",
+              )}
             >
               {n}
             </ToggleGroupItem>

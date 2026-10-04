@@ -89,14 +89,14 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 }
 
 /** Every card on this screen sits on the same ground, at the same radius. */
-const CARD = "block rounded-lg border border-rule bg-card p-[clamp(20px,2.2vw,28px)] no-underline";
+const CARD = "block rounded-lg border border-rule bg-card p-[clamp(20px,1.6vw,22px)] no-underline";
 
 /** The eyebrow line inside a card — 12px, the readable floor, not 10.5. */
 const CARD_EYEBROW = "mt-0 mb-2.5 text-xs tracking-[0.16em] uppercase";
 
 function Statement({ h }: { h: HomeHunch }) {
   return (
-    <p className="m-0 font-heading text-[clamp(17px,1.7vw,21px)] leading-tight font-semibold tracking-[-0.01em] text-ink">
+    <p className="m-0 font-heading text-[clamp(17px,1.4vw,19px)] leading-tight font-semibold tracking-[-0.01em] text-ink">
       {h.statement}
     </p>
   );
