@@ -127,12 +127,14 @@ function CheckinRow({ h }: { h: HomeHunch }) {
       <p className={cn(CARD_EYEBROW, "flex flex-wrap items-center gap-x-2 text-muted-foreground")}>
         {h.phaseLabel ? <PhaseName kind={h.phaseLabel} /> : "today"}
         {h.progress && (
-          <>
+          // One unit, so a narrow card wraps the whole "· day 9 of 14" and
+          // never leaves the separator dangling at a line end.
+          <span className="inline-flex items-center gap-x-2 whitespace-nowrap">
             <span aria-hidden className="text-rule">
               ·
             </span>
             day {h.progress.day} of {h.progress.total}
-          </>
+          </span>
         )}
       </p>
       <Statement h={h} />
@@ -245,7 +247,11 @@ function VerdictCard({ h }: { h: HomeHunch }) {
   );
 }
 
-const GRID = "grid gap-[clamp(12px,1.6vw,18px)] grid-cols-[repeat(auto-fit,minmax(280px,1fr))]";
+/**
+ * auto-fill, not auto-fit: auto-fit collapses the empty columns, so a lone card
+ * stretched across the whole row, day track and all.
+ */
+const GRID = "grid gap-[clamp(12px,1.6vw,18px)] grid-cols-[repeat(auto-fill,minmax(280px,1fr))]";
 
 export function HomeView({ user, data }: { user: { name: string }; data: HomeData }) {
   const firstName = (user.name || "there").split(" ")[0];
@@ -276,7 +282,7 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
           <section>
             <Eyebrow>Today · check in</Eyebrow>
             {data.today.length > 0 ? (
-              <div className="grid gap-[clamp(12px,1.6vw,18px)]">
+              <div className={GRID}>
                 {data.today.map((h) => (
                   <CheckinRow key={h.id} h={h} />
                 ))}
