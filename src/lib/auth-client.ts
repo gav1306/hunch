@@ -5,6 +5,8 @@ export const authClient = createAuthClient({
   plugins: [
     twoFactorClient({
       onTwoFactorRedirect() {
+        // Module scope: no router here, and a full load to /2fa is fine.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.href = "/2fa";
       },
     }),
