@@ -1,5 +1,6 @@
 import "server-only";
 
+import { adherenceStrip, type DayState } from "@/lib/adherence";
 import { db } from "@/lib/db";
 import { engineOutcomeType, pickPrimary } from "@/lib/parameters";
 import { currentPhase, utcDaysBetween } from "@/lib/schedule";
@@ -32,6 +33,11 @@ export type HomeHunch = {
   startsOn: string | null;
   /** Null until the trial actually begins — a scheduled trial is not on day 1. */
   progress: { day: number; total: number } | null;
+  /**
+   * Every day of the trial, for the phase track on the home card. Null until
+   * the trial begins, like `progress`. `kind` is null on a washout day.
+   */
+  track: { kind: "baseline" | "intervention" | null; state: DayState }[] | null;
   loggableToday: boolean;
   loggedToday: boolean;
   verdict: {
@@ -73,12 +79,15 @@ export async function getHomeData(userId: string): Promise<HomeData> {
       protocol: true,
       verdict: true,
       parameters: true,
-      checkIns: { where: { loggedOn: today }, select: { id: true } },
+      // Every day's log, not just today's: the card's track shows the whole
+      // trial. A trial runs 14 to 28 days, so this stays a handful of rows.
+      checkIns: { select: { loggedOn: true } },
     },
   });
 
   const mapped: HomeHunch[] = hunches.map((h) => {
     let progress: HomeHunch["progress"] = null;
+    let track: HomeHunch["track"] = null;
     let phaseLabel: HomeHunch["phaseLabel"] = null;
     let loggableToday = false;
     let startsOn: string | null = null;
@@ -98,6 +107,12 @@ export async function getHomeData(userId: string): Promise<HomeData> {
             Math.max(1, utcDaysBetween(h.protocol.startedAt, today) + 1),
           );
           progress = { day, total };
+          track = adherenceStrip({
+            startedAt: h.protocol.startedAt,
+            design,
+            loggedOn: h.checkIns.map((c) => c.loggedOn),
+            today,
+          }).map((d) => ({ kind: d.kind, state: d.state }));
         } else {
           // Started "tomorrow": anchored, but no day has run. Reporting day 1 of
           // N here would claim a day the user has not lived yet.
@@ -150,8 +165,9 @@ export async function getHomeData(userId: string): Promise<HomeData> {
       setupStage,
       startsOn,
       progress,
+      track,
       loggableToday,
-      loggedToday: h.checkIns.length > 0,
+      loggedToday: h.checkIns.some((c) => c.loggedOn.getTime() === today.getTime()),
       verdict: h.verdict
         ? {
             category: h.verdict.category,

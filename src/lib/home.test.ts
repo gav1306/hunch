@@ -188,16 +188,70 @@ describe("getHomeData on the user's own day", () => {
           safetyState: "approved",
           startedAt: new Date("2026-09-20T00:00:00.000Z"),
         },
+        // Filed under 22 Sep: the user's today, though UTC is already on the 23rd.
+        checkIns: [{ loggedOn: new Date("2026-09-22T00:00:00.000Z") }],
       }),
     ] as never);
 
     const data = await getHomeData("u1");
 
     // 20, 21, 22 Sep: day 3 in Los Angeles (UTC would say day 4).
-    expect(data.today[0].progress).toEqual({ day: 3, total: 10 });
-    const include = vi.mocked(db.hunch.findMany).mock.calls[0][0]!.include as {
-      checkIns: { where: { loggedOn: Date } };
-    };
-    expect(include.checkIns.where.loggedOn.toISOString()).toBe("2026-09-22T00:00:00.000Z");
+    expect(data.running[0].progress).toEqual({ day: 3, total: 10 });
+    expect(data.running[0].loggedToday).toBe(true);
+    expect(data.today).toHaveLength(0);
+  });
+});
+
+describe("getHomeData day track", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("gives every day of a running trial its phase and state", async () => {
+    vi.mocked(db.hunch.findMany).mockResolvedValue([
+      hunch({
+        status: "running",
+        protocol: { design, safetyState: "approved", startedAt: utcMidnight(-3) },
+        // Days 1 and 3 logged, day 2 missed, day 4 is today.
+        checkIns: [{ loggedOn: utcMidnight(-3) }, { loggedOn: utcMidnight(-1) }],
+      }),
+    ] as never);
+
+    const [h] = (await getHomeData("u1")).today;
+
+    expect(h.track).toHaveLength(10);
+    expect(h.track!.map((d) => d.state)).toEqual([
+      "logged", "missed", "logged", "today",
+      "future", "future", "future", "future", "future", "future",
+    ]);
+    expect(h.track!.map((d) => d.kind)).toEqual([
+      ...Array(5).fill("baseline"),
+      ...Array(5).fill("intervention"),
+    ]);
+  });
+
+  it("does not count yesterday's log as today's", async () => {
+    vi.mocked(db.hunch.findMany).mockResolvedValue([
+      hunch({
+        status: "running",
+        protocol: { design, safetyState: "approved", startedAt: utcMidnight(-3) },
+        checkIns: [{ loggedOn: utcMidnight(-1) }],
+      }),
+    ] as never);
+    const [h] = (await getHomeData("u1")).today;
+    expect(h.loggedToday).toBe(false);
+  });
+
+  it("has no track before the trial's first day", async () => {
+    vi.mocked(db.hunch.findMany).mockResolvedValue([
+      hunch({
+        status: "running",
+        protocol: { design, safetyState: "approved", startedAt: utcMidnight(1) },
+      }),
+    ] as never);
+    expect((await getHomeData("u1")).running[0].track).toBe(null);
+  });
+
+  it("has no track for a hunch that was never started", async () => {
+    vi.mocked(db.hunch.findMany).mockResolvedValue([hunch()] as never);
+    expect((await only()).track).toBe(null);
   });
 });

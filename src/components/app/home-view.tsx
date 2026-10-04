@@ -113,20 +113,30 @@ function CheckinRow({ h }: { h: HomeHunch }) {
 
   return (
     <div
+      style={phaseStyle(h.phaseLabel)}
       className={cn(
         CARD,
-        // The accent rule along the top of a card you can log into. Tailwind
-        // has no border-image utility, so this is the arbitrary property.
-        "border-t-2 border-t-transparent [border-image:linear-gradient(90deg,var(--s1),var(--s2))_1]",
+        // A faint wash of the phase colour in the top corner: the only fill
+        // the phase gets. Everything you tap stays ink, as in CheckIn.
+        h.phaseLabel &&
+          "bg-[image:radial-gradient(90%_55%_at_100%_0%,color-mix(in_srgb,var(--ph)_6%,transparent),transparent_65%)]",
         "transition-opacity duration-300",
         done && "opacity-60",
       )}
     >
-      <p className={cn(CARD_EYEBROW, "text-muted-foreground")}>
-        {h.phaseLabel ?? "today"}
-        {h.progress ? ` · day ${h.progress.day} of ${h.progress.total}` : ""}
+      <p className={cn(CARD_EYEBROW, "flex flex-wrap items-center gap-x-2 text-muted-foreground")}>
+        {h.phaseLabel ? <PhaseName kind={h.phaseLabel} /> : "today"}
+        {h.progress && (
+          <>
+            <span aria-hidden className="text-rule">
+              ·
+            </span>
+            day {h.progress.day} of {h.progress.total}
+          </>
+        )}
       </p>
       <Statement h={h} />
+      {h.track && <PhaseTrack track={h.track} className="mt-4" />}
 
       {primary && (
         <div className="mt-[18px]">
@@ -142,19 +152,61 @@ function CheckinRow({ h }: { h: HomeHunch }) {
   );
 }
 
-function ProgressBar({ day, total }: { day: number; total: number }) {
-  const pct = total > 0 ? Math.min(100, (day / total) * 100) : 0;
+type Phase = NonNullable<HomeHunch["phaseLabel"]>;
+type TrackDay = NonNullable<HomeHunch["track"]>[number];
+
+/**
+ * The colour of each phase. It means one thing everywhere it appears: blue
+ * while the user lives as normal, red while they run the change. It marks the
+ * phase and nothing else, never a result or a selection.
+ */
+const PHASE_COLOR: Record<Phase, string> = { baseline: "var(--s2)", intervention: "var(--s1)" };
+
+/** Sets `--ph` on a card, so its children can draw in the phase's colour. */
+function phaseStyle(kind: HomeHunch["phaseLabel"]) {
+  return kind ? ({ "--ph": PHASE_COLOR[kind] } as React.CSSProperties) : undefined;
+}
+
+/** The phase as a dot and a word, tinted toward its colour. */
+function PhaseName({ kind }: { kind: Phase }) {
   return (
-    <div className="mt-4">
-      <p className="mt-0 mb-2 text-xs tracking-[0.1em] text-muted-foreground uppercase">
-        Day {day} of {total}
-      </p>
-      <div className="relative h-0.5 bg-rule">
-        <div
-          className="absolute inset-y-0 left-0 bg-linear-to-r from-s1 to-s2"
-          style={{ width: `${pct}%` }}
+    <span className="inline-flex items-center gap-[7px] text-[color-mix(in_srgb,var(--ph)_80%,var(--ink))]">
+      <span aria-hidden className="size-1.5 rounded-full bg-(--ph)" />
+      {kind}
+    </span>
+  );
+}
+
+const TRACK_DAY: Record<TrackDay["state"], string> = {
+  logged: "bg-[color-mix(in_srgb,var(--c)_70%,transparent)]",
+  missed: "border border-(--c) opacity-45",
+  rest: "bg-muted", // --surface-2: a washout day, nothing to log
+  today: "bg-ink",
+  future: "bg-surface-3",
+};
+
+/**
+ * Every day of the trial as one thin segment in its phase's colour: filled
+ * when logged, outlined when missed, ink for today. The same days the
+ * adherence strip shows on the hunch's page, at a glance.
+ */
+function PhaseTrack({ track, className }: { track: TrackDay[]; className?: string }) {
+  const logged = track.filter((d) => d.state === "logged").length;
+  const missed = track.filter((d) => d.state === "missed").length;
+  return (
+    <div
+      role="img"
+      aria-label={`${logged} days logged, ${missed} missed, of ${track.length}`}
+      className={cn("grid gap-0.5", className)}
+      style={{ gridTemplateColumns: `repeat(${track.length}, minmax(0, 1fr))` }}
+    >
+      {track.map((d, i) => (
+        <span
+          key={i}
+          className={cn("h-1 rounded-[1px]", TRACK_DAY[d.state])}
+          style={d.kind ? ({ "--c": PHASE_COLOR[d.kind] } as React.CSSProperties) : undefined}
         />
-      </div>
+      ))}
     </div>
   );
 }
@@ -282,7 +334,12 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
               <Eyebrow>In flight</Eyebrow>
               <div className={GRID}>
                 {data.running.map((h) => (
-                  <Link key={h.id} href={`/hunch/${h.id}`} className={cn(CARD, "app-card")}>
+                  <Link
+                    key={h.id}
+                    href={`/hunch/${h.id}`}
+                    style={phaseStyle(h.phaseLabel)}
+                    className={cn(CARD, "app-card")}
+                  >
                     {/* Anchored but not yet begun — a start the user scheduled
                         for tomorrow, which has no day and nothing to log. It is
                         not a confirmation, so it stays muted rather than green. */}
@@ -305,10 +362,22 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
                       ) : (
                         "Running"
                       )}
-                      {!h.startsOn && h.phaseLabel ? ` · ${h.phaseLabel}` : ""}
+                      {!h.startsOn && h.phaseLabel && (
+                        <>
+                          <span aria-hidden className="mx-2 text-rule">
+                            ·
+                          </span>
+                          <PhaseName kind={h.phaseLabel} />
+                        </>
+                      )}
                     </p>
                     <Statement h={h} />
-                    {h.progress && <ProgressBar day={h.progress.day} total={h.progress.total} />}
+                    {h.progress && (
+                      <p className="mt-4 mb-2 text-xs tracking-[0.1em] text-muted-foreground uppercase">
+                        Day {h.progress.day} of {h.progress.total}
+                      </p>
+                    )}
+                    {h.track && <PhaseTrack track={h.track} />}
                   </Link>
                 ))}
               </div>
