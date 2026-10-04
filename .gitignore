@@ -48,3 +48,6 @@ next-env.d.ts
 
 # benchmark output (scripts/bench-hunch-flow.ts)
 scripts/.bench-results/
+
+# local Claude Code state (settings.local.json, worktrees, skill symlinks into .agents/)
+.claude/
