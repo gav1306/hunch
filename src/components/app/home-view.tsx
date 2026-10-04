@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
@@ -109,6 +110,7 @@ function Statement({ h }: { h: HomeHunch }) {
  */
 function CheckinRow({ h }: { h: HomeHunch }) {
   const [done, setDone] = useState(false);
+  const router = useRouter();
   const primary = h.primaryParameter;
 
   return (
@@ -146,7 +148,13 @@ function CheckinRow({ h }: { h: HomeHunch }) {
             variant="compact"
             hunchId={h.id}
             parameters={[{ ...primary, isPrimary: true }]}
-            onLogged={() => setDone(true)}
+            // Home is rendered on the server, so a log changes nothing on it
+            // until it is fetched again: the card stayed under Today with its
+            // track a day behind. The refresh moves it to In flight.
+            onLogged={() => {
+              setDone(true);
+              router.refresh();
+            }}
           />
         </div>
       )}
@@ -352,30 +360,26 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
                     <p
                       className={cn(
                         CARD_EYEBROW,
+                        // The phase dot is the separator: in a narrow card the
+                        // phase wraps to its own line with nothing dangling.
+                        "flex flex-wrap items-center gap-x-3 gap-y-1",
                         !h.startsOn && h.loggedToday ? "text-good" : "text-muted-foreground",
                       )}
                     >
                       {h.startsOn ? (
                         startsCopy(h.startsOn)
                       ) : h.loggedToday ? (
-                        <>
+                        <span>
                           <CheckIcon
                             aria-hidden
                             className="mr-1 inline-block size-(--icon) align-[-0.15em]"
                           />
                           Logged today
-                        </>
+                        </span>
                       ) : (
                         "Running"
                       )}
-                      {!h.startsOn && h.phaseLabel && (
-                        <>
-                          <span aria-hidden className="mx-2 text-rule">
-                            ·
-                          </span>
-                          <PhaseName kind={h.phaseLabel} />
-                        </>
-                      )}
+                      {!h.startsOn && h.phaseLabel && <PhaseName kind={h.phaseLabel} />}
                     </p>
                     <Statement h={h} />
                     {h.progress && (
