@@ -1,5 +1,6 @@
 "use client";
 
+import Form from "next/form";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -7,6 +8,8 @@ import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowRightIcon, CheckIcon } from "lucide-react";
 import { CheckIn } from "@/components/check-in";
+import { ConfirmBot } from "@/components/hunch/confirm-bot";
+import { Button } from "@/components/ui/button";
 import { browserToday } from "@/lib/browser-day";
 import type { HomeData, HomeHunch } from "@/lib/home";
 import { cn } from "@/lib/utils";
@@ -286,7 +289,10 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
       {!data.hasAny ? (
         <EmptyState />
       ) : (
-        <div className="flex flex-col gap-[clamp(40px,7vh,72px)]">
+        // Feed and sidebar side by side from about 1000px; below that the
+        // sidebar wraps under the feed rather than squeezing it.
+        <div className="flex flex-wrap items-start gap-[clamp(28px,4vw,44px)]">
+        <div className="flex min-w-0 flex-[999_1_640px] flex-col gap-[clamp(40px,7vh,72px)]">
           <section>
             <Eyebrow>Today · check in</Eyebrow>
             {data.today.length > 0 ? (
@@ -449,7 +455,116 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
             </section>
           )}
         </div>
+        <HomeAside summary={data.summary} />
+        </div>
       )}
+    </div>
+  );
+}
+
+/** 21 → "9:00 pm". The reminder hour is the user's local hour already. */
+function hourLabel(hour: number): string {
+  const h = hour % 12 === 0 ? 12 : hour % 12;
+  return `${h}:00 ${hour < 12 ? "am" : "pm"}`;
+}
+
+function verdictLabel(days: number): string {
+  return days <= 1 ? "tomorrow" : `in ${days} days`;
+}
+
+/**
+ * Home's right-hand column: the engine at a glance, and a way to start the
+ * next hunch without leaving the page. On a wide screen the feed alone left a
+ * third of the width empty.
+ */
+function HomeAside({ summary }: { summary: HomeData["summary"] }) {
+  const reduce = useReducedMotion();
+  const rows = [
+    summary.nextVerdictInDays !== null && {
+      label: "Next verdict",
+      value: verdictLabel(summary.nextVerdictInDays),
+    },
+    {
+      label: "Reminder",
+      value: summary.reminderHour !== null ? hourLabel(summary.reminderHour) : "off",
+    },
+  ].filter(Boolean) as { label: string; value: string }[];
+
+  return (
+    <aside className="flex w-full flex-[1_1_300px] flex-col gap-5 md:max-w-[360px]">
+      <div className={cn(CARD, "flex flex-col gap-3")}>
+        <div className="flex justify-center rounded-xl bg-[radial-gradient(closest-side,color-mix(in_srgb,var(--s1)_22%,transparent),color-mix(in_srgb,var(--s2)_8%,transparent)_60%,transparent)] pt-2">
+          <ConfirmBot play={!reduce} size={180} />
+        </div>
+        <p className={cn(CARD_EYEBROW, "mb-0 text-muted-foreground")}>
+          <span aria-hidden className="mr-2 text-s1">
+            ✦
+          </span>
+          Engine online
+        </p>
+        <p className="m-0 font-heading text-[22px] leading-tight font-semibold text-ink">
+          {summary.running === 0
+            ? "Nothing running yet"
+            : `${summary.running} experiment${summary.running === 1 ? "" : "s"} running`}
+        </p>
+        <p className="m-0 text-xs leading-relaxed text-muted-foreground">
+          {summary.toLog > 0
+            ? `${summary.toLog} to log today. Every check-in narrows what the engine believes.`
+            : "Nothing left to log today."}
+        </p>
+        <dl className="m-0 grid gap-2.5 border-t border-rule pt-3 text-sm">
+          {rows.map((r) => (
+            <div key={r.label} className="flex justify-between gap-3">
+              <dt className="text-xs text-muted-foreground">{r.label}</dt>
+              <dd className="m-0 text-ink">{r.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+
+      <DropHunch />
+    </aside>
+  );
+}
+
+/**
+ * Start a hunch from home. It hands the words to /hunch/new as `?seed=`, the
+ * same prefill the examples below already use, so the Coach starts from them.
+ */
+function DropHunch() {
+  return (
+    <div className={cn(CARD, "flex flex-col gap-3")}>
+      <p className={cn(CARD_EYEBROW, "mb-0 text-muted-foreground")}>Drop a hunch</p>
+      <Form action="/hunch/new" className="flex flex-col gap-3">
+        <label htmlFor="home-seed" className="text-xs text-muted-foreground">
+          Something you suspect about yourself
+        </label>
+        <textarea
+          id="home-seed"
+          name="seed"
+          required
+          rows={3}
+          placeholder={EXAMPLES[0]}
+          className="resize-none rounded-[9px] border border-rule bg-muted p-3 font-mono text-sm text-ink placeholder:text-muted-foreground focus-visible:border-ink focus-visible:outline-none"
+        />
+        <Button type="submit" variant="brand" size="touch" className="border-ink bg-ink text-paper">
+          Sharpen it
+          <ArrowRightIcon data-icon="inline-end" aria-hidden />
+        </Button>
+      </Form>
+      <p className="mt-1 mb-0 text-xs text-muted-foreground">For instance</p>
+      {EXAMPLES.slice(1).map((q) => (
+        <Link
+          key={q}
+          href={`/hunch/new?seed=${encodeURIComponent(q)}`}
+          className="text-xs leading-relaxed text-muted-foreground no-underline hover:text-ink"
+        >
+          <span aria-hidden className="mr-1.5 text-s1">
+            ✦
+          </span>
+          {q}
+        </Link>
+      ))}
     </div>
   );
 }

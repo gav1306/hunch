@@ -1,7 +1,12 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/db", () => ({ db: { hunch: { findMany: vi.fn() } } }));
+vi.mock("@/lib/db", () => ({
+  db: {
+    hunch: { findMany: vi.fn() },
+    user: { findUnique: vi.fn(async () => ({ reminderHour: null })) },
+  },
+}));
 vi.mock("@/lib/zone", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/zone")>()),
   userTimeZone: vi.fn(async () => "UTC"),
@@ -253,5 +258,49 @@ describe("getHomeData day track", () => {
   it("has no track for a hunch that was never started", async () => {
     vi.mocked(db.hunch.findMany).mockResolvedValue([hunch()] as never);
     expect((await only()).track).toBe(null);
+  });
+});
+
+describe("getHomeData summary", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const running = (startedDaysAgo: number, over: Record<string, unknown> = {}) =>
+    hunch({
+      status: "running",
+      protocol: { design, safetyState: "approved", startedAt: utcMidnight(-startedDaysAgo) },
+      ...over,
+    });
+
+  it("counts what is running and what is left to log today", async () => {
+    vi.mocked(db.hunch.findMany).mockResolvedValue([
+      running(2, { id: "a" }),
+      running(4, { id: "b", checkIns: [{ loggedOn: utcMidnight(0) }] }),
+      hunch({ id: "c" }),
+    ] as never);
+    const { summary } = await getHomeData("u1");
+    expect(summary.running).toBe(2);
+    expect(summary.toLog).toBe(1);
+  });
+
+  it("names the soonest verdict, the day after a trial's last day", async () => {
+    // design is 10 days. Started 2 days ago: day 3, verdict in 8 days.
+    // Started 7 days ago: day 8, verdict in 3 days.
+    vi.mocked(db.hunch.findMany).mockResolvedValue([
+      running(2, { id: "a" }),
+      running(7, { id: "b" }),
+    ] as never);
+    expect((await getHomeData("u1")).summary.nextVerdictInDays).toBe(3);
+  });
+
+  it("has no next verdict when nothing is running", async () => {
+    vi.mocked(db.hunch.findMany).mockResolvedValue([hunch()] as never);
+    expect((await getHomeData("u1")).summary.nextVerdictInDays).toBe(null);
+  });
+
+  it("carries the reminder hour, null when reminders are off", async () => {
+    vi.mocked(db.hunch.findMany).mockResolvedValue([] as never);
+    vi.mocked(db.user.findUnique).mockResolvedValueOnce({ reminderHour: 21 } as never);
+    expect((await getHomeData("u1")).summary.reminderHour).toBe(21);
+    expect((await getHomeData("u1")).summary.reminderHour).toBe(null);
   });
 });

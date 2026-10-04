@@ -86,8 +86,11 @@ function AccountMenu({ user }: { user: SessionUser }) {
 /**
  * The authed frame.
  *
- * `slim` is the same header over a 640px column — the width the dashboard,
- * protocol and new-hunch screens already lay themselves out at. They used to
+ * `slim` is the same header over a 640px column — the width the protocol and
+ * new-hunch screens lay themselves out at. A page that needs the room (the
+ * hunch dashboard, two columns) marks its root `data-wide` and the column
+ * opens to 1200px; the `:has()` keeps that choice with the page rather than
+ * splitting `/hunch/layout.tsx` into route groups. They used to
  * draw their own `<main>` and offer a 10.5px "← home" link as the entire
  * navigation, which meant three screens where signing out was unreachable
  * without first guessing your way back to home.
@@ -139,8 +142,8 @@ export function AppShell({
       <main
         className={
           slim
-            ? "relative z-1 mx-auto w-full max-w-160 px-5 pt-[clamp(24px,5vh,44px)] pb-24"
-            : "relative z-1 mx-auto w-full max-w-270 px-[clamp(20px,4vw,52px)] pt-[clamp(32px,6vh,64px)] pb-[clamp(60px,10vh,110px)]"
+            ? "relative z-1 mx-auto w-full max-w-160 px-5 pt-[clamp(24px,5vh,44px)] pb-24 has-[[data-wide]]:max-w-300 has-[[data-wide]]:px-[clamp(20px,4vw,52px)]"
+            : "relative z-1 mx-auto w-full max-w-320 px-[clamp(20px,4vw,52px)] pt-[clamp(32px,6vh,64px)] pb-[clamp(60px,10vh,110px)]"
         }
       >
         {children}
