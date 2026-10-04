@@ -1,8 +1,9 @@
 import { describe, expect, test } from "vitest";
 import { sharpenHunch, streamSharpenHunch } from "@/mastra/agents/hypothesis-coach";
 import { sharpenedHypothesisSchema } from "@/lib/schemas/hypothesis";
+import { hasLlmKey } from "@/mastra/model";
 
-const hasKey = Boolean(process.env.OPENROUTER_API_KEY);
+const hasKey = hasLlmKey;
 
 /**
  * Hypothesis-quality eval (RESEARCH §5): the coach must turn a vague hunch

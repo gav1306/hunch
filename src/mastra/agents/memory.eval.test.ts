@@ -1,8 +1,9 @@
 import { describe, expect, test } from "vitest";
 import { recallRelevantPriors } from "@/mastra/agents/memory";
 import type { CausalEdge } from "@/generated/prisma/client";
+import { hasLlmKey } from "@/mastra/model";
 
-const hasKey = Boolean(process.env.OPENROUTER_API_KEY);
+const hasKey = hasLlmKey;
 
 const edge = (over: Partial<CausalEdge>): CausalEdge => ({
   id: "e", userId: "u", cause: "", effect: "", direction: "increases",
