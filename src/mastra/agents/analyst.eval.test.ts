@@ -1,7 +1,8 @@
 import { describe, expect, test } from "vitest";
 import { narrateVerdict } from "@/mastra/agents/analyst";
+import { hasLlmKey } from "@/mastra/model";
 
-const hasKey = Boolean(process.env.OPENROUTER_API_KEY);
+const hasKey = hasLlmKey;
 
 /**
  * Analyst faithfulness eval: the narrative must reflect the decided category and

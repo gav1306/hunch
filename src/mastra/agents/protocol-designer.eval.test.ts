@@ -3,8 +3,9 @@ import { designProtocolShape } from "@/mastra/agents/protocol-designer";
 import { detectConfounders } from "@/mastra/tools/confounder-detection";
 import { estimateTrialLength } from "@/mastra/tools/power-analysis";
 import { protocolDesignSchema } from "@/lib/schemas/protocol";
+import { hasLlmKey } from "@/mastra/model";
 
-const hasKey = Boolean(process.env.OPENROUTER_API_KEY);
+const hasKey = hasLlmKey;
 
 /**
  * Protocol-quality eval: the designer must emit a valid ABA design that honours

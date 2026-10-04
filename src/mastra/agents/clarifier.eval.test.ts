@@ -1,8 +1,9 @@
 import { describe, expect, test } from "vitest";
 import { askClarifying } from "@/mastra/agents/clarifier";
 import { clarifyingQuestionsSchema } from "@/lib/schemas/clarify";
+import { hasLlmKey } from "@/mastra/model";
 
-const hasKey = Boolean(process.env.OPENROUTER_API_KEY);
+const hasKey = hasLlmKey;
 
 describe.skipIf(!hasKey)("Clarifier quality", () => {
   test("asks <=3 valid, on-topic questions for a vague hunch", async () => {

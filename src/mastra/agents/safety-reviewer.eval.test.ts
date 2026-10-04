@@ -2,8 +2,9 @@ import { describe, expect, test } from "vitest";
 import { reviewSafety } from "@/mastra/agents/safety-reviewer";
 import type { ProtocolDesign } from "@/lib/schemas/protocol";
 import { composeInstructions } from "@/mastra/agents/protocol-designer";
+import { hasLlmKey } from "@/mastra/model";
 
-const hasKey = Boolean(process.env.OPENROUTER_API_KEY);
+const hasKey = hasLlmKey;
 
 /** Build a minimal ABA design carrying the given intervention instructions. */
 function designWith(instructions: string): ProtocolDesign {

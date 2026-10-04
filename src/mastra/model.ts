@@ -1,31 +1,79 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 
 /**
- * Single source of truth for the LLMs Hunch agents run on, through OpenRouter:
- * Claude Sonnet 5 for every agent that writes, Haiku 4.5 for memory recall.
+ * Single source of truth for the LLMs Hunch agents run on.
  *
- * OpenRouter speaks the OpenAI wire format, so it needs no provider package of
- * its own — `@ai-sdk/openai-compatible` pointed at their base URL is the whole
- * integration. Credentials are one key in .env; there is no cloud account or
- * credential chain to configure.
+ * Two providers, both speaking the OpenAI wire format, so `@ai-sdk/openai-
+ * compatible` pointed at a base URL is the whole integration and switching is
+ * an env change, never a code change:
  *
- * Mastra's string model router has no OpenRouter provider, so we build an AI SDK
+ *   - `openrouter` (default): Claude Sonnet 5 for every agent that writes,
+ *     Haiku 4.5 for memory recall. Every prompt and eval was tuned here.
+ *   - `nvidia` (`LLM_PROVIDER=nvidia`, key in `NVIDIA_API_KEY`): NVIDIA's hosted
+ *     endpoint, Nemotron 3 Super for both. Added as a fallback when the
+ *     OpenRouter key died. Probed on 2026-10-04: it was the only large model on
+ *     the free tier that answered at all (Kimi K3, GLM 5.3 and DeepSeek V4.1
+ *     timed out at 90s), and it honours `json_schema` with thinking off.
+ *
+ * `LLM_MODEL_ID` / `LLM_FAST_MODEL_ID` override either provider's defaults
+ * (`OPENROUTER_MODEL_ID` / `OPENROUTER_FAST_MODEL_ID` still work on OpenRouter).
+ *
+ * Mastra's string model router has neither provider, so we build an AI SDK
  * model instance and hand it to each Agent rather than a `"provider/model"`
  * string.
  */
 
-export const OPENROUTER_MODEL_ID =
-  process.env.OPENROUTER_MODEL_ID ?? "anthropic/claude-sonnet-5";
+type Provider = {
+  name: string;
+  baseURL: string;
+  apiKey: string | undefined;
+  model: string;
+  fastModel: string;
+  /**
+   * Request-body fields that turn the model's extended thinking off. Each
+   * provider spells it its own way, and neither has a typed setting in the
+   * generic provider, so it is written onto the request.
+   */
+  noThinking: Record<string, unknown>;
+};
 
-function openrouterProvider(
+const PROVIDERS: Record<"openrouter" | "nvidia", () => Provider> = {
+  openrouter: () => ({
+    name: "openrouter",
+    baseURL: "https://openrouter.ai/api/v1",
+    apiKey: process.env.OPENROUTER_API_KEY,
+    model: process.env.OPENROUTER_MODEL_ID ?? "anthropic/claude-sonnet-5",
+    fastModel: process.env.OPENROUTER_FAST_MODEL_ID ?? "anthropic/claude-haiku-4.5",
+    noThinking: { reasoning: { enabled: false } },
+  }),
+  nvidia: () => ({
+    name: "nvidia",
+    baseURL: "https://integrate.api.nvidia.com/v1",
+    apiKey: process.env.NVIDIA_API_KEY,
+    model: "nvidia/nemotron-3-super-120b-a12b",
+    fastModel: "nvidia/nemotron-3-super-120b-a12b",
+    noThinking: { chat_template_kwargs: { enable_thinking: false } },
+  }),
+};
+
+const provider = PROVIDERS[process.env.LLM_PROVIDER === "nvidia" ? "nvidia" : "openrouter"]();
+
+/** The model id every writing agent runs on, after any override. */
+export const MODEL_ID = process.env.LLM_MODEL_ID ?? provider.model;
+export const FAST_MODEL_ID = process.env.LLM_FAST_MODEL_ID ?? provider.fastModel;
+
+/** Whether the chosen provider has a key at all. The `.eval` tests skip without one. */
+export const hasLlmKey = Boolean(provider.apiKey);
+
+function makeProvider(
   transformRequestBody?: (args: Record<string, unknown>) => Record<string, unknown>,
 ) {
   return createOpenAICompatible({
-    name: "openrouter",
-    baseURL: "https://openrouter.ai/api/v1",
-    apiKey: process.env.OPENROUTER_API_KEY ?? "",
-    // OpenRouter honours `response_format: json_schema`, but the generic
-    // OpenAI-compatible provider assumes it doesn't and falls back to asking for
+    name: provider.name,
+    baseURL: provider.baseURL,
+    apiKey: provider.apiKey ?? "",
+    // Both providers honour `response_format: json_schema`, but the generic
+    // OpenAI-compatible provider assumes they don't and falls back to asking for
     // JSON in the prompt — which returns objects missing required keys. Every
     // agent here parses a Zod schema, so the schema has to reach the API.
     supportsStructuredOutputs: true,
@@ -33,10 +81,10 @@ function openrouterProvider(
   });
 }
 
-const openrouter = openrouterProvider();
+const llm = makeProvider();
 
-/** Claude Sonnet 5 — the default for every agent. */
-export const claudeModel = openrouter(OPENROUTER_MODEL_ID);
+/** The default model for every agent (Claude Sonnet 5 on OpenRouter). */
+export const claudeModel = llm(MODEL_ID);
 
 /**
  * The same model with the provider's extended thinking turned off.
@@ -46,25 +94,22 @@ export const claudeModel = openrouter(OPENROUTER_MODEL_ID);
  * the very end of a 6.9-10.1s wait — there is nothing to stream, so the user
  * watches a blank button and then sees a finished object. With it off the wait
  * falls to about 3s and its last second is the object arriving in pieces.
- *
- * `reasoning` is a top-level OpenRouter body field with no typed setting in the
- * generic OpenAI-compatible provider, so it is written onto the request here.
+ * Nemotron on NVIDIA showed the same shape on 2026-10-04: 6.6-9.2s on, under
+ * 1.5s off.
  *
  * Scoped deliberately: the Hypothesis Coach is the one agent whose output a
  * person sits and watches being written. Every other agent keeps `claudeModel`
  * and its thinking — they answer into a page that is already on screen.
  */
-export const claudeModelNoThinking = openrouterProvider((args) => ({
+export const claudeModelNoThinking = makeProvider((args) => ({
   ...args,
-  reasoning: { enabled: false },
-}))(OPENROUTER_MODEL_ID);
-
-export const OPENROUTER_FAST_MODEL_ID =
-  process.env.OPENROUTER_FAST_MODEL_ID ?? "anthropic/claude-haiku-4.5";
+  ...provider.noThinking,
+}))(MODEL_ID);
 
 /**
- * Claude Haiku 4.5 — for short picking jobs where Sonnet's floor is most of the
- * wait. Memory recall returns ~40 tokens yet took ~2.5s on Sonnet, on every
- * returning user's first request. Moved only after its eval passed on both.
+ * For short picking jobs where the main model's floor is most of the wait
+ * (Claude Haiku 4.5 on OpenRouter). Memory recall returns ~40 tokens yet took
+ * ~2.5s on Sonnet, on every returning user's first request. Moved only after
+ * its eval passed on both.
  */
-export const fastModel = openrouter(OPENROUTER_FAST_MODEL_ID);
+export const fastModel = llm(FAST_MODEL_ID);
