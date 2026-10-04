@@ -8,6 +8,7 @@ import { BeliefMeter } from "@/components/belief-meter";
 import { CheckIn } from "@/components/check-in";
 import { TrackerEditor } from "@/components/hunch/tracker-editor";
 import { AbandonHunch } from "@/components/hunch/abandon-hunch";
+import { ConfirmBot } from "@/components/hunch/confirm-bot";
 import { VerdictView } from "@/components/verdict";
 import { Button } from "@/components/ui/button";
 import { useBelief } from "@/hooks/use-belief";
@@ -164,6 +165,9 @@ export function HunchDashboard({
 
     return concluded && !grace ? (
       <div className="mx-auto max-w-160">
+        {/* The reveal is the payoff of the whole trial: the robot spins in
+            once before the answer. */}
+        <ConfirmBot play size={180} />
         <VerdictView hunchId={id} statement={statement} archived={archived} />
       </div>
     ) : (

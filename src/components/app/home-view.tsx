@@ -478,7 +478,6 @@ function verdictLabel(days: number): string {
  * third of the width empty.
  */
 function HomeAside({ summary }: { summary: HomeData["summary"] }) {
-  const reduce = useReducedMotion();
   const rows = [
     summary.nextVerdictInDays !== null && {
       label: "Next verdict",
@@ -494,7 +493,7 @@ function HomeAside({ summary }: { summary: HomeData["summary"] }) {
     <aside className="flex w-full flex-[1_1_300px] flex-col gap-5 md:max-w-[360px]">
       <div className={cn(CARD, "flex flex-col gap-3")}>
         <div className="flex justify-center rounded-xl bg-[radial-gradient(closest-side,color-mix(in_srgb,var(--s1)_22%,transparent),color-mix(in_srgb,var(--s2)_8%,transparent)_60%,transparent)] pt-2">
-          <ConfirmBot play={!reduce} size={180} />
+          <ConfirmBot play size={180} />
         </div>
         <p className={cn(CARD_EYEBROW, "mb-0 text-muted-foreground")}>
           <span aria-hidden className="mr-2 text-s1">
