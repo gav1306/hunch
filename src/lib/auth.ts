@@ -27,7 +27,18 @@ export const auth = betterAuth({
     revokeSessionsOnPasswordReset: true,
     resetPasswordTokenExpiresIn: 60 * 60,
   },
-  trustedOrigins: ["http://localhost:3000"],
+  // BETTER_AUTH_URL's origin is trusted on its own. On Vercel, also trust the
+  // deployment's own URLs so a preview build can sign in at its own address.
+  trustedOrigins: [
+    "http://localhost:3000",
+    ...[
+      process.env.VERCEL_URL,
+      process.env.VERCEL_BRANCH_URL,
+      process.env.VERCEL_PROJECT_PRODUCTION_URL,
+    ]
+      .filter(Boolean)
+      .map((host) => `https://${host}`),
+  ],
   rateLimit: { enabled: true },
   plugins: [
     twoFactor({
