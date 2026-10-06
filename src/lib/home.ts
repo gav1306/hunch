@@ -59,6 +59,19 @@ export type HomeData = {
   verdicts: HomeHunch[];
   /** Filed away: still whole, just not competing for the screen. */
   archived: HomeHunch[];
+  /** The sidebar's at-a-glance line: what is live and what is next. */
+  summary: {
+    running: number;
+    /** Running trials still waiting on today's log. */
+    toLog: number;
+    /**
+     * Days until the soonest verdict. A verdict comes the day after a trial's
+     * last day, so day 8 of 10 is 3 days out. Null with nothing running.
+     */
+    nextVerdictInDays: number | null;
+    /** Local hour (0-23) the daily reminder goes out; null when off. */
+    reminderHour: number | null;
+  };
 };
 
 /**
@@ -71,19 +84,25 @@ export async function getHomeData(userId: string): Promise<HomeData> {
   // day key stands in for "now" as well.
   const today = localToday(await userTimeZone(userId));
 
-  const hunches = await db.hunch.findMany({
-    where: { userId },
-    orderBy: { updatedAt: "desc" },
-    include: {
-      hypothesis: true,
-      protocol: true,
-      verdict: true,
-      parameters: true,
-      // Every day's log, not just today's: the card's track shows the whole
-      // trial. A trial runs 14 to 28 days, so this stays a handful of rows.
-      checkIns: { select: { loggedOn: true } },
-    },
-  });
+  const [hunches, user] = await Promise.all([
+    db.hunch.findMany({
+      where: { userId },
+      orderBy: { updatedAt: "desc" },
+      include: {
+        hypothesis: true,
+        protocol: true,
+        verdict: true,
+        parameters: true,
+        // Every day's log, not just today's: the card's track shows the whole
+        // trial. A trial runs 14 to 28 days, so this stays a handful of rows.
+        checkIns: { select: { loggedOn: true } },
+      },
+    }),
+    db.user.findUnique({
+      where: { id: userId },
+      select: { reminderHour: true },
+    }),
+  ]);
 
   const mapped: HomeHunch[] = hunches.map((h) => {
     let progress: HomeHunch["progress"] = null;
@@ -186,8 +205,19 @@ export async function getHomeData(userId: string): Promise<HomeData> {
   // is decided, so a filed-away experiment can't reappear as "check in today".
   const live = mapped.filter((h) => h.archivedOn === null);
 
+  const runningNow = live.filter((h) => h.status === "running");
+  const verdictWaits = runningNow
+    .filter((h) => h.progress !== null)
+    .map((h) => h.progress!.total - h.progress!.day + 1);
+
   return {
     hasAny: mapped.length > 0,
+    summary: {
+      running: runningNow.length,
+      toLog: runningNow.filter(isToday).length,
+      nextVerdictInDays: verdictWaits.length > 0 ? Math.min(...verdictWaits) : null,
+      reminderHour: user?.reminderHour ?? null,
+    },
     today: live.filter(isToday),
     // In-flight roster excludes what's already actionable under Today, so a
     // not-yet-logged experiment isn't shown twice on the same screen.

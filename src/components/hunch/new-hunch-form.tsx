@@ -8,6 +8,7 @@ import { BlockedHunchError, useCreateHunch, type PartialHypothesis } from "@/hoo
 import type { HunchInfo } from "@/hooks/use-hunch-info";
 import type { ClarifyingAnswer, ClarifyingQuestion } from "@/lib/schemas/clarify";
 import { PencilIcon } from "lucide-react";
+import { CoachColumn, type CoachStep } from "@/components/hunch/coach-column";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -84,6 +85,23 @@ function QuestionCard({
       )}
     </div>
   );
+}
+
+type Step = "idle" | "asking" | "answering" | "committing" | "done";
+
+/** The Coach's three moves on this screen, read off the form's step. */
+function coachSteps(s: Step): CoachStep[] {
+  return [
+    { label: "Your words", state: s === "idle" ? "now" : "done" },
+    {
+      label: "A couple of quick questions",
+      state: s === "asking" || s === "answering" ? "now" : s === "idle" ? "later" : "done",
+    },
+    {
+      label: "Sharpened into a test",
+      state: s === "committing" ? "now" : s === "done" ? "done" : "later",
+    },
+  ];
 }
 
 export function NewHunchForm({
@@ -181,7 +199,7 @@ export function NewHunchForm({
     return () => clearTimeout(id);
   }, [rawText, resuming, seed]);
 
-  const step: "idle" | "asking" | "answering" | "committing" | "done" = createHunch.data
+  const step: Step = createHunch.data
     ? "done"
     : createHunch.isPending
       ? "committing"
@@ -248,7 +266,10 @@ export function NewHunchForm({
         : null;
 
   return (
-    <div>
+    // data-wide opens the slim shell to 1200px for the two columns.
+    <div data-wide className="flex flex-wrap items-start gap-[clamp(28px,4vw,56px)]">
+      <CoachColumn steps={coachSteps(step)} busy={step === "asking" || step === "committing"} />
+      <div className="min-w-0 flex-[999_1_520px]">
       <style>{`
         @keyframes hunch-btn-sweep { from { background-position: 220% 0 } to { background-position: -220% 0 } }
         @media (prefers-reduced-motion: reduce) {
@@ -445,6 +466,7 @@ export function NewHunchForm({
           {createHunch.error?.message ?? clarify.error?.message}
         </p>
       ) : null}
+      </div>
     </div>
   );
 }

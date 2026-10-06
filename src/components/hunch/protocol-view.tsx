@@ -12,6 +12,7 @@ import { useDesignProtocol } from "@/hooks/use-design-protocol";
 import { useHunchInfo } from "@/hooks/use-hunch-info";
 import { draftsFromSharpened } from "@/lib/parameters";
 import { parameterListSchema, type ParameterDraft } from "@/lib/schemas/parameter";
+import { CoachColumn, type CoachStep } from "@/components/hunch/coach-column";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -153,8 +154,29 @@ export function ProtocolView({ id }: { id: string }) {
     gateHeading.current.focus();
   }, [atConfirmGate]);
 
+  // Where the setup stands, for the robot's column: the hunch is sharpened by
+  // the time anyone lands here; then the check, the design, and the start.
+  const coach: CoachStep[] = [
+    { label: "Sharpened into a test", state: "done" },
+    {
+      label: "Check what you're testing",
+      state: atConfirmGate ? "now" : approved || refused || design.isPending ? "done" : "later",
+    },
+    {
+      label: "Design the plan",
+      state: design.isPending ? "now" : approved || refused ? "done" : "later",
+    },
+    {
+      label: "Start the trial",
+      state: info.data?.protocol?.startedAt ? "done" : approved ? "now" : "later",
+    },
+  ];
+
   return (
-    <div>
+    // data-wide opens the slim shell to 1200px for the two columns.
+    <div data-wide className="flex flex-wrap items-start gap-[clamp(28px,4vw,56px)]">
+      <CoachColumn steps={coach} busy={design.isPending} />
+      <div className="min-w-0 flex-[999_1_520px]">
       {info.isPending && (
         <p aria-live="polite" className="text-xs tracking-[0.04em] text-muted-foreground">
           Loading…
@@ -346,6 +368,7 @@ export function ProtocolView({ id }: { id: string }) {
           hunch the user gave up on mid-setup would otherwise have no exit. */}
       <div className="mt-10 border-t border-rule pt-2">
         <AbandonHunch hunchId={id} />
+      </div>
       </div>
     </div>
   );
