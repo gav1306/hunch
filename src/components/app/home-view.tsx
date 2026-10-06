@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
@@ -89,14 +90,14 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 }
 
 /** Every card on this screen sits on the same ground, at the same radius. */
-const CARD = "block rounded-lg border border-rule bg-card p-[clamp(20px,2.2vw,28px)] no-underline";
+const CARD = "block rounded-lg border border-rule bg-card p-[clamp(20px,1.6vw,22px)] no-underline";
 
 /** The eyebrow line inside a card — 12px, the readable floor, not 10.5. */
 const CARD_EYEBROW = "mt-0 mb-2.5 text-xs tracking-[0.16em] uppercase";
 
 function Statement({ h }: { h: HomeHunch }) {
   return (
-    <p className="m-0 font-heading text-[clamp(17px,1.7vw,21px)] leading-tight font-semibold tracking-[-0.01em] text-ink">
+    <p className="m-0 font-heading text-[clamp(17px,1.4vw,19px)] leading-tight font-semibold tracking-[-0.01em] text-ink">
       {h.statement}
     </p>
   );
@@ -109,24 +110,37 @@ function Statement({ h }: { h: HomeHunch }) {
  */
 function CheckinRow({ h }: { h: HomeHunch }) {
   const [done, setDone] = useState(false);
+  const router = useRouter();
   const primary = h.primaryParameter;
 
   return (
     <div
+      style={phaseStyle(h.phaseLabel)}
       className={cn(
         CARD,
-        // The accent rule along the top of a card you can log into. Tailwind
-        // has no border-image utility, so this is the arbitrary property.
-        "border-t-2 border-t-transparent [border-image:linear-gradient(90deg,var(--s1),var(--s2))_1]",
+        // A faint wash of the phase colour in the top corner: the only fill
+        // the phase gets. Everything you tap stays ink, as in CheckIn.
+        h.phaseLabel &&
+          "bg-[image:radial-gradient(90%_55%_at_100%_0%,color-mix(in_srgb,var(--ph)_6%,transparent),transparent_65%)]",
         "transition-opacity duration-300",
         done && "opacity-60",
       )}
     >
-      <p className={cn(CARD_EYEBROW, "text-muted-foreground")}>
-        {h.phaseLabel ?? "today"}
-        {h.progress ? ` · day ${h.progress.day} of ${h.progress.total}` : ""}
+      <p className={cn(CARD_EYEBROW, "flex flex-wrap items-center gap-x-2 text-muted-foreground")}>
+        {h.phaseLabel ? <PhaseName kind={h.phaseLabel} /> : "today"}
+        {h.progress && (
+          // One unit, so a narrow card wraps the whole "· day 9 of 14" and
+          // never leaves the separator dangling at a line end.
+          <span className="inline-flex items-center gap-x-2 whitespace-nowrap">
+            <span aria-hidden className="text-rule">
+              ·
+            </span>
+            day {h.progress.day} of {h.progress.total}
+          </span>
+        )}
       </p>
       <Statement h={h} />
+      {h.track && <PhaseTrack track={h.track} className="mt-4" />}
 
       {primary && (
         <div className="mt-[18px]">
@@ -134,7 +148,13 @@ function CheckinRow({ h }: { h: HomeHunch }) {
             variant="compact"
             hunchId={h.id}
             parameters={[{ ...primary, isPrimary: true }]}
-            onLogged={() => setDone(true)}
+            // Home is rendered on the server, so a log changes nothing on it
+            // until it is fetched again: the card stayed under Today with its
+            // track a day behind. The refresh moves it to In flight.
+            onLogged={() => {
+              setDone(true);
+              router.refresh();
+            }}
           />
         </div>
       )}
@@ -142,19 +162,61 @@ function CheckinRow({ h }: { h: HomeHunch }) {
   );
 }
 
-function ProgressBar({ day, total }: { day: number; total: number }) {
-  const pct = total > 0 ? Math.min(100, (day / total) * 100) : 0;
+type Phase = NonNullable<HomeHunch["phaseLabel"]>;
+type TrackDay = NonNullable<HomeHunch["track"]>[number];
+
+/**
+ * The colour of each phase. It means one thing everywhere it appears: blue
+ * while the user lives as normal, red while they run the change. It marks the
+ * phase and nothing else, never a result or a selection.
+ */
+const PHASE_COLOR: Record<Phase, string> = { baseline: "var(--s2)", intervention: "var(--s1)" };
+
+/** Sets `--ph` on a card, so its children can draw in the phase's colour. */
+function phaseStyle(kind: HomeHunch["phaseLabel"]) {
+  return kind ? ({ "--ph": PHASE_COLOR[kind] } as React.CSSProperties) : undefined;
+}
+
+/** The phase as a dot and a word, tinted toward its colour. */
+function PhaseName({ kind }: { kind: Phase }) {
   return (
-    <div className="mt-4">
-      <p className="mt-0 mb-2 text-xs tracking-[0.1em] text-muted-foreground uppercase">
-        Day {day} of {total}
-      </p>
-      <div className="relative h-0.5 bg-rule">
-        <div
-          className="absolute inset-y-0 left-0 bg-linear-to-r from-s1 to-s2"
-          style={{ width: `${pct}%` }}
+    <span className="inline-flex items-center gap-[7px] text-[color-mix(in_srgb,var(--ph)_80%,var(--ink))]">
+      <span aria-hidden className="size-1.5 rounded-full bg-(--ph)" />
+      {kind}
+    </span>
+  );
+}
+
+const TRACK_DAY: Record<TrackDay["state"], string> = {
+  logged: "bg-[color-mix(in_srgb,var(--c)_70%,transparent)]",
+  missed: "border border-(--c) opacity-45",
+  rest: "bg-muted", // --surface-2: a washout day, nothing to log
+  today: "bg-ink",
+  future: "bg-surface-3",
+};
+
+/**
+ * Every day of the trial as one thin segment in its phase's colour: filled
+ * when logged, outlined when missed, ink for today. The same days the
+ * adherence strip shows on the hunch's page, at a glance.
+ */
+function PhaseTrack({ track, className }: { track: TrackDay[]; className?: string }) {
+  const logged = track.filter((d) => d.state === "logged").length;
+  const missed = track.filter((d) => d.state === "missed").length;
+  return (
+    <div
+      role="img"
+      aria-label={`${logged} days logged, ${missed} missed, of ${track.length}`}
+      className={cn("grid gap-0.5", className)}
+      style={{ gridTemplateColumns: `repeat(${track.length}, minmax(0, 1fr))` }}
+    >
+      {track.map((d, i) => (
+        <span
+          key={i}
+          className={cn("h-1 rounded-[1px]", TRACK_DAY[d.state])}
+          style={d.kind ? ({ "--c": PHASE_COLOR[d.kind] } as React.CSSProperties) : undefined}
         />
-      </div>
+      ))}
     </div>
   );
 }
@@ -193,7 +255,11 @@ function VerdictCard({ h }: { h: HomeHunch }) {
   );
 }
 
-const GRID = "grid gap-[clamp(12px,1.6vw,18px)] grid-cols-[repeat(auto-fit,minmax(280px,1fr))]";
+/**
+ * auto-fill, not auto-fit: auto-fit collapses the empty columns, so a lone card
+ * stretched across the whole row, day track and all.
+ */
+const GRID = "grid gap-[clamp(12px,1.6vw,18px)] grid-cols-[repeat(auto-fill,minmax(280px,1fr))]";
 
 export function HomeView({ user, data }: { user: { name: string }; data: HomeData }) {
   const firstName = (user.name || "there").split(" ")[0];
@@ -224,7 +290,7 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
           <section>
             <Eyebrow>Today · check in</Eyebrow>
             {data.today.length > 0 ? (
-              <div className="grid gap-[clamp(12px,1.6vw,18px)]">
+              <div className={GRID}>
                 {data.today.map((h) => (
                   <CheckinRow key={h.id} h={h} />
                 ))}
@@ -282,33 +348,46 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
               <Eyebrow>In flight</Eyebrow>
               <div className={GRID}>
                 {data.running.map((h) => (
-                  <Link key={h.id} href={`/hunch/${h.id}`} className={cn(CARD, "app-card")}>
+                  <Link
+                    key={h.id}
+                    href={`/hunch/${h.id}`}
+                    style={phaseStyle(h.phaseLabel)}
+                    className={cn(CARD, "app-card")}
+                  >
                     {/* Anchored but not yet begun — a start the user scheduled
                         for tomorrow, which has no day and nothing to log. It is
                         not a confirmation, so it stays muted rather than green. */}
                     <p
                       className={cn(
                         CARD_EYEBROW,
+                        // The phase dot is the separator: in a narrow card the
+                        // phase wraps to its own line with nothing dangling.
+                        "flex flex-wrap items-center gap-x-3 gap-y-1",
                         !h.startsOn && h.loggedToday ? "text-good" : "text-muted-foreground",
                       )}
                     >
                       {h.startsOn ? (
                         startsCopy(h.startsOn)
                       ) : h.loggedToday ? (
-                        <>
+                        <span>
                           <CheckIcon
                             aria-hidden
                             className="mr-1 inline-block size-(--icon) align-[-0.15em]"
                           />
                           Logged today
-                        </>
+                        </span>
                       ) : (
                         "Running"
                       )}
-                      {!h.startsOn && h.phaseLabel ? ` · ${h.phaseLabel}` : ""}
+                      {!h.startsOn && h.phaseLabel && <PhaseName kind={h.phaseLabel} />}
                     </p>
                     <Statement h={h} />
-                    {h.progress && <ProgressBar day={h.progress.day} total={h.progress.total} />}
+                    {h.progress && (
+                      <p className="mt-4 mb-2 text-xs tracking-[0.1em] text-muted-foreground uppercase">
+                        Day {h.progress.day} of {h.progress.total}
+                      </p>
+                    )}
+                    {h.track && <PhaseTrack track={h.track} />}
                   </Link>
                 ))}
               </div>
