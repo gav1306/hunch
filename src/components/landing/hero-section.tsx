@@ -48,15 +48,10 @@ const HERO_PAPER = "var(--paper)";
 
 type Phase = "enter" | "focus" | "leave";
 
-export type HeroSectionProps = {
-  wordHold?: number;
-  autoplay?: boolean;
-};
+/** How long each intro word holds focus, in ms. */
+const WORD_HOLD = 900;
 
-export function HeroSection({
-  wordHold = 900,
-  autoplay = true,
-}: HeroSectionProps) {
+export function HeroSection() {
   const [wi, setWi] = useState(0);
   const [phase, setPhase] = useState<Phase>("enter");
   const [wordShow, setWordShow] = useState(false);
@@ -88,7 +83,7 @@ export function HeroSection({
         setWordShow(true);
         if (!(await wait(40, run))) return;
         setPhase("focus");
-        if (!(await wait(wordHold + 700, run))) return;
+        if (!(await wait(WORD_HOLD + 700, run))) return;
         setPhase("leave");
         if (!(await wait(480, run))) return;
         setWordShow(false);
@@ -97,7 +92,7 @@ export function HeroSection({
       setUiIn(true);
       setHeroIn(true);
     },
-    [wait, wordHold],
+    [wait],
   );
 
   useEffect(() => {
@@ -114,7 +109,7 @@ export function HeroSection({
     } catch {
       seen = false;
     }
-    if (autoplay === false || reduced || seen) {
+    if (reduced || seen) {
       const t = setTimeout(finalState, 0);
       return () => clearTimeout(t);
     }

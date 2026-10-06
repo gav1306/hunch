@@ -12,6 +12,7 @@ import { ConfirmBot } from "@/components/hunch/confirm-bot";
 import { Button } from "@/components/ui/button";
 import { browserToday } from "@/lib/browser-day";
 import type { HomeData, HomeHunch } from "@/lib/home";
+import { PHASE_COLOR } from "@/lib/phase-color";
 import { cn } from "@/lib/utils";
 import { verdictBadge } from "@/lib/verdict";
 import type { VerdictCategory } from "@/lib/schemas/verdict";
@@ -167,13 +168,6 @@ function CheckinRow({ h }: { h: HomeHunch }) {
 
 type Phase = NonNullable<HomeHunch["phaseLabel"]>;
 type TrackDay = NonNullable<HomeHunch["track"]>[number];
-
-/**
- * The colour of each phase. It means one thing everywhere it appears: blue
- * while the user lives as normal, red while they run the change. It marks the
- * phase and nothing else, never a result or a selection.
- */
-const PHASE_COLOR: Record<Phase, string> = { baseline: "var(--s2)", intervention: "var(--s1)" };
 
 /** Sets `--ph` on a card, so its children can draw in the phase's colour. */
 function phaseStyle(kind: HomeHunch["phaseLabel"]) {

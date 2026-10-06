@@ -15,6 +15,7 @@ import { useBelief } from "@/hooks/use-belief";
 import { useHunchInfo } from "@/hooks/use-hunch-info";
 import { totalDays } from "@/lib/adherence";
 import { browserToday } from "@/lib/browser-day";
+import { PHASE_COLOR } from "@/lib/phase-color";
 import { planSummary } from "@/lib/plan-summary";
 import { utcDaysBetween } from "@/lib/schedule";
 import { exposureSummary, runningCaveat } from "@/lib/verdict";
@@ -22,9 +23,6 @@ import { cn } from "@/lib/utils";
 
 const CARD = "rounded-lg border border-rule bg-card p-[clamp(20px,2.4vw,28px)]";
 const LABEL = "m-0 text-xs tracking-[0.16em] text-muted-foreground uppercase";
-
-/** Blue while living as normal, red while running the change, as on home. */
-const PHASE_COLOR = { baseline: "var(--s2)", intervention: "var(--s1)" } as const;
 
 /**
  * Phase 4 dashboard: the live belief meter plus today's one-tap check-in. The

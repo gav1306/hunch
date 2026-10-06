@@ -4,11 +4,11 @@ import { Environment, Lightformer, RoundedBox } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useRef } from "react";
 import * as THREE from "three";
-import { PALETTES } from "./palette";
+import { RISO_ACCENTS } from "./palette";
 
 // Brand accents drive the lighting / reflections (Riso stays even in dark mode).
-const S1 = PALETTES.Riso.s1; // red
-const S2 = PALETTES.Riso.s2; // blue
+const S1 = RISO_ACCENTS.s1; // red
+const S2 = RISO_ACCENTS.s2; // blue
 // Girly pink for the glassy eyes.
 const EYE = "#FF5CAD";
 

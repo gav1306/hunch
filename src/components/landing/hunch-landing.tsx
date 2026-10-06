@@ -7,23 +7,9 @@ import { HunchTicker } from "./hunch-ticker";
 import { MethodSection } from "./method-section";
 import { SmoothScroll } from "./smooth-scroll";
 import { VerdictReveal } from "./verdict-reveal";
-import { PALETTES, paletteVars, type PaletteName } from "./palette";
+import { NOIR, paletteVars } from "./palette";
 
-export type HunchLandingProps = {
-  palette?: PaletteName | string;
-  grain?: boolean;
-  wordHold?: number;
-  autoplay?: boolean;
-};
-
-export function HunchLanding({
-  palette = "Noir",
-  grain = true,
-  wordHold = 900,
-  autoplay = true,
-}: HunchLandingProps) {
-  const P = PALETTES[palette] ?? PALETTES.Riso;
-
+export function HunchLanding() {
   return (
     <SmoothScroll>
       <style>{`
@@ -75,9 +61,8 @@ export function HunchLanding({
       `}</style>
 
       {/* `--paper/--ink/--muted/--rule` used to be redeclared here with the
-          same four values that live on `:root`. The palette vars stay: the
-          landing keeps its own Riso accents, which is the one place in the
-          product that still wants the light-ground `--s2`. */}
+          same four values that live on `:root`. The Noir palette vars stay and
+          mirror globals.css; see palette.ts. */}
       <main
         className="hl-root"
         style={{
@@ -87,15 +72,13 @@ export function HunchLanding({
           color: "var(--ink)",
           fontFamily: "var(--font-mono)",
           overflowX: "clip",
-          ...paletteVars(P),
+          ...paletteVars(NOIR),
         } as React.CSSProperties}
       >
         {/* page-wide grain */}
-        {grain && (
-          <div aria-hidden className="grain-overlay" />
-        )}
+        <div aria-hidden className="grain-overlay" />
 
-        <HeroSection wordHold={wordHold} autoplay={autoplay} />
+        <HeroSection />
         <HowItWorks />
         <HunchTicker />
         <VerdictReveal />
