@@ -17,7 +17,7 @@ Hunch turns a gut feeling ("coffee after lunch wrecks my sleep") into a small, f
 | Decision | Why |
 | --- | --- |
 | **The model never decides the verdict.** Beta-binomial (yes/no) and normal-normal (numeric) conjugate models compute the posterior in plain TypeScript (`src/lib/bayes`). | An answer people act on has to be reproducible and auditable, not a model's opinion. |
-| **Two safety layers, no user override.** A deterministic medication check runs before any model call; an AI safety reviewer then checks every plan. A refused plan can only be kept as a log that changes nothing. | Health-adjacent advice fails closed. The cheap check costs no tokens and can't be talked out of its answer. |
+| **Two safety layers, no user override.** A deterministic medication check runs before any model call and again before a trial is designed or started; an AI safety reviewer then checks every plan, and user text reaches the models fenced as data. A refused plan can only be kept as a log that changes nothing. | Health-adjacent advice fails closed. The cheap check costs no tokens and can't be talked out of its answer. |
 | **Observational mode.** When a change can't be applied on a schedule ("play basketball"), Hunch logs it daily and reports a correlation, clearly labelled as one. | Some honest questions can't be randomised; the app says what it can and can't conclude. |
 | **Days are the user's days.** Phases, check-ins and reminders follow the user's own timezone. | "Today" at 11pm in Los Angeles is already tomorrow in UTC, and off-by-one days corrupt a trial. |
 | **Latency measured, then designed for.** The plan is drafted in the background while the user reads the confirm screen; verdicts are computed overnight; the coach's answer streams as it's written. | The confirm step fell from 13.5s to 47ms. |
@@ -34,7 +34,7 @@ flowchart LR
   API --> DB[("Postgres<br/>Prisma 7")]
   Jobs["Inngest<br/>hourly reminders<br/>nightly verdict sweep"] --> DB
   Jobs --> Email["Resend email"]
-  Auth["Better Auth<br/>email + PIN 2FA"] --> DB
+  Auth["Better Auth<br/>email + PIN 2FA, Google"] --> DB
 ```
 
 **Stack:** Next.js 16, React 19, TypeScript, Tailwind 4 + shadcn/ui, Prisma 7 on Postgres (Neon in production), Better Auth, Mastra + AI SDK, Inngest, Zod 4, Vitest. Deployed on Vercel.
