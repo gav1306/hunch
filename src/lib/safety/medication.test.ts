@@ -10,6 +10,7 @@ describe("medicationIntent", () => {
     "trying a half dose of my thyroid medication",
     "taking my metformin every other day instead",
     "cutting my dose of sertraline in half",
+    "does halving my sertraline dose help my sleep",
   ])("catches: %s", (text) => {
     expect(medicationIntent(text)).toBe(true);
   });
