@@ -4,6 +4,7 @@ import { nextCookies } from "better-auth/next-js";
 import { twoFactor } from "better-auth/plugins";
 import { db } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
+import { isGoogleConfigured } from "@/lib/auth-providers";
 
 export const auth = betterAuth({
   appName: "Hunch",
@@ -63,6 +64,24 @@ export const auth = betterAuth({
   // brute force against sign-in, the 2FA code or reset was barely slowed. The
   // database is shared by every instance (table: rateLimit).
   rateLimit: { enabled: true, storage: "database" },
+  /**
+   * "Continue with Google". Google has already proved the address, so these
+   * accounts arrive verified and need no confirmation email — the one sign-up
+   * path that works even when outbound mail doesn't. An existing account with
+   * the same verified email is linked rather than duplicated; better-auth only
+   * links onto a row whose own email is verified (fixed in 1.6.11), so a
+   * password account squatting someone's address can't capture their Google
+   * sign-in.
+   */
+  socialProviders: isGoogleConfigured()
+    ? {
+        google: {
+          clientId: process.env.GOOGLE_CLIENT_ID!,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+          prompt: "select_account",
+        },
+      }
+    : {},
   plugins: [
     twoFactor({
       issuer: "Hunch",

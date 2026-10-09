@@ -40,3 +40,27 @@ describe("auth options", () => {
     expect((await loadAuth()).options.trustedOrigins).toContain("http://localhost:3000");
   });
 });
+
+describe("Google sign-in", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("is on when both Google credentials are set", async () => {
+    vi.stubEnv("GOOGLE_CLIENT_ID", "id.apps.googleusercontent.com");
+    vi.stubEnv("GOOGLE_CLIENT_SECRET", "secret");
+    const auth = await loadAuth();
+    expect(auth.options.socialProviders?.google).toMatchObject({
+      clientId: "id.apps.googleusercontent.com",
+    });
+    const { isGoogleConfigured } = await import("@/lib/auth-providers");
+    expect(isGoogleConfigured()).toBe(true);
+  });
+
+  it("is off, and the button hidden, without them", async () => {
+    vi.stubEnv("GOOGLE_CLIENT_ID", "");
+    vi.stubEnv("GOOGLE_CLIENT_SECRET", "");
+    const auth = await loadAuth();
+    expect(auth.options.socialProviders?.google).toBeUndefined();
+    const { isGoogleConfigured } = await import("@/lib/auth-providers");
+    expect(isGoogleConfigured()).toBe(false);
+  });
+});
