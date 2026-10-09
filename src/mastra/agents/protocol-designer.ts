@@ -11,6 +11,8 @@ import {
   type ProtocolPhase,
   type ProtocolShape,
 } from "@/lib/schemas/protocol";
+import { retryOnInvalidOutput } from "@/mastra/retry";
+import { llmDeadline } from "@/mastra/deadline";
 
 /**
  * Protocol Designer (RESEARCH §3 / Phase 3). Turns a sharpened hypothesis into
@@ -58,14 +60,17 @@ fasting, or anything a doctor should oversee — that is handled separately.`,
  * ProtocolDesign is decided in code.
  */
 export const phaseCopySchema = z.object({
-  baselineName: z.string(),
-  baselineAction: z.string(),
-  interventionName: z.string(),
-  interventionAction: z.string(),
+  // Every key is optional on purpose. Structured output is validated strictly,
+  // so a required key the model leaves out throws before `fillPhaseDefaults`
+  // and the washout clamp below can supply it — and the plan step stalls.
+  baselineName: z.string().optional(),
+  baselineAction: z.string().optional(),
+  interventionName: z.string().optional(),
+  interventionAction: z.string().optional(),
   /** The closing baseline: same behaviour as the first, but it ends the trial. */
-  returnName: z.string(),
-  returnAction: z.string(),
-  washoutDays: z.number().int(),
+  returnName: z.string().optional(),
+  returnAction: z.string().optional(),
+  washoutDays: z.number().int().optional(),
 });
 export type PhaseCopy = z.infer<typeof phaseCopySchema>;
 
@@ -160,14 +165,17 @@ Outcome type: ${input.outcomeType}
 
 Name each phase in the user's own words (e.g. "Normal coffee" vs "No coffee after 2pm") and give a concrete action for each.`;
 
-  const response = await timed(
-    "designer",
-    () =>
-      protocolDesigner.generate(prompt, {
-        structuredOutput: { schema: phaseCopySchema },
-        modelSettings: { maxOutputTokens: 512 },
-      }),
-    llmUsage,
+  const response = await retryOnInvalidOutput(() =>
+    timed(
+      "designer",
+      () =>
+        protocolDesigner.generate(prompt, {
+          abortSignal: llmDeadline(),
+          structuredOutput: { schema: phaseCopySchema },
+          modelSettings: { maxOutputTokens: 512 },
+        }),
+      llmUsage,
+    ),
   );
 
   const raw = (response.object ?? {}) as Partial<PhaseCopy>;

@@ -5,6 +5,7 @@ import {
   verdictNarrativeSchema,
   type VerdictCategory,
 } from "@/lib/schemas/verdict";
+import { llmDeadline } from "@/mastra/deadline";
 
 /**
  * Analyst (RESEARCH §3 / Phase 5). Translates a concluded trial's already-decided
@@ -85,6 +86,7 @@ Effect size (${effectLabel}): ${input.effect.toFixed(2)}
     "analyst",
     () =>
       analyst.generate(prompt, {
+        abortSignal: llmDeadline(),
         structuredOutput: { schema: verdictNarrativeSchema },
         modelSettings: { maxOutputTokens: 1024 },
       }),

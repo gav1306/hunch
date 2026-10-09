@@ -248,4 +248,59 @@ describe("designProtocolShape", () => {
       expect(prompt).toContain(input.statement);
     });
   });
+
+  describe("when the model leaves things out", () => {
+    it("accepts a reply with no washout, so the defaults below can fill it", () => {
+      // Strict structured output throws on a missing required key before any
+      // fallback runs — the live plan step stalled on exactly this.
+      const noWashout: Partial<typeof copy> = { ...copy };
+      delete noWashout.washoutDays;
+      expect(phaseCopySchema.safeParse(noWashout).success).toBe(true);
+      expect(phaseCopySchema.safeParse({}).success).toBe(true);
+    });
+
+    it("designs the trial with no washout and default phase copy", async () => {
+      generate.mockResolvedValue({ object: { interventionName: "Basketball after work" } });
+
+      const design = await designProtocolShape(input);
+
+      expect(design.washoutDays).toBe(0);
+      expect(design.phases).toHaveLength(3);
+      expect(design.phases.every((ph) => ph.name && ph.action)).toBe(true);
+    });
+
+    it("asks once more when the model's reply fails validation", async () => {
+      generate
+        .mockRejectedValueOnce(new Error("Structured output validation failed: - phases"))
+        .mockResolvedValueOnce({ object: copy });
+
+      const design = await designProtocolShape(input);
+
+      expect(generate).toHaveBeenCalledTimes(2);
+      expect(design.washoutDays).toBe(2);
+    });
+
+    it("gives up after the second failure so the route can say try again", async () => {
+      generate.mockRejectedValue(new Error("Structured output validation failed: - phases"));
+
+      await expect(designProtocolShape(input)).rejects.toThrow(/validation/);
+      expect(generate).toHaveBeenCalledTimes(2);
+    });
+
+    it("doesn't retry a provider error — that's the route's to report", async () => {
+      generate.mockRejectedValue(new Error("402 out of credits"));
+
+      await expect(designProtocolShape(input)).rejects.toThrow(/402/);
+      expect(generate).toHaveBeenCalledTimes(1);
+    });
+
+    it("gives the model call a deadline, so a hung provider can't hold the page", async () => {
+      generate.mockResolvedValue({ object: copy });
+
+      await designProtocolShape(input);
+
+      const [, options] = lastCall() as [string, { abortSignal?: AbortSignal }];
+      expect(options.abortSignal).toBeInstanceOf(AbortSignal);
+    });
+  });
 });

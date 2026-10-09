@@ -15,7 +15,7 @@ vi.mock("@/mastra/agents/hypothesis-coach", () => ({
 }));
 vi.mock("@/lib/design-draft/predesign", () => ({ predesign: vi.fn() }));
 vi.mock("@/lib/db", () => ({
-  db: { hunch: { create: vi.fn() } },
+  db: { hunch: { create: vi.fn(), findFirst: vi.fn(async () => null) } },
 }));
 
 import { POST } from "./route";
@@ -455,5 +455,69 @@ describe("POST /api/hunch", () => {
     const names = parseServerTiming(res.headers.get("Server-Timing")).map((s) => s.name);
     expect(names).toContain("total");
     expect(names).not.toContain("coach");
+  });
+});
+
+describe("POST /api/hunch — repeated requests", () => {
+  const sharpened = {
+    statement: "Coffee after lunch makes me sleep worse.",
+    outcomeMetric: "hours of sleep",
+    outcomeType: "continuous",
+    subject: "self",
+    confounders: [],
+    trackers: [],
+    schedulable: true,
+  };
+  const KEY = "3f1c2b9e-1d2a-4c55-9a8e-0b6d7c5e4f21";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "u1" } } as never);
+    vi.mocked(db.hunch.findFirst).mockResolvedValue(null);
+  });
+
+  it("returns the hunch already saved under this key instead of creating another", async () => {
+    // A reload mid-sharpen still saved the first one; the restored draft then
+    // sends the same text and key again.
+    vi.mocked(db.hunch.findFirst).mockResolvedValue({
+      id: "h1",
+      rawText: "coffee wrecks sleep",
+      hypothesis: { statement: sharpened.statement },
+      parameters: [],
+    } as never);
+
+    const res = await POST(req({ rawText: "coffee wrecks sleep", clientKey: KEY }));
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).hunch.id).toBe("h1");
+    expect(vi.mocked(db.hunch.findFirst).mock.calls[0][0]).toMatchObject({
+      where: { userId: "u1", clientKey: KEY },
+    });
+    expect(streamSharpenHunch).not.toHaveBeenCalled();
+    expect(db.hunch.create).not.toHaveBeenCalled();
+  });
+
+  it("saves the key with a new hunch", async () => {
+    coachStreams(sharpened);
+    vi.mocked(db.hunch.create).mockResolvedValue({ id: "h2", hypothesis: {}, parameters: [] } as never);
+
+    await lines(await POST(req({ rawText: "coffee wrecks sleep", clientKey: KEY })));
+
+    const arg = vi.mocked(db.hunch.create).mock.calls[0][0] as { data: { clientKey?: string } };
+    expect(arg.data.clientKey).toBe(KEY);
+  });
+
+  it("hands back the winner when two requests with one key race to save", async () => {
+    coachStreams(sharpened);
+    vi.mocked(db.hunch.create).mockRejectedValue(
+      Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+    );
+    vi.mocked(db.hunch.findFirst)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "h1", hypothesis: {}, parameters: [] } as never);
+
+    const got = await lines(await POST(req({ rawText: "coffee wrecks sleep", clientKey: KEY })));
+
+    expect(got.at(-1)?.done?.hunch?.id).toBe("h1");
   });
 });

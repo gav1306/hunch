@@ -7,6 +7,7 @@ import {
 } from "@/lib/schemas/clarify";
 import type { Prior } from "@/lib/schemas/prior";
 import { priorsBlock } from "@/lib/memory/priors";
+import { llmDeadline } from "@/mastra/deadline";
 
 /**
  * The Clarifier (pre-coach). Reads a vague hunch and asks at most three tappable
@@ -77,6 +78,7 @@ export async function askClarifying(
       clarifier.generate(
         buildClarifyPrompt(rawText, priors),
         {
+          abortSignal: llmDeadline(),
           structuredOutput: { schema: clarifyingQuestionsSchema },
           modelSettings: { maxOutputTokens: 1024 },
         },

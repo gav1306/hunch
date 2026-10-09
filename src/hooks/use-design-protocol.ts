@@ -38,12 +38,29 @@ export type DesignInput = {
   schedulable: boolean;
 };
 
-async function postDesign(hunchId: string, input: DesignInput): Promise<DesignResponse> {
-  const res = await fetch(`/api/hunch/${hunchId}/protocol`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
+/**
+ * The longest the plan page waits. The route's slowest path is a 12s wait for
+ * the background draft, then the designer and the safety reviewer, each allowed
+ * 25s and one retry — about 112s. Past that, the request is stuck rather than
+ * slow, and the error card's "try again" beats a skeleton that never ends.
+ */
+const DESIGN_DEADLINE_MS = 120_000;
+
+export async function postDesign(hunchId: string, input: DesignInput): Promise<DesignResponse> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/hunch/${hunchId}/protocol`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+      signal: AbortSignal.timeout(DESIGN_DEADLINE_MS),
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "TimeoutError") {
+      throw new Error("Designing is taking longer than it should. Please try again.");
+    }
+    throw err;
+  }
   // Tolerate a non-JSON / empty body (e.g. an unhandled 5xx) instead of letting
   // res.json() throw a raw "Unexpected end of JSON input" at the UI.
   const body = await res.json().catch(() => null);

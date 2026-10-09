@@ -136,3 +136,43 @@ describe("postHunch, JSON", () => {
     await expect(postHunch(input)).rejects.toThrow("Unauthorized");
   });
 });
+
+describe("postHunch — idempotency key", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const ok = () =>
+    vi.fn(async () =>
+      new Response(JSON.stringify({ hunch: { id: "h1" }, priors: [] }), {
+        status: 201,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+  it("sends a key with a new hunch, the same one on a retry", async () => {
+    const fetchMock = ok();
+    vi.stubGlobal("fetch", fetchMock);
+    // Fail the first save from the client's side so the key isn't cleared.
+    fetchMock.mockImplementationOnce(async () => {
+      throw new TypeError("network");
+    });
+
+    await postHunch({ rawText: "coffee wrecks sleep", answers: [] }).catch(() => {});
+    await postHunch({ rawText: "coffee wrecks sleep", answers: [] });
+
+    const keys = fetchMock.mock.calls.map(
+      (c) => JSON.parse((c as unknown as [string, RequestInit])[1].body as string).clientKey,
+    );
+    expect(keys[0]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(keys[1]).toBe(keys[0]);
+  });
+
+  it("sends no key when re-sharpening an existing hunch", async () => {
+    const fetchMock = ok();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await postHunch({ rawText: "coffee wrecks sleep", answers: [] }, "h9");
+
+    const body = JSON.parse((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+    expect(body.clientKey).toBeUndefined();
+  });
+});

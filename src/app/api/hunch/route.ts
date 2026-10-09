@@ -45,7 +45,25 @@ async function createHunch(request: Request) {
     );
   }
 
-  const { rawText, answers, priorIds, observeOnly } = parsed.data;
+  const { rawText, answers, priorIds, observeOnly, clientKey } = parsed.data;
+
+  /** The hunch an earlier request with this key already saved, ready to return. */
+  async function alreadySaved() {
+    if (!clientKey) return null;
+    const hunch = await db.hunch.findFirst({
+      where: { userId: session!.user.id, clientKey },
+      include: { hypothesis: true, parameters: { orderBy: { sortOrder: "asc" } } },
+    });
+    return hunch
+      ? { hunch: { ...hunch, parameters: hunch.parameters.map(toParameterDto) }, priors: [] }
+      : null;
+  }
+
+  // A retry of a create that already landed — the first stream was cut off, or
+  // the user reloaded mid-sharpen and pressed Sharpen on the restored draft.
+  // Hand back that hunch; sharpening again would only save a twin.
+  const existing = await alreadySaved();
+  if (existing) return NextResponse.json(existing, { status: 200 });
 
   /**
    * Persist the sharpened hunch with the parameter set the confirm gate will
@@ -54,39 +72,52 @@ async function createHunch(request: Request) {
   async function persist(sharpened: SharpenedHypothesis, priors: Prior[]) {
     const drafts = draftsFromSharpened(sharpened);
 
-    const hunch = await db.hunch.create({
-      data: {
-        userId: session!.user.id,
-        rawText,
-        status: "sharpened",
-        hypothesis: {
-          create: {
-            statement: sharpened.statement,
-            outcomeMetric: sharpened.outcomeMetric,
-            expectedDirection: sharpened.expectedDirection ?? null,
-            subject: sharpened.subject,
-            outcomeType: sharpened.outcomeType,
-            confounders: sharpened.confounders,
-            schedulable: sharpened.schedulable,
+    let hunch;
+    try {
+      hunch = await db.hunch.create({
+        data: {
+          userId: session!.user.id,
+          rawText,
+          clientKey,
+          status: "sharpened",
+          hypothesis: {
+            create: {
+              statement: sharpened.statement,
+              outcomeMetric: sharpened.outcomeMetric,
+              expectedDirection: sharpened.expectedDirection ?? null,
+              subject: sharpened.subject,
+              outcomeType: sharpened.outcomeType,
+              confounders: sharpened.confounders,
+              schedulable: sharpened.schedulable,
+            },
+          },
+          // The proposed set the confirm gate edits. Persisted now so a reload
+          // of the protocol page still shows the trackers the Coach suggested.
+          parameters: {
+            create: drafts.map((d, i) => ({
+              label: d.label,
+              type: d.type,
+              unit: d.unit ?? null,
+              min: d.min ?? null,
+              max: d.max ?? null,
+              isPrimary: d.isPrimary,
+              isExposure: d.isExposure ?? false,
+              sortOrder: i,
+            })),
           },
         },
-        // The proposed set the confirm gate edits. Persisted now so a reload
-        // of the protocol page still shows the trackers the Coach suggested.
-        parameters: {
-          create: drafts.map((d, i) => ({
-            label: d.label,
-            type: d.type,
-            unit: d.unit ?? null,
-            min: d.min ?? null,
-            max: d.max ?? null,
-            isPrimary: d.isPrimary,
-            isExposure: d.isExposure ?? false,
-            sortOrder: i,
-          })),
-        },
-      },
-      include: { hypothesis: true, parameters: { orderBy: { sortOrder: "asc" } } },
-    });
+        include: { hypothesis: true, parameters: { orderBy: { sortOrder: "asc" } } },
+      });
+    } catch (err) {
+      // Two requests with one key raced past the check above, and the other
+      // saved first. Its hunch is the one the user gets; its own request already
+      // started that hunch's pre-design.
+      if ((err as { code?: string }).code === "P2002") {
+        const winner = await alreadySaved();
+        if (winner) return winner;
+      }
+      throw err;
+    }
 
     // Design the plan while the user reads the confirm gate; confirm takes it
     // if nothing it depends on changed. A log never gets a designed plan.

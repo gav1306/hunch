@@ -45,5 +45,10 @@ export const sharpenRequestSchema = z.object({
    * unset (not defaulted to []) when clarify didn't run, so recall still does.
    */
   priorIds: z.array(z.string()).max(20).optional(),
+  /**
+   * Minted per draft by the form (`src/lib/draft-key.ts`). A second request
+   * with the same key gets the hunch the first one saved instead of a copy.
+   */
+  clientKey: z.uuid().optional(),
 });
 export type SharpenRequest = z.infer<typeof sharpenRequestSchema>;
