@@ -20,6 +20,11 @@ model Hunch {
   /// attention on home. Null means live.
   archivedAt DateTime?
 
+  /// The new-hunch form's idempotency key. A retried create with the same key
+  /// returns this hunch instead of saving a duplicate. Null for hunches made
+  /// before it existed, and for those made any other way.
+  clientKey String?
+
   hypothesis  Hypothesis?
   protocol    Protocol?
   parameters  Parameter[]
@@ -28,6 +33,7 @@ model Hunch {
   designDraft DesignDraft?
 
   @@index([userId])
+  @@unique([userId, clientKey])
 }
 
 model Hypothesis {

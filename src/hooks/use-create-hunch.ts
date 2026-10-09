@@ -6,6 +6,7 @@ import type { Prior } from "@/lib/schemas/prior";
 import type { ClarifyingAnswer } from "@/lib/schemas/clarify";
 import type { Parameter } from "@/lib/schemas/parameter";
 import { readNdjson } from "@/lib/ndjson";
+import { clearDraftKey, draftKeyFor } from "@/lib/draft-key";
 
 /** A persisted hunch with its sharpened hypothesis + any recalled priors. */
 export type HunchWithHypothesis = {
@@ -79,10 +80,13 @@ export async function postHunch(
   resumeId?: string,
   onPartial?: (partial: PartialHypothesis) => void,
 ): Promise<HunchWithHypothesis> {
+  // Re-sharpening updates a hunch that already exists, so only a new one needs
+  // a key to stop a retry from creating it twice.
+  const clientKey = resumeId ? undefined : draftKeyFor(input.rawText);
   const res = await fetch(resumeId ? `/api/hunch/${resumeId}/sharpen` : "/api/hunch", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
+    body: JSON.stringify(clientKey ? { ...input, clientKey } : input),
   });
 
   const streaming = (res.headers.get("Content-Type") ?? "").includes("ndjson");
@@ -96,6 +100,7 @@ export async function postHunch(
     if (!res.ok || !body?.hunch) {
       throw new Error(body?.error ?? GENERIC_FAILURE);
     }
+    if (clientKey) clearDraftKey();
     return { ...body.hunch, priors: body.priors ?? [] } as HunchWithHypothesis;
   }
 
@@ -121,6 +126,7 @@ export async function postHunch(
 
   if (failure) throw new Error(failure);
   if (!result) throw new Error(GENERIC_FAILURE);
+  if (clientKey) clearDraftKey();
   return result;
 }
 
