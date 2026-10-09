@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 import { totalDays } from "@/lib/adherence";
 import { buildReminder, type ReminderHunch } from "@/lib/reminder-email";
-import { isReminderDue, localDateIn, signUnsubscribe } from "@/lib/reminders";
+import { REMINDER_RECIPIENTS, isReminderDue, localDateIn, signUnsubscribe } from "@/lib/reminders";
 import { currentPhase } from "@/lib/schedule";
 import { parseStoredDesign } from "@/lib/schemas/protocol";
 import { verdictSweep } from "@/inngest/verdict-sweep";
@@ -35,7 +35,7 @@ export const reminderSweep = inngest.createFunction(
 
     const due = await step.run("find-due-users", async () => {
       const users = await db.user.findMany({
-        where: { reminderHour: { not: null } },
+        where: REMINDER_RECIPIENTS,
         select: { id: true, timeZone: true, reminderHour: true, lastReminderOn: true },
       });
       return users

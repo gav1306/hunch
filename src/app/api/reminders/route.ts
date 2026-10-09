@@ -13,13 +13,19 @@ const bodySchema = z.object({
 });
 
 /** What the settings screen reads. */
+/**
+ * What the settings card reads back. Reminders only go to a verified address,
+ * so the card needs to know whether to ask for verification first.
+ */
+const PREFS = { reminderHour: true, timeZone: true, email: true, emailVerified: true } as const;
+
 export async function GET() {
   const session = await getSession(await headers());
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { reminderHour: true, timeZone: true },
+    select: PREFS,
   });
   if (!user) return NextResponse.json({ reminderHour: null, timeZone: "UTC" });
   // Rows saved before knownZone renamed aliases can still hold one.
@@ -58,7 +64,7 @@ export async function PUT(request: Request) {
       // the old hour, and turning them off has nothing to guard.
       lastReminderOn: null,
     },
-    select: { reminderHour: true, timeZone: true },
+    select: PREFS,
   });
 
   return NextResponse.json({ ...user, timeZone: zoneName(user.timeZone) });

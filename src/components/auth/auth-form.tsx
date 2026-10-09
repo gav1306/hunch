@@ -81,7 +81,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
     setLoading(true);
 
     const res = isSignup
-      ? await signUp.email({ name: name.trim(), email, password })
+      ? // The verification link lands back in the app, signed in.
+        await signUp.email({ name: name.trim(), email, password, callbackURL: "/home" })
       : await signIn.email({ email, password });
 
     if (res.error) {
