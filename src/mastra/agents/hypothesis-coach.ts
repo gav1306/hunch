@@ -10,6 +10,7 @@ import {
 import type { Prior } from "@/lib/schemas/prior";
 import { priorsBlock } from "@/lib/memory/priors";
 import type { ClarifyingAnswer } from "@/lib/schemas/clarify";
+import { LLM_STREAM_DEADLINE_MS, llmDeadline } from "@/mastra/deadline";
 
 /**
  * Hypothesis Coach (RESEARCH §3). Turns a vague, free-text hunch into a single
@@ -213,6 +214,7 @@ export async function sharpenHunch(
     "coach",
     () =>
       hypothesisCoach.generate(buildSharpenPrompt(rawText, priors, answers, observeOnly), {
+        abortSignal: llmDeadline(),
         // The unrefined shape: Mastra validates with the refinements too, so the
         // refined schema would throw on "unschedulable, no yes/no" here, before
         // normaliseSchedulability below could repair it.
@@ -257,6 +259,7 @@ export async function streamSharpenHunch(
   const stream = await hypothesisCoach.stream(
     buildSharpenPrompt(rawText, priors, answers, observeOnly),
     {
+      abortSignal: llmDeadline(LLM_STREAM_DEADLINE_MS),
       // The unrefined shape, for the same reason `sharpenHunch` uses it:
       // Mastra validates with the refinements too, so the refined schema would
       // throw on "unschedulable, no yes/no" before normaliseSchedulability

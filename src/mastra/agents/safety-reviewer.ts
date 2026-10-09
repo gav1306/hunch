@@ -7,6 +7,7 @@ import {
   type SafetyVerdict,
 } from "@/lib/schemas/protocol";
 import { retryOnInvalidOutput } from "@/mastra/retry";
+import { llmDeadline } from "@/mastra/deadline";
 
 /**
  * Safety Reviewer (RESEARCH §7 — non-negotiable). The gate on every protocol.
@@ -53,6 +54,7 @@ Controls: ${input.design.controls.join(" | ") || "none"}`;
       "safety",
       () =>
         safetyReviewer.generate(prompt, {
+          abortSignal: llmDeadline(),
           structuredOutput: { schema: safetyVerdictSchema },
           modelSettings: { maxOutputTokens: 512 },
         }),

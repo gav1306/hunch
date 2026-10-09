@@ -12,6 +12,7 @@ import {
   type ProtocolShape,
 } from "@/lib/schemas/protocol";
 import { retryOnInvalidOutput } from "@/mastra/retry";
+import { llmDeadline } from "@/mastra/deadline";
 
 /**
  * Protocol Designer (RESEARCH §3 / Phase 3). Turns a sharpened hypothesis into
@@ -169,6 +170,7 @@ Name each phase in the user's own words (e.g. "Normal coffee" vs "No coffee afte
       "designer",
       () =>
         protocolDesigner.generate(prompt, {
+          abortSignal: llmDeadline(),
           structuredOutput: { schema: phaseCopySchema },
           modelSettings: { maxOutputTokens: 512 },
         }),

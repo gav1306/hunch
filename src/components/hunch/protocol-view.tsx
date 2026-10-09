@@ -250,10 +250,12 @@ export function ProtocolView({ id }: { id: string }) {
 
       {design.isPending && (
         <div className="grid gap-5">
-          {/* The wait runs ten to twenty seconds. Saying so is the difference
-              between a page that is working and a page that is broken. */}
+          {/* Usually instant, because the plan was drafted while the user read
+              the gate; a fresh design takes up to half a minute. Saying so is
+              the difference between a page that is working and one that is
+              broken — and promising less than that makes a slow day look broken. */}
           <p aria-live="polite" className={cn(LABEL, "m-0 font-mono")}>
-            Designing your experiment — about ten seconds…
+            Designing your experiment — up to half a minute…
           </p>
           <DesignSkeleton />
         </div>

@@ -253,8 +253,9 @@ describe("designProtocolShape", () => {
     it("accepts a reply with no washout, so the defaults below can fill it", () => {
       // Strict structured output throws on a missing required key before any
       // fallback runs — the live plan step stalled on exactly this.
-      const { washoutDays: _omitted, ...rest } = copy;
-      expect(phaseCopySchema.safeParse(rest).success).toBe(true);
+      const noWashout: Partial<typeof copy> = { ...copy };
+      delete noWashout.washoutDays;
+      expect(phaseCopySchema.safeParse(noWashout).success).toBe(true);
       expect(phaseCopySchema.safeParse({}).success).toBe(true);
     });
 
@@ -291,6 +292,15 @@ describe("designProtocolShape", () => {
 
       await expect(designProtocolShape(input)).rejects.toThrow(/402/);
       expect(generate).toHaveBeenCalledTimes(1);
+    });
+
+    it("gives the model call a deadline, so a hung provider can't hold the page", async () => {
+      generate.mockResolvedValue({ object: copy });
+
+      await designProtocolShape(input);
+
+      const [, options] = lastCall() as [string, { abortSignal?: AbortSignal }];
+      expect(options.abortSignal).toBeInstanceOf(AbortSignal);
     });
   });
 });
