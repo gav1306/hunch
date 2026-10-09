@@ -198,3 +198,37 @@ describe("POST /api/hunch/[id]/start", () => {
     });
   });
 });
+
+describe("POST /api/hunch/[id]/start — medication", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "u1" } } as never);
+    vi.mocked(db.user.findUnique).mockResolvedValue({
+      reminderHour: null,
+      remindersOptOut: false,
+    } as never);
+  });
+
+  it("refuses to start a scheduled trial whose hunch proposes varying medication", async () => {
+    vi.mocked(db.hunch.findFirst).mockResolvedValue({
+      ...designed,
+      rawText: "skip my meds on weekends",
+    } as never);
+    const res = await POST(req({ startOn: "today" }), params);
+
+    expect(res.status).toBe(409);
+    expect(db.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("still starts a log of the same hunch — a diary changes nothing", async () => {
+    vi.mocked(db.hunch.findFirst).mockResolvedValue({
+      ...designed,
+      rawText: "skip my meds on weekends",
+      protocol: { ...designed.protocol, safetyState: "observe-only" },
+    } as never);
+    const res = await POST(req({ startOn: "today" }), params);
+
+    expect(res.status).not.toBe(409);
+    expect(db.$transaction).toHaveBeenCalled();
+  });
+});

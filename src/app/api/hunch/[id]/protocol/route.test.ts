@@ -315,3 +315,53 @@ describe("POST /api/hunch/[id]/protocol", () => {
     expect(takeDraft).not.toHaveBeenCalled();
   });
 });
+
+describe("POST /api/hunch/[id]/protocol — safety gates", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "u1" } } as never);
+    vi.mocked(designProtocol).mockResolvedValue({
+      design: {}, powerInfo: {}, confounders: [], safety: { state: "approved", reason: "r", routedToDoctor: false },
+    } as never);
+    vi.mocked(takeDraft).mockResolvedValue(null);
+  });
+
+  it("refuses to design a trial for a hunch that proposes varying medication", async () => {
+    // Created with observeOnly:true, which skips the check at creation — this
+    // route must not turn it into a scheduled trial.
+    vi.mocked(db.hunch.findFirst).mockResolvedValue({
+      ...sharpened,
+      rawText: "does halving my sertraline dose help my sleep",
+    } as never);
+    const res = await POST(req({ parameters: [primary], schedulable: true }), params);
+
+    expect(res.status).toBe(422);
+    expect((await res.json()).blocked).toBe("medication");
+    expect(designProtocol).not.toHaveBeenCalled();
+    expect(tx.protocol.upsert).not.toHaveBeenCalled();
+  });
+
+  it("won't redesign a plan the safety review refused", async () => {
+    // Otherwise a refusal is one retry away from a different verdict.
+    vi.mocked(db.hunch.findFirst).mockResolvedValue({
+      ...sharpened,
+      protocol: { safetyState: "refused", startedAt: null },
+    } as never);
+    const res = await POST(req({ parameters: [primary] }), params);
+
+    expect(res.status).toBe(409);
+    expect(designProtocol).not.toHaveBeenCalled();
+  });
+
+  it("won't turn a kept log into a designed trial", async () => {
+    // Observe-only is where a refusal leads; designing from it would undo the refusal.
+    vi.mocked(db.hunch.findFirst).mockResolvedValue({
+      ...sharpened,
+      protocol: { safetyState: "observe-only", startedAt: null },
+    } as never);
+    const res = await POST(req({ parameters: [primary] }), params);
+
+    expect(res.status).toBe(409);
+    expect(designProtocol).not.toHaveBeenCalled();
+  });
+});
