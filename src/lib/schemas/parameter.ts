@@ -21,6 +21,9 @@ export type ParameterType = z.infer<typeof parameterTypeSchema>;
 export const SCALE_MIN = 1;
 export const SCALE_MAX = 5;
 
+/** The largest reading accepted for any parameter, either side of zero. */
+export const MAX_READING = 1_000_000;
+
 /**
  * A co-variable the Coach proposes alongside the primary outcome — the
  * "alternative parameters or symptoms" the user logs daily for context.
@@ -30,8 +33,8 @@ export const trackerSchema = z.object({
   type: parameterTypeSchema,
   /** Display unit, e.g. "hrs", "1-10". */
   unit: z.string().trim().min(1).optional(),
-  min: z.number().optional(),
-  max: z.number().optional(),
+  min: z.number().min(-MAX_READING).max(MAX_READING).optional(),
+  max: z.number().min(-MAX_READING).max(MAX_READING).optional(),
 });
 export type Tracker = z.infer<typeof trackerSchema>;
 
@@ -132,6 +135,9 @@ export function validateParameterValue(
   value: number,
 ): string | null {
   if (!Number.isFinite(value)) return `${param.label} needs a number.`;
+  // No daily reading is this large; it is a typo or a crafted request, and one
+  // of them is enough to swamp a trial's mean.
+  if (Math.abs(value) > MAX_READING) return `${param.label} looks too large — check the number.`;
 
   if (param.type === "binary") {
     return value === 0 || value === 1 ? null : `${param.label} is a yes/no — log 1 or 0.`;
@@ -149,6 +155,13 @@ export function validateParameterValue(
   if (param.type === "count") {
     if (!Number.isInteger(value)) return `${param.label} is a whole number.`;
     if (value < 0) return `${param.label} can't be negative.`;
+  }
+
+  // Minutes, hours, millilitres: an amount is a quantity, and a negative one is
+  // a typo that would land in the verdict. A row that genuinely runs below zero
+  // (a temperature) says so with its own minimum.
+  if (param.type === "amount" && param.min == null && value < 0) {
+    return `${param.label} can't be negative.`;
   }
 
   if (param.min != null && value < param.min) {
