@@ -43,7 +43,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark h-full antialiased">
+    // suppressHydrationWarning: the landing's intro gate (intro-gate.ts) may
+    // set an attribute on <html> before React hydrates it.
+    <html lang="en" className="dark h-full antialiased" suppressHydrationWarning>
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
         {/* One toaster for the app, mounted once at the root: a security

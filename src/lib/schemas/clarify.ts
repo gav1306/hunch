@@ -23,7 +23,18 @@ export const hunchTextSchema = z
 export const clarifyingQuestionSchema = z.object({
   id: z.string().trim().min(1),
   prompt: z.string().trim().min(1),
-  options: z.array(z.string().trim().min(1)).min(2).max(4),
+  // Some models wrap each option in /slashes/ or "quotes"; the user should see
+  // the words, not the model's punctuation.
+  options: z
+    .array(
+      z
+        .string()
+        .trim()
+        .transform((o) => o.replace(/^[/"'`“”‘’]+|[/"'`“”‘’]+$/g, "").trim())
+        .pipe(z.string().min(1)),
+    )
+    .min(2)
+    .max(4),
   allowOther: z.boolean(),
 });
 export type ClarifyingQuestion = z.infer<typeof clarifyingQuestionSchema>;

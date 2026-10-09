@@ -10,7 +10,7 @@ import { WORDS } from "./palette";
 
 /** Per-session flag: the hero intro plays once, then skips on remounts
  *  (sign-out, back from sign-in, hard refresh) for the rest of the session. */
-const INTRO_SEEN_KEY = "hunch:intro-seen";
+import { INTRO_ATTR, INTRO_SEEN_KEY } from "./intro-gate";
 
 /** Glossy star used as the reduced-motion / no-WebGL fallback centerpiece. */
 function StarFallback() {
@@ -60,8 +60,10 @@ export function HeroSection({
   const [wi, setWi] = useState(0);
   const [phase, setPhase] = useState<Phase>("enter");
   const [wordShow, setWordShow] = useState(false);
-  const [heroIn, setHeroIn] = useState(false);
-  const [uiIn, setUiIn] = useState(false);
+  // Visible from the server on: the copy is there for crawlers, no-JS and
+  // repeat visits. Only a first visit's intro hides it (see intro-gate.ts).
+  const [heroIn, setHeroIn] = useState(true);
+  const [uiIn, setUiIn] = useState(true);
 
   const runRef = useRef(0);
 
@@ -73,14 +75,12 @@ export function HeroSection({
     [],
   );
 
-  const finalState = useCallback(() => {
-    setWordShow(false);
-    setHeroIn(true);
-    setUiIn(true);
-  }, []);
-
   const runIntro = useCallback(
     async (run: number) => {
+      // Under the gate's mark the copy is already hidden; dropping these sets
+      // up the reveal it plays when the words are done.
+      setHeroIn(false);
+      setUiIn(false);
       if (!(await wait(360, run))) return;
       for (let i = 0; i < WORDS.length; i++) {
         setWi(i);
@@ -96,37 +96,33 @@ export function HeroSection({
       }
       setUiIn(true);
       setHeroIn(true);
+      document.documentElement.removeAttribute(INTRO_ATTR);
     },
     [wait, wordHold],
   );
 
   useEffect(() => {
-    const reduced =
-      typeof window !== "undefined" &&
-      window.matchMedia &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // The gate script already decided, before paint, from the same rule
+    // (first visit this session, motion allowed). Read its mark rather than
+    // decide again, so the two can never disagree.
+    const root = document.documentElement;
+    if (autoplay === false || root.getAttribute(INTRO_ATTR) !== "play") {
+      root.removeAttribute(INTRO_ATTR);
+      return;
+    }
     // Play the intro once per browser session. Signing out, backing off the
     // sign-in page, and hard refreshes all remount this — without the flag the
     // word-cycle replays every time, which reads as noise, not a first impression.
-    let seen = false;
-    try {
-      seen = window.sessionStorage.getItem(INTRO_SEEN_KEY) === "1";
-    } catch {
-      seen = false;
-    }
-    if (autoplay === false || reduced || seen) {
-      const t = setTimeout(finalState, 0);
-      return () => clearTimeout(t);
-    }
     try {
       window.sessionStorage.setItem(INTRO_SEEN_KEY, "1");
     } catch {
-      // Private mode / storage disabled — fine, intro just plays this load.
+      // Storage disabled: the gate never marks the page then, so we can't be here.
     }
     runRef.current += 1;
     runIntro(runRef.current);
     return () => {
       runRef.current += 1;
+      root.removeAttribute(INTRO_ATTR);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -164,7 +160,10 @@ export function HeroSection({
   });
 
   const mascot = (width: string, extra?: React.CSSProperties) => (
+    // Decoration: a WebGL canvas has nothing for a screen reader to say.
     <div
+      aria-hidden
+      data-intro-hide=""
       style={{
         width,
         aspectRatio: "1 / 1",
@@ -200,6 +199,7 @@ export function HeroSection({
         color: "var(--muted)",
         ...reveal(0),
       }}
+      data-intro-hide=""
     >
       <span aria-hidden style={{ color: "var(--s1)" }}>✦</span> Field Log · A test of one
     </div>
@@ -232,8 +232,16 @@ export function HeroSection({
     WebkitTextFillColor: "transparent",
     color: "transparent",
   };
-  const line1 = <span style={line1Style}>Got a hunch?</span>;
-  const line2 = <span style={line2Style}>Prove it.</span>;
+  const line1 = (
+    <span style={line1Style} data-intro-hide="">
+      Got a hunch?
+    </span>
+  );
+  const line2 = (
+    <span style={line2Style} data-intro-hide="">
+      Prove it.
+    </span>
+  );
   const headline = (
     <h1 id="hero-headline" style={hStyle}>
       {line1}
@@ -253,6 +261,7 @@ export function HeroSection({
         color: "var(--muted)",
         ...reveal(250),
       }}
+      data-intro-hide=""
     >
       A verdict backed by real data.
     </p>
@@ -316,10 +325,12 @@ export function HeroSection({
           opacity: heroIn ? 1 : 0,
           transition: "opacity 1400ms ease",
         }}
+        data-intro-hide=""
       />
 
       {/* HEADER */}
       <div
+        data-intro-hide=""
         style={{
           position: "absolute",
           zIndex: 7,
