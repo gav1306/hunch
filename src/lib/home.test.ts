@@ -260,3 +260,29 @@ describe("getHomeData day track", () => {
     expect((await only()).track).toBe(null);
   });
 });
+
+describe("getHomeData phase wording", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("calls the closing A phase 'back to baseline'", async () => {
+    const aba = {
+      ...design,
+      phases: [
+        ...design.phases,
+        { label: "A", kind: "baseline", days: 5, name: "Back to normal", action: "Stop it." },
+      ],
+    };
+    vi.mocked(db.hunch.findMany).mockResolvedValue([
+      hunch({
+        status: "running",
+        // Day 12 of 15: the third phase.
+        protocol: { design: aba, safetyState: "approved", startedAt: utcMidnight(-11) },
+      }),
+    ] as never);
+
+    const data = await getHomeData("u1");
+    const h = [...data.today, ...data.running][0];
+    expect(h.phaseLabel).toBe("baseline");
+    expect(h.phaseText).toBe("back to baseline");
+  });
+});

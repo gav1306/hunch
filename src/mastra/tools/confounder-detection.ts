@@ -24,6 +24,16 @@ const CONFOUNDER_RULES: Rule[] = [
   { keywords: ["weather", "season"], type: "environmental", control: "Note weather changes; they can move the outcome independently." },
 ];
 
+/**
+ * A name as it reads mid-sentence: "What I ate" becomes "what I ate", but an
+ * acronym like "UV exposure" keeps its capitals. Quoting the name instead read
+ * like a form field, not advice.
+ */
+function midSentence(name: string): string {
+  const [first, second] = name;
+  return second && second === second.toLowerCase() ? first.toLowerCase() + name.slice(1) : name;
+}
+
 export function detectConfounders(names: string[]): Confounder[] {
   return names.map((name) => {
     const lower = name.toLowerCase();
@@ -33,7 +43,7 @@ export function detectConfounders(names: string[]): Confounder[] {
       name,
       type: rule?.type ?? "behavioral",
       expectedDirection: "unknown",
-      control: rule?.control ?? `Keep "${name}" as constant as possible across all phases.`,
+      control: rule?.control ?? `Keep ${midSentence(name)} as steady as you can across all phases.`,
     };
   });
 }

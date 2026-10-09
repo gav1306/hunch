@@ -48,3 +48,16 @@ describe("input limits", () => {
     expect(checkInValuesInputSchema.safeParse({ values }).success).toBe(false);
   });
 });
+
+describe("clarifying options", () => {
+  it("drops the slashes and quotes a model sometimes wraps them in", async () => {
+    const { clarifyingQuestionSchema } = await import("@/lib/schemas/clarify");
+    const q = clarifyingQuestionSchema.parse({
+      id: "measure",
+      prompt: "How would you measure it?",
+      options: ["/I estimate how many minutes/", '"From a sleep tracker"', "By feel"],
+      allowOther: true,
+    });
+    expect(q.options).toEqual(["I estimate how many minutes", "From a sleep tracker", "By feel"]);
+  });
+});
