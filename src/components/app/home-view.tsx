@@ -127,7 +127,7 @@ function CheckinRow({ h }: { h: HomeHunch }) {
       )}
     >
       <p className={cn(CARD_EYEBROW, "flex flex-wrap items-center gap-x-2 text-muted-foreground")}>
-        {h.phaseLabel ? <PhaseName kind={h.phaseLabel} /> : "today"}
+        {h.phaseLabel ? <PhaseName kind={h.phaseLabel} text={h.phaseText} /> : "today"}
         {h.progress && (
           // One unit, so a narrow card wraps the whole "· day 9 of 14" and
           // never leaves the separator dangling at a line end.
@@ -139,7 +139,14 @@ function CheckinRow({ h }: { h: HomeHunch }) {
           </span>
         )}
       </p>
-      <Statement h={h} />
+      {/* The way into the trial itself — trackers, the belief meter, the
+          plan. The log below stays outside the link so tapping it logs. */}
+      <Link
+        href={`/hunch/${h.id}`}
+        className="block rounded-sm text-inherit no-underline decoration-rule underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+      >
+        <Statement h={h} />
+      </Link>
       {h.track && <PhaseTrack track={h.track} className="mt-4" />}
 
       {primary && (
@@ -162,6 +169,23 @@ function CheckinRow({ h }: { h: HomeHunch }) {
   );
 }
 
+/** How many unfinished hunches show before the rest fold away. */
+const SETUP_SHOWN = 4;
+
+/** A hunch that still needs sharpening, a plan or a start, linking to that step. */
+function SetupCard({ h }: { h: HomeHunch }) {
+  const cta = SETUP_CTA[h.setupStage ?? "needs-plan"];
+  return (
+    <Link href={cta.href(h.id)} className={cn(CARD, "app-card")}>
+      <p className={cn(CARD_EYEBROW, "text-muted-foreground")}>
+        {cta.text}
+        <ArrowRightIcon aria-hidden className="ml-1 inline-block size-(--icon) align-[-0.15em]" />
+      </p>
+      <Statement h={h} />
+    </Link>
+  );
+}
+
 type Phase = NonNullable<HomeHunch["phaseLabel"]>;
 type TrackDay = NonNullable<HomeHunch["track"]>[number];
 
@@ -178,11 +202,11 @@ function phaseStyle(kind: HomeHunch["phaseLabel"]) {
 }
 
 /** The phase as a dot and a word, tinted toward its colour. */
-function PhaseName({ kind }: { kind: Phase }) {
+function PhaseName({ kind, text }: { kind: Phase; text?: string | null }) {
   return (
     <span className="inline-flex items-center gap-[7px] text-[color-mix(in_srgb,var(--ph)_80%,var(--ink))]">
       <span aria-hidden className="size-1.5 rounded-full bg-(--ph)" />
-      {kind}
+      {text ?? kind}
     </span>
   );
 }
@@ -379,7 +403,7 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
                       ) : (
                         "Running"
                       )}
-                      {!h.startsOn && h.phaseLabel && <PhaseName kind={h.phaseLabel} />}
+                      {!h.startsOn && h.phaseLabel && <PhaseName kind={h.phaseLabel} text={h.phaseText} />}
                     </p>
                     <Statement h={h} />
                     {h.progress && (
@@ -398,22 +422,30 @@ export function HomeView({ user, data }: { user: { name: string }; data: HomeDat
             <section>
               <Eyebrow>Finish setting up</Eyebrow>
               <div className={GRID}>
-                {data.needsSetup.map((h) => {
-                  const cta = SETUP_CTA[h.setupStage ?? "needs-plan"];
-                  return (
-                    <Link key={h.id} href={cta.href(h.id)} className={cn(CARD, "app-card")}>
-                      <p className={cn(CARD_EYEBROW, "text-muted-foreground")}>
-                        {cta.text}
-                        <ArrowRightIcon
-                          aria-hidden
-                          className="ml-1 inline-block size-(--icon) align-[-0.15em]"
-                        />
-                      </p>
-                      <Statement h={h} />
-                    </Link>
-                  );
-                })}
+                {data.needsSetup.slice(0, SETUP_SHOWN).map((h) => (
+                  <SetupCard key={h.id} h={h} />
+                ))}
               </div>
+              {/* Every abandoned draft used to stay on screen for good. The
+                  newest few lead; the rest wait one tap away, as Archived does. */}
+              {data.needsSetup.length > SETUP_SHOWN && (
+                <details className="group mt-4">
+                  <summary className="flex h-11 cursor-pointer list-none items-center gap-2 text-xs tracking-[0.16em] text-muted-foreground uppercase hover:text-ink">
+                    <span aria-hidden className="text-s1 group-open:hidden">
+                      +
+                    </span>
+                    <span aria-hidden className="hidden text-s1 group-open:inline">
+                      −
+                    </span>
+                    {data.needsSetup.length - SETUP_SHOWN} more
+                  </summary>
+                  <div className={cn(GRID, "mt-3")}>
+                    {data.needsSetup.slice(SETUP_SHOWN).map((h) => (
+                      <SetupCard key={h.id} h={h} />
+                    ))}
+                  </div>
+                </details>
+              )}
             </section>
           )}
 
