@@ -176,7 +176,12 @@ describe("getHomeData on the user's own day", () => {
     // 20:00 PDT on 22 Sep — already 23 Sep in UTC.
     vi.setSystemTime(new Date("2026-09-23T03:00:00.000Z"));
   });
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    // clearAllMocks keeps implementations, so a zone set here would leak into
+    // every later test — which then fail whenever LA's date differs from UTC's.
+    vi.mocked(userTimeZone).mockResolvedValue("UTC");
+  });
 
   it("counts days and looks up today's log by the user's date", async () => {
     vi.mocked(userTimeZone).mockResolvedValue("America/Los_Angeles");
