@@ -2,13 +2,30 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Toaster } from "@/components/ui/sonner";
+import { siteUrl } from "@/lib/site-url";
+
+const DESCRIPTION =
+  "Turn a gut feeling about yourself into a small experiment, and get a verdict from your own data.";
 
 export const metadata: Metadata = {
+  metadataBase: siteUrl(),
   title: {
     default: "Hunch",
     template: "%s · hunch",
   },
-  description: "A copilot for n-of-1 experiments on yourself.",
+  description: DESCRIPTION,
+  // The image comes from app/opengraph-image.tsx; Next fills it in for both.
+  openGraph: {
+    type: "website",
+    siteName: "Hunch",
+    title: "Hunch — got a hunch? Prove it.",
+    description: DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Hunch — got a hunch? Prove it.",
+    description: DESCRIPTION,
+  },
 };
 
 /**
