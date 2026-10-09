@@ -65,9 +65,18 @@ function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** RFC 4180: quote a field that holds a comma, a quote or a newline. */
+/**
+ * RFC 4180: quote a field that holds a comma, a quote or a newline.
+ *
+ * A field that opens with = + - @ (or a tab or carriage return) is a formula to
+ * Excel and Sheets, and parameter labels are typed by users — so such a field
+ * gets a leading apostrophe, which spreadsheets show as text. Plain numbers are
+ * left alone so a reading of -3 stays a number.
+ */
 function csvCell(value: string): string {
-  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+  const safe =
+    /^[=+\-@\t\r]/.test(value) && !/^-?\d+(\.\d+)?$/.test(value) ? `'${value}` : value;
+  return /[",\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
 
 /** One day's readings keyed by parameter, which both formats look up by id. */
