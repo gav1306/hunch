@@ -8,6 +8,7 @@ import {
 import type { Prior } from "@/lib/schemas/prior";
 import { priorsBlock } from "@/lib/memory/priors";
 import { llmDeadline } from "@/mastra/deadline";
+import { UNTRUSTED_NOTE, untrusted } from "@/lib/safety/untrusted";
 
 /**
  * The Clarifier (pre-coach). Reads a vague hunch and asks at most three tappable
@@ -61,7 +62,7 @@ export function buildClarifyPrompt(rawText: string, priors: Prior[]): string {
     untested:
       "These went together in the user's own logs but were never tested — fine to ask about:",
   });
-  return `Ask the clarifying questions for this hunch:\n\n"${rawText}"${priorsText}`;
+  return `${UNTRUSTED_NOTE}\n\nAsk the clarifying questions for this hunch:\n\n${untrusted(rawText)}${priorsText}`;
 }
 
 /**
