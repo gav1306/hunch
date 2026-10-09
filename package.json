@@ -34,7 +34,7 @@
     "lucide-react": "1.16.0",
     "motion": "12.42.2",
     "next": "16.3.8",
-    "nodemailer": "9.1.1",
+    "nodemailer": "10.0.9",
     "pg": "8.21.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
