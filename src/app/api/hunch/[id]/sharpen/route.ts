@@ -7,6 +7,8 @@ import { draftsFromSharpened, toParameterDto } from "@/lib/parameters";
 import { sharpenRequestSchema } from "@/lib/schemas/clarify";
 import { MEDICATION_REFUSAL, medicationIntent } from "@/lib/safety/medication";
 import { getSession } from "@/lib/session";
+import { hunchRequestError } from "@/lib/schemas/request-error";
+import { spendAiCall } from "@/lib/ai-quota";
 import { sharpenHunch, streamSharpenHunch } from "@/mastra/agents/hypothesis-coach";
 import { predesign } from "@/lib/design-draft/predesign";
 import { SHARPEN_ERROR, sharpenStreamResponse } from "@/lib/hunch-stream";
@@ -53,7 +55,7 @@ export async function POST(
 
   const parsed = sharpenRequestSchema.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) {
-    return NextResponse.json({ error: "A hunch can't be empty." }, { status: 400 });
+    return NextResponse.json({ error: hunchRequestError(parsed.error) }, { status: 400 });
   }
 
   // Deterministic and first: a refusal here costs no tokens and reaches the user
@@ -65,6 +67,10 @@ export async function POST(
       { status: 422 },
     );
   }
+
+  // Counted after every free refusal above, so a turned-down request costs nothing.
+  const overQuota = await spendAiCall(session.user.id);
+  if (overQuota) return overQuota;
 
   const { rawText, answers, priorIds, observeOnly } = parsed.data;
 

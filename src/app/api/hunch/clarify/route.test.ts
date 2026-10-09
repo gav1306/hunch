@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
+vi.mock("@/lib/ai-quota", () => ({ spendAiCall: vi.fn(async () => null) }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 vi.mock("@/lib/auth", () => ({
   auth: { api: { getSession: vi.fn() } },
@@ -10,6 +11,7 @@ vi.mock("@/lib/memory/recall", () => ({
 vi.mock("@/mastra/agents/clarifier", () => ({ askClarifying: vi.fn() }));
 
 import { POST } from "./route";
+import { spendAiCall } from "@/lib/ai-quota";
 import { auth } from "@/lib/auth";
 import { askClarifying } from "@/mastra/agents/clarifier";
 import { recallPriorsForReuse } from "@/lib/memory/recall";
@@ -77,5 +79,31 @@ describe("POST /api/hunch/clarify", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).not.toHaveProperty("priorIds");
+  });
+});
+
+const overQuota = () =>
+  vi.mocked(spendAiCall).mockResolvedValueOnce(
+    Response.json({ error: "limit" }, { status: 429 }) as never,
+  );
+
+describe("POST /api/hunch/clarify — daily AI limit", () => {
+  it("answers 429 and asks the model nothing once the user is over the limit", async () => {
+    vi.clearAllMocks();
+    vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "u1" } } as never);
+    overQuota();
+    const res = await POST(
+      new Request("http://t/api/hunch/clarify", { method: "POST", body: JSON.stringify({ rawText: "coffee wrecks sleep" }) }),
+    );
+    expect(res.status).toBe(429);
+    expect(askClarifying).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/hunch/clarify — malformed body", () => {
+  it("answers 400, not 500", async () => {
+    vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "u1" } } as never);
+    const res = await POST(new Request("http://t/api/hunch/clarify", { method: "POST", body: "{not json" }));
+    expect(res.status).toBe(400);
   });
 });

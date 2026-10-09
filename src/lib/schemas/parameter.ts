@@ -24,15 +24,18 @@ export const SCALE_MAX = 5;
 /** The largest reading accepted for any parameter, either side of zero. */
 export const MAX_READING = 1_000_000;
 
+/** Longest tracker label: it has to fit a check-in row on a phone. */
+export const MAX_LABEL_CHARS = 80;
+
 /**
  * A co-variable the Coach proposes alongside the primary outcome — the
  * "alternative parameters or symptoms" the user logs daily for context.
  */
 export const trackerSchema = z.object({
-  label: z.string().trim().min(1),
+  label: z.string().trim().min(1).max(MAX_LABEL_CHARS),
   type: parameterTypeSchema,
   /** Display unit, e.g. "hrs", "1-10". */
-  unit: z.string().trim().min(1).optional(),
+  unit: z.string().trim().min(1).max(24).optional(),
   min: z.number().min(-MAX_READING).max(MAX_READING).optional(),
   max: z.number().min(-MAX_READING).max(MAX_READING).optional(),
 });
@@ -87,7 +90,10 @@ export const MAX_ACTIVE_PARAMETERS = 5;
  * deliberately without `isPrimary`: a running trial already has a primary, and
  * it is frozen for the length of the trial.
  */
-export const trackerAddSchema = trackerSchema;
+export const trackerAddSchema = trackerSchema.refine(
+  (t) => t.min == null || t.max == null || t.min < t.max,
+  { message: "The minimum has to be below the maximum.", path: ["max"] },
+);
 
 /** A persisted parameter, as the API hands it to the client. */
 export const parameterSchema = parameterDraftSchema.extend({
@@ -109,7 +115,10 @@ export type Parameter = z.infer<typeof parameterSchema>;
 export const checkInValuesInputSchema = z.object({
   values: z
     .array(z.object({ parameterId: z.string().min(1), value: z.number() }))
-    .min(1),
+    .min(1)
+    // A trial has at most five parameters, so a longer list is a malformed or
+    // crafted request — each entry would otherwise be its own upsert.
+    .max(20),
   /**
    * The day being logged, when it isn't today. Sent as an ISO date by the
    * adherence strip when the user corrects an entry they got wrong or filled in

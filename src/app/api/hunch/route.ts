@@ -2,6 +2,8 @@ import { headers } from "next/headers";
 import { NextResponse, after } from "next/server";
 import { untimed, withTiming } from "@/lib/timing";
 import { getSession } from "@/lib/session";
+import { hunchRequestError } from "@/lib/schemas/request-error";
+import { spendAiCall } from "@/lib/ai-quota";
 import { db } from "@/lib/db";
 import { recallPriors } from "@/lib/memory/recall";
 import { draftsFromSharpened, toParameterDto } from "@/lib/parameters";
@@ -28,9 +30,9 @@ async function createHunch(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const parsed = sharpenRequestSchema.safeParse(await request.json());
+  const parsed = sharpenRequestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ error: "A hunch can't be empty." }, {
+    return NextResponse.json({ error: hunchRequestError(parsed.error) }, {
       status: 400,
     });
   }
@@ -64,6 +66,11 @@ async function createHunch(request: Request) {
   // Hand back that hunch; sharpening again would only save a twin.
   const existing = await alreadySaved();
   if (existing) return NextResponse.json(existing, { status: 200 });
+
+  // Counted after every free refusal above, and after a retry is answered from
+  // what's already saved, so neither costs anything.
+  const overQuota = await spendAiCall(session.user.id);
+  if (overQuota) return overQuota;
 
   /**
    * Persist the sharpened hunch with the parameter set the confirm gate will

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
+vi.mock("@/lib/ai-quota", () => ({ spendAiCall: vi.fn(async () => null) }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 vi.mock("@/lib/auth", () => ({ auth: { api: { getSession: vi.fn() } } }));
 vi.mock("@/mastra/workflows/design", () => ({
@@ -25,6 +26,7 @@ vi.mock("@/lib/db", () => {
 });
 
 import { POST } from "./route";
+import { spendAiCall } from "@/lib/ai-quota";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { designProtocol } from "@/mastra/workflows/design";
@@ -362,6 +364,23 @@ describe("POST /api/hunch/[id]/protocol — safety gates", () => {
     const res = await POST(req({ parameters: [primary] }), params);
 
     expect(res.status).toBe(409);
+    expect(designProtocol).not.toHaveBeenCalled();
+  });
+});
+
+const overQuota = () =>
+  vi.mocked(spendAiCall).mockResolvedValueOnce(
+    Response.json({ error: "limit" }, { status: 429 }) as never,
+  );
+
+describe("POST /api/hunch/[id]/protocol — daily AI limit", () => {
+  it("answers 429 and designs nothing once the user is over the limit", async () => {
+    vi.clearAllMocks();
+    vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "u1" } } as never);
+    vi.mocked(db.hunch.findFirst).mockResolvedValue(sharpened as never);
+    overQuota();
+    const res = await POST(req({ parameters: [primary] }), params);
+    expect(res.status).toBe(429);
     expect(designProtocol).not.toHaveBeenCalled();
   });
 });
