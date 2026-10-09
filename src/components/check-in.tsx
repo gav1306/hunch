@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useCheckIn, type CheckInValueInput } from "@/hooks/use-checkin";
-import type { PhaseStatus } from "@/lib/schedule";
+import { phaseKindLabel, type PhaseStatus } from "@/lib/schedule";
 import type { ProtocolDesign } from "@/lib/schemas/protocol";
 import {
   SCALE_MAX,
@@ -108,6 +108,8 @@ export function CheckIn({
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [entries, setEntries] = useState<Record<string, string>>({});
   const [problem, setProblem] = useState<string | null>(null);
+  // Ties the error to the field it's about, so a screen reader reads both.
+  const problemId = useId();
 
   const compact = variant === "compact";
   const correction = variant === "correction";
@@ -185,7 +187,7 @@ export function CheckIn({
   const notices = (
     <>
       {problem && (
-        <p role="alert" className="mt-3.5 mb-0 text-sm text-s1">
+        <p id={problemId} role="alert" className="mt-3.5 mb-0 text-sm text-s1">
           {problem}
         </p>
       )}
@@ -300,6 +302,8 @@ export function CheckIn({
                 onClick={() =>
                   compact ? submit({ id: p.id, raw: opt.v }) : set(p.id, opt.v)
                 }
+                // The fill alone says which is chosen; this says it aloud.
+                aria-pressed={active}
                 className={active ? "border-ink bg-ink text-paper" : undefined}
               >
                 {opt.text}
@@ -381,6 +385,8 @@ export function CheckIn({
           min={p.min ?? undefined}
           max={p.max ?? undefined}
           aria-label={p.label}
+          aria-invalid={problem ? true : undefined}
+          aria-describedby={problem ? problemId : undefined}
           value={entries[p.id] ?? ""}
           onChange={(e) => set(p.id, e.target.value)}
           placeholder={p.min != null && p.max != null ? `${p.min}–${p.max}` : "reading"}
@@ -453,7 +459,7 @@ export function CheckIn({
         <p className={cn(LABEL, "mt-0 mb-0")}>
           Log today · Phase {schedule!.phase}{" "}
           <span className="tracking-[0.04em] normal-case">
-            ({schedule!.kind === "intervention" ? "intervention" : "baseline"})
+            ({phaseKindLabel(schedule!.kind ?? "baseline", schedule!.phaseIndex ?? 0)})
           </span>
         </p>
       )}

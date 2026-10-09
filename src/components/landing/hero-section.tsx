@@ -164,7 +164,9 @@ export function HeroSection({
   });
 
   const mascot = (width: string, extra?: React.CSSProperties) => (
+    // Decoration: a WebGL canvas has nothing for a screen reader to say.
     <div
+      aria-hidden
       style={{
         width,
         aspectRatio: "1 / 1",

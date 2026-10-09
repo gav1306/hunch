@@ -3,7 +3,7 @@ import "server-only";
 import { adherenceStrip, type DayState } from "@/lib/adherence";
 import { db } from "@/lib/db";
 import { engineOutcomeType, pickPrimary } from "@/lib/parameters";
-import { currentPhase, utcDaysBetween } from "@/lib/schedule";
+import { phaseKindLabel, currentPhase, utcDaysBetween } from "@/lib/schedule";
 import type { ParameterType } from "@/lib/schemas/parameter";
 import { canRun, parseStoredDesign } from "@/lib/schemas/protocol";
 import { localToday, userTimeZone } from "@/lib/zone";
@@ -23,6 +23,8 @@ export type HomeHunch = {
     max: number | null;
   } | null;
   phaseLabel: "baseline" | "intervention" | null;
+  /** The phase as the user reads it: the closing A is "back to baseline". */
+  phaseText: ReturnType<typeof phaseKindLabel> | null;
   /**
    * How far setting this hunch up has got, for the "Finish setting up" cards.
    * `ready-to-start` only became reachable once designing stopped starting the
@@ -89,6 +91,7 @@ export async function getHomeData(userId: string): Promise<HomeData> {
     let progress: HomeHunch["progress"] = null;
     let track: HomeHunch["track"] = null;
     let phaseLabel: HomeHunch["phaseLabel"] = null;
+    let phaseText: HomeHunch["phaseText"] = null;
     let loggableToday = false;
     let startsOn: string | null = null;
     const primary = pickPrimary(h.parameters);
@@ -120,6 +123,7 @@ export async function getHomeData(userId: string): Promise<HomeData> {
         }
 
         phaseLabel = ph.kind;
+        phaseText = ph.kind ? phaseKindLabel(ph.kind, ph.phaseIndex ?? 0) : null;
         loggableToday =
           h.status === "running" &&
           canRun(h.protocol.safetyState) &&
@@ -162,6 +166,7 @@ export async function getHomeData(userId: string): Promise<HomeData> {
           }
         : null,
       phaseLabel,
+      phaseText,
       setupStage,
       startsOn,
       progress,

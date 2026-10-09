@@ -74,6 +74,17 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
   // The bot looks away while the password field is focused. The field lives in
   // the form (children); the setter reaches it through AuthGazeProvider.
   const [passwordFocused, setPasswordFocused] = useState(false);
+  // The robot's column is CSS-hidden below 821px, but a hidden column still
+  // mounted the WebGL canvas and ran its loop on every phone. Mount it only
+  // where it shows. Starts false so the server and first paint agree.
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 821px)");
+    const sync = () => setWide(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
   const gaze = useMemo(() => ({ setPasswordFocused }), [setPasswordFocused]);
 
   return (
@@ -102,7 +113,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
 
             {/* Desktop only: a three.js mascot is not what a phone needs above
                 the form it came to fill in. */}
-            <div className="relative z-1 hidden self-center min-[821px]:flex">
+            <div aria-hidden className="relative z-1 hidden self-center min-[821px]:flex">
               <div className="flex aspect-square w-[clamp(150px,17vw,240px)] items-center justify-center">
                 {reduce ? (
                   <Image
@@ -113,9 +124,9 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
                     height={240}
                     className="w-[70%] brightness-115 drop-shadow-[0_0_40px_color-mix(in_srgb,var(--s1)_42%,transparent)]"
                   />
-                ) : (
+                ) : wide ? (
                   <HeroRobot play gaze={passwordFocused ? "away" : "form"} />
-                )}
+                ) : null}
               </div>
             </div>
 
