@@ -23,7 +23,22 @@ describe("reminders zone", () => {
   it("shows a zone saved under a legacy alias by its current name", async () => {
     vi.mocked(db.user.findUnique).mockResolvedValue({ reminderHour: 8, timeZone: "Asia/Calcutta" } as never);
     const res = await GET();
-    expect(await res.json()).toEqual({ reminderHour: 8, timeZone: "Asia/Kolkata" });
+    expect(await res.json()).toMatchObject({ reminderHour: 8, timeZone: "Asia/Kolkata" });
+  });
+
+  it("says whether the address is verified, since reminders wait on it", async () => {
+    vi.mocked(db.user.findUnique).mockResolvedValue({
+      reminderHour: 20,
+      timeZone: "UTC",
+      email: "a@b.test",
+      emailVerified: false,
+    } as never);
+    const body = await (await GET()).json();
+    expect(body).toMatchObject({ email: "a@b.test", emailVerified: false });
+    expect(vi.mocked(db.user.findUnique).mock.calls[0][0].select).toMatchObject({
+      email: true,
+      emailVerified: true,
+    });
   });
 
   it("stores the current name when the browser sends the alias", async () => {

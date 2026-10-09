@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
+vi.mock("@/lib/ai-quota", () => ({ spendAiCall: vi.fn(async () => null) }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 vi.mock("next/server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/server")>()),
@@ -19,6 +20,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 import { POST } from "./route";
+import { spendAiCall } from "@/lib/ai-quota";
 import { after } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -455,6 +457,47 @@ describe("POST /api/hunch", () => {
     const names = parseServerTiming(res.headers.get("Server-Timing")).map((s) => s.name);
     expect(names).toContain("total");
     expect(names).not.toContain("coach");
+  });
+});
+
+const overQuota = () =>
+  vi.mocked(spendAiCall).mockResolvedValueOnce(
+    Response.json({ error: "limit" }, { status: 429 }) as never,
+  );
+
+describe("POST /api/hunch — daily AI limit", () => {
+  it("answers 429 and saves nothing once the user is over the limit", async () => {
+    vi.clearAllMocks();
+    vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "u1" } } as never);
+    overQuota();
+    const res = await POST(req({ rawText: "coffee wrecks sleep" }));
+    expect(res.status).toBe(429);
+    expect(streamSharpenHunch).not.toHaveBeenCalled();
+    expect(db.hunch.create).not.toHaveBeenCalled();
+  });
+
+  it("spends nothing on a hunch it refuses", async () => {
+    vi.clearAllMocks();
+    vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "u1" } } as never);
+    await POST(req({ rawText: "do I sleep better if I skip my antidepressant" }));
+    expect(spendAiCall).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/hunch — malformed body", () => {
+  it("answers 400, not 500", async () => {
+    vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "u1" } } as never);
+    const res = await POST(new Request("http://t/api/hunch", { method: "POST", body: "{not json" }));
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /api/hunch — a hunch that's too long", () => {
+  it("says it's too long, not that it's empty", async () => {
+    vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "u1" } } as never);
+    const res = await POST(req({ rawText: "x".repeat(1001) }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/shorter/i);
   });
 });
 

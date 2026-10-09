@@ -269,3 +269,25 @@ model TwoFactor {
   @@index([userId])
   @@map("twoFactor")
 }
+
+/// AI requests per user per UTC day, the cost guard in src/lib/ai-quota.ts.
+/// Written only by its upsert; old days are never read again.
+model AiUsage {
+  userId String
+  day    DateTime @db.Date
+  calls  Int      @default(0)
+
+  @@id([userId, day])
+}
+
+/// Better Auth's rate-limit counters (rateLimit.storage = "database"). In memory
+/// they were per serverless instance, so on Vercel each instance had its own
+/// count and brute force was barely slowed.
+model RateLimit {
+  id          String @id
+  key         String @unique
+  count       Int
+  lastRequest BigInt
+
+  @@map("rateLimit")
+}

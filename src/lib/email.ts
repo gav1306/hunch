@@ -14,7 +14,8 @@ function parseFrom(raw: string): { name: string; email: string } {
  *   1. Resend  — if RESEND_API_KEY is set. With no verified domain, the shared
  *                `onboarding@resend.dev` sender delivers ONLY to your own Resend
  *                account email; a verified domain lifts that to any recipient.
- *   2. Console — otherwise, so flows work in local dev with no account.
+ *   2. Console — otherwise, so flows work in local dev with no account. Never
+ *                in production: there it throws instead.
  * Swap or add providers by changing only this file.
  */
 export async function sendEmail({ to, subject, text }: Email): Promise<void> {
@@ -35,6 +36,13 @@ export async function sendEmail({ to, subject, text }: Email): Promise<void> {
       throw new Error("Could not send email.");
     }
     return;
+  }
+
+  // These bodies carry 2FA codes and password-reset links. Written to a
+  // production log, they hand any account to anyone who can read the logs.
+  if (process.env.NODE_ENV === "production") {
+    console.error(`[email] not sent: RESEND_API_KEY is not set (subject: ${subject})`);
+    throw new Error("Email is not configured.");
   }
 
   console.log(

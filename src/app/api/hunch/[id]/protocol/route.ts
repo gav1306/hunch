@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { timed, withTiming } from "@/lib/timing";
 import { getSession } from "@/lib/session";
+import { spendAiCall } from "@/lib/ai-quota";
 import { db } from "@/lib/db";
 import { normalizeScale, pickExposure, toParameterDto } from "@/lib/parameters";
 import { parameterListSchema } from "@/lib/schemas/parameter";
@@ -127,6 +128,10 @@ async function designHunch(
       { status: 400 },
     );
   }
+
+  // Counted after every free refusal above, so a turned-down request costs nothing.
+  const overQuota = await spendAiCall(session.user.id);
+  if (overQuota) return overQuota;
 
   try {
     // The same builder `predesign` uses, so a background design of these exact
