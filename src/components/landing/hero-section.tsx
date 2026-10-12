@@ -48,15 +48,10 @@ const HERO_PAPER = "var(--paper)";
 
 type Phase = "enter" | "focus" | "leave";
 
-export type HeroSectionProps = {
-  wordHold?: number;
-  autoplay?: boolean;
-};
+/** How long each intro word holds focus, in ms. */
+const WORD_HOLD = 900;
 
-export function HeroSection({
-  wordHold = 900,
-  autoplay = true,
-}: HeroSectionProps) {
+export function HeroSection() {
   const [wi, setWi] = useState(0);
   const [phase, setPhase] = useState<Phase>("enter");
   const [wordShow, setWordShow] = useState(false);
@@ -88,7 +83,7 @@ export function HeroSection({
         setWordShow(true);
         if (!(await wait(40, run))) return;
         setPhase("focus");
-        if (!(await wait(wordHold + 700, run))) return;
+        if (!(await wait(WORD_HOLD + 700, run))) return;
         setPhase("leave");
         if (!(await wait(480, run))) return;
         setWordShow(false);
@@ -98,7 +93,7 @@ export function HeroSection({
       setHeroIn(true);
       document.documentElement.removeAttribute(INTRO_ATTR);
     },
-    [wait, wordHold],
+    [wait],
   );
 
   useEffect(() => {
@@ -106,7 +101,7 @@ export function HeroSection({
     // (first visit this session, motion allowed). Read its mark rather than
     // decide again, so the two can never disagree.
     const root = document.documentElement;
-    if (autoplay === false || root.getAttribute(INTRO_ATTR) !== "play") {
+    if (root.getAttribute(INTRO_ATTR) !== "play") {
       root.removeAttribute(INTRO_ATTR);
       return;
     }
