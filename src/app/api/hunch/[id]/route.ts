@@ -57,6 +57,7 @@ export async function GET(
           design: parseStoredDesign(p.design, hunch.hypothesis.outcomeMetric),
           powerInfo: p.powerInfo,
           confounders: p.confounders,
+          startedAt: p.startedAt ? p.startedAt.toISOString() : null,
         }
       : null,
   });

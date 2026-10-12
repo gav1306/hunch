@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useReducedMotion } from "motion/react";
 import Image from "next/image";
 
 function StarFallback() {
@@ -21,11 +22,17 @@ const HeroRobot = dynamic(
   { ssr: false, loading: () => <StarFallback /> },
 );
 
-/** The confirm-bot in a bounded, centered box. `play` triggers the spin-in intro. */
+/**
+ * The confirm-bot in a bounded, centered box. `play` triggers the spin-in
+ * intro; until then the robot is hidden, not paused. With reduced motion it
+ * never animates at all: the box shows the still starburst instead, since
+ * holding `play` false would leave it empty.
+ */
 export function ConfirmBot({ play, size = 200 }: { play: boolean; size?: number }) {
+  const reduce = useReducedMotion();
   return (
     <div className="mx-auto" style={{ width: size, height: size }} aria-hidden>
-      <HeroRobot play={play} />
+      {reduce ? <StarFallback /> : <HeroRobot play={play} />}
     </div>
   );
 }
