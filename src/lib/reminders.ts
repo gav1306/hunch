@@ -92,7 +92,9 @@ export function formatHour(hour: number): string {
  * long as the account does, which is what an unsubscribe link should do.
  */
 export function signUnsubscribe(userId: string): string {
-  const secret = process.env.BETTER_AUTH_SECRET ?? "";
+  // An empty key would make every link forgeable from a user id alone.
+  const secret = process.env.BETTER_AUTH_SECRET;
+  if (!secret) throw new Error("BETTER_AUTH_SECRET is not set; can't sign unsubscribe links.");
   return createHmac("sha256", secret).update(`unsubscribe:${userId}`).digest("hex");
 }
 
@@ -102,3 +104,13 @@ export function verifyUnsubscribe(userId: string, token: string): boolean {
   if (token.length !== expected.length) return false;
   return timingSafeEqual(Buffer.from(token, "utf8"), Buffer.from(expected, "utf8"));
 }
+
+/**
+ * Who the hourly sweep considers: reminders switched on, and an address the
+ * user has proved is theirs. Without the second, anyone could sign up with a
+ * stranger's email, start a trial, and have a daily email land in their inbox.
+ */
+export const REMINDER_RECIPIENTS = {
+  reminderHour: { not: null },
+  emailVerified: true,
+} as const;

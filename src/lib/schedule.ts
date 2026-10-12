@@ -129,3 +129,16 @@ export function graceOver(startedAt: Date, design: ProtocolDesign, today: Date):
   const yesterday = new Date(today.getTime() - 86_400_000);
   return currentPhase(startedAt, design, yesterday).done;
 }
+
+/**
+ * The phase's kind as the user reads it. The closing A of an A-B-A trial is a
+ * baseline in kind, but it's a return to the routine rather than the start of
+ * the trial, and calling it "baseline" again reads as if the trial restarted.
+ */
+export function phaseKindLabel(
+  kind: "baseline" | "intervention",
+  phaseIndex: number,
+): "baseline" | "intervention" | "back to baseline" {
+  if (kind === "intervention") return "intervention";
+  return phaseIndex > 0 ? "back to baseline" : "baseline";
+}

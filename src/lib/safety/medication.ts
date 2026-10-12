@@ -28,6 +28,7 @@ const VARIATION = [
   "without my",
   "half dose",
   "halve",
+  "halving",
   "cutting my dose",
   "cut my dose",
   "lower my dose",

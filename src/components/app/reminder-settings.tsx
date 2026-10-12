@@ -7,8 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { formatHour, REMINDER_HOURS } from "@/lib/reminders";
 import { browserZone } from "@/lib/browser-day";
+import { authClient } from "@/lib/auth-client";
 
-type Prefs = { reminderHour: number | null; timeZone: string };
+type Prefs = {
+  reminderHour: number | null;
+  timeZone: string;
+  email?: string;
+  /** Reminders only go to a verified address; false shows how to fix that. */
+  emailVerified?: boolean;
+};
 
 /**
  * When the daily reminder goes out.
@@ -66,6 +73,19 @@ export function ReminderSettings() {
   }
 
   const on = prefs?.reminderHour !== null && prefs !== null;
+  const unverified = prefs?.emailVerified === false;
+
+  async function resendVerification() {
+    if (!prefs?.email) return;
+    setBusy(true);
+    const { error: failed } = await authClient.sendVerificationEmail({
+      email: prefs.email,
+      callbackURL: "/security",
+    });
+    setBusy(false);
+    if (failed) setError(failed.message ?? "Couldn't send the link. Try again.");
+    else toast.success(`Sent a link to ${prefs.email}.`);
+  }
 
   return (
     <div className="max-w-[560px] rounded-lg border border-rule p-[clamp(20px,2.4vw,28px)]">
@@ -85,6 +105,18 @@ export function ReminderSettings() {
             ? `One email a day while a trial is running, with what today asks of you. Sent at ${formatHour(prefs.reminderHour!)} — ${prefs.timeZone}.`
             : "Reminders are off. Nothing will nudge you to log, which on a 14-day trial is usually the difference between a verdict and a shrug."}
       </p>
+
+      {unverified && (
+        <div className="mb-[18px] flex flex-wrap items-center gap-3 rounded-[var(--radius-control)] border border-rule p-3 text-sm leading-relaxed">
+          <p className="m-0 flex-1 text-foreground">
+            Reminders start once you confirm {prefs?.email ?? "your email"}. Check your inbox for
+            the link we sent when you signed up.
+          </p>
+          <Button type="button" variant="brand" size="touch" disabled={busy} onClick={resendVerification}>
+            Send the link again
+          </Button>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-end gap-3">
         <Field className="w-auto">

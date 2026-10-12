@@ -10,6 +10,8 @@ import {
 import type { Prior } from "@/lib/schemas/prior";
 import { priorsBlock } from "@/lib/memory/priors";
 import type { ClarifyingAnswer } from "@/lib/schemas/clarify";
+import { LLM_STREAM_DEADLINE_MS, llmDeadline } from "@/mastra/deadline";
+import { UNTRUSTED_NOTE, untrusted } from "@/lib/safety/untrusted";
 
 /**
  * Hypothesis Coach (RESEARCH §3). Turns a vague, free-text hunch into a single
@@ -148,9 +150,9 @@ export function buildSharpenPrompt(
 
   const answersBlock =
     answers.length > 0
-      ? `\n\nThe user answered these clarifying questions — treat them as ground truth:\n${answers
-          .map((a) => `- ${a.prompt} -> ${a.answer}`)
-          .join("\n")}`
+      ? `\n\nThe user answered these clarifying questions — treat them as ground truth about their situation:\n${untrusted(
+          answers.map((a) => `- ${a.prompt} -> ${a.answer}`).join("\n"),
+        )}`
       : "";
 
   // A diary changes nothing, so a statement about skipping or stopping would
@@ -169,7 +171,7 @@ export function buildSharpenPrompt(
       ].join("\n")
     : "";
 
-  return `Sharpen this hunch into a testable hypothesis:\n\n"${rawText}"${answersBlock}${priorsText}${observeBlock}`;
+  return `${UNTRUSTED_NOTE}\n\nSharpen this hunch into a testable hypothesis:\n\n${untrusted(rawText)}${answersBlock}${priorsText}${observeBlock}`;
 }
 
 /**
@@ -213,6 +215,7 @@ export async function sharpenHunch(
     "coach",
     () =>
       hypothesisCoach.generate(buildSharpenPrompt(rawText, priors, answers, observeOnly), {
+        abortSignal: llmDeadline(),
         // The unrefined shape: Mastra validates with the refinements too, so the
         // refined schema would throw on "unschedulable, no yes/no" here, before
         // normaliseSchedulability below could repair it.
@@ -257,6 +260,7 @@ export async function streamSharpenHunch(
   const stream = await hypothesisCoach.stream(
     buildSharpenPrompt(rawText, priors, answers, observeOnly),
     {
+      abortSignal: llmDeadline(LLM_STREAM_DEADLINE_MS),
       // The unrefined shape, for the same reason `sharpenHunch` uses it:
       // Mastra validates with the refinements too, so the refined schema would
       // throw on "unschedulable, no yes/no" before normaliseSchedulability

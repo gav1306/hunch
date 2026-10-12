@@ -2,9 +2,11 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { timed, withTiming } from "@/lib/timing";
 import { getSession } from "@/lib/session";
+import { spendAiCall } from "@/lib/ai-quota";
 import { db } from "@/lib/db";
 import { normalizeScale, pickExposure, toParameterDto } from "@/lib/parameters";
 import { parameterListSchema } from "@/lib/schemas/parameter";
+import { MEDICATION_REFUSAL, medicationIntent } from "@/lib/safety/medication";
 import { designProtocol, resolveSafetyState } from "@/mastra/workflows/design";
 import { designFingerprint, designInputFor } from "@/lib/design-draft/fingerprint";
 import { takeDraft } from "@/lib/design-draft/take";
@@ -50,6 +52,24 @@ async function designHunch(
   if (!hunch.hypothesis || hunch.status === "draft") {
     return NextResponse.json(
       { error: "Sharpen this hunch into a hypothesis first." },
+      { status: 409 },
+    );
+  }
+  // The create route skips this check for `observeOnly`, because a log schedules
+  // nothing. This route is where a schedule gets made, so the check runs again
+  // here — otherwise a hunch created as a log is one POST from a medication trial.
+  if (medicationIntent(hunch.rawText ?? "")) {
+    return NextResponse.json(
+      { blocked: "medication", error: MEDICATION_REFUSAL },
+      { status: 422 },
+    );
+  }
+  // A refusal is final for this hunch. The reviewer is a model, so a redesign
+  // could draw a different verdict for the same plan. A kept log is where a
+  // refusal leads, so designing from one would undo the refusal by another road.
+  if (hunch.protocol?.safetyState === "refused" || hunch.protocol?.safetyState === "observe-only") {
+    return NextResponse.json(
+      { error: "This hunch can't be redesigned into a trial. Start a new hunch to test something else." },
       { status: 409 },
     );
   }
@@ -108,6 +128,10 @@ async function designHunch(
       { status: 400 },
     );
   }
+
+  // Counted after every free refusal above, so a turned-down request costs nothing.
+  const overQuota = await spendAiCall(session.user.id);
+  if (overQuota) return overQuota;
 
   try {
     // The same builder `predesign` uses, so a background design of these exact

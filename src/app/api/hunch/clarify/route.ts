@@ -2,6 +2,8 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { withTiming } from "@/lib/timing";
 import { getSession } from "@/lib/session";
+import { hunchRequestError } from "@/lib/schemas/request-error";
+import { spendAiCall } from "@/lib/ai-quota";
 import { recallPriorsForReuse } from "@/lib/memory/recall";
 import { hunchInputSchema } from "@/lib/schemas/hypothesis";
 import { askClarifying } from "@/mastra/agents/clarifier";
@@ -18,9 +20,9 @@ async function clarify(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const parsed = hunchInputSchema.safeParse(await request.json());
+  const parsed = hunchInputSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ error: "A hunch can't be empty." }, { status: 400 });
+    return NextResponse.json({ error: hunchRequestError(parsed.error) }, { status: 400 });
   }
 
   // This is the true first touch — the form asks for questions before it asks
@@ -32,6 +34,10 @@ async function clarify(request: Request) {
       { status: 422 },
     );
   }
+
+  // Counted after every free refusal above, so a turned-down request costs nothing.
+  const overQuota = await spendAiCall(session.user.id);
+  if (overQuota) return overQuota;
 
   try {
     // priorIds go back so sharpen can reuse this recall rather than repeat it;

@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  REMINDER_RECIPIENTS,
   isReminderDue,
   localDateIn,
   localHourIn,
@@ -95,6 +96,9 @@ describe("isReminderDue", () => {
 });
 
 describe("unsubscribe tokens", () => {
+  beforeEach(() => vi.stubEnv("BETTER_AUTH_SECRET", "test-secret"));
+  afterEach(() => vi.unstubAllEnvs());
+
   it("round-trips for the user it was signed for", () => {
     const token = signUnsubscribe("user_123");
     expect(verifyUnsubscribe("user_123", token)).toBe(true);
@@ -109,5 +113,22 @@ describe("unsubscribe tokens", () => {
     expect(verifyUnsubscribe("user_123", "deadbeef")).toBe(false);
     const token = signUnsubscribe("user_123");
     expect(verifyUnsubscribe("user_123", token.slice(0, -1) + "0")).toBe(false);
+  });
+});
+
+describe("REMINDER_RECIPIENTS", () => {
+  it("only emails addresses the user has verified", () => {
+    // Otherwise anyone can sign up with someone else's address and start a
+    // trial, and the daily email lands in a stranger's inbox.
+    expect(REMINDER_RECIPIENTS).toMatchObject({ emailVerified: true, reminderHour: { not: null } });
+  });
+});
+
+describe("signUnsubscribe without a secret", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("refuses to sign rather than sign with an empty key anyone could reproduce", () => {
+    vi.stubEnv("BETTER_AUTH_SECRET", "");
+    expect(() => signUnsubscribe("u1")).toThrow(/BETTER_AUTH_SECRET/);
   });
 });

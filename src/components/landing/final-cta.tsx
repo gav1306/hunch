@@ -178,6 +178,12 @@ export function FinalCta() {
           <a href="#verdict" className="hl-navlink">
             The reveal
           </a>
+          <Link href="/privacy" className="hl-navlink">
+            Privacy
+          </Link>
+          <Link href="/terms" className="hl-navlink">
+            Terms
+          </Link>
         </div>
         <div>© hunch · AI talks, the math decides</div>
       </footer>

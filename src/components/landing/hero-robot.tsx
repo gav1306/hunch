@@ -2,7 +2,7 @@
 
 import { Environment, Lightformer, RoundedBox } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { PALETTES } from "./palette";
 
@@ -213,25 +213,41 @@ export function HeroRobot({
   play?: boolean;
   gaze?: Gaze;
 }) {
+  // The robot idles forever (bob, breathe, blink), so the loop can't go on
+  // demand without freezing it. What it can do is stop while nobody can see
+  // it: scrolled past on the landing, or below the fold on home.
+  const box = useRef<HTMLDivElement>(null);
+  const [onScreen, setOnScreen] = useState(true);
+  useEffect(() => {
+    const el = box.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(([entry]) => setOnScreen(entry.isIntersecting));
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
   return (
-    <Canvas
-      dpr={[1, 2]}
-      camera={{ position: [0, 0, 5], fov: 40 }}
-      gl={{ antialias: true, alpha: true }}
-      style={{ width: "100%", height: "100%", background: "transparent" }}
-    >
-      <ambientLight intensity={0.55} />
-      <directionalLight position={[3, 4, 5]} intensity={1.5} />
-      <directionalLight position={[-4, 1, 2]} intensity={0.5} color={S2} />
+    <div ref={box} style={{ width: "100%", height: "100%" }}>
+      <Canvas
+        frameloop={onScreen ? "always" : "never"}
+        dpr={[1, 2]}
+        camera={{ position: [0, 0, 5], fov: 40 }}
+        gl={{ antialias: true, alpha: true }}
+        style={{ width: "100%", height: "100%", background: "transparent" }}
+      >
+        <ambientLight intensity={0.55} />
+        <directionalLight position={[3, 4, 5]} intensity={1.5} />
+        <directionalLight position={[-4, 1, 2]} intensity={0.5} color={S2} />
 
-      <Robot play={play} gaze={gaze} />
+        <Robot play={play} gaze={gaze} />
 
-      {/* self-contained reflections — no remote HDR fetch */}
-      <Environment resolution={128}>
-        <Lightformer form="rect" intensity={2.2} position={[2, 3, 4]} scale={6} color="#ffffff" />
-        <Lightformer form="rect" intensity={1.4} position={[-3, 1, 3]} scale={5} color={S2} />
-        <Lightformer form="circle" intensity={1.2} position={[0, -2, 3]} scale={4} color={S1} />
-      </Environment>
-    </Canvas>
+        {/* self-contained reflections — no remote HDR fetch */}
+        <Environment resolution={128}>
+          <Lightformer form="rect" intensity={2.2} position={[2, 3, 4]} scale={6} color="#ffffff" />
+          <Lightformer form="rect" intensity={1.4} position={[-3, 1, 3]} scale={5} color={S2} />
+          <Lightformer form="circle" intensity={1.2} position={[0, -2, 3]} scale={4} color={S1} />
+        </Environment>
+      </Canvas>
+    </div>
   );
 }

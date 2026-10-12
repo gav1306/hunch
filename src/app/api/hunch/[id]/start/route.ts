@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { canRun } from "@/lib/schemas/protocol";
+import { medicationIntent } from "@/lib/safety/medication";
 import { getSession } from "@/lib/session";
 import { startDateFor } from "@/lib/schedule";
 import { knownZone, localToday } from "@/lib/zone";
@@ -57,6 +58,14 @@ export async function POST(
   if (!canRun(hunch.protocol.safetyState)) {
     return NextResponse.json(
       { error: "This plan hasn't cleared its safety review." },
+      { status: 409 },
+    );
+  }
+  // Last line of defence for a plan designed before the protocol route checked
+  // medication. A log changes nothing, so it may still start.
+  if (hunch.protocol.safetyState !== "observe-only" && medicationIntent(hunch.rawText ?? "")) {
+    return NextResponse.json(
+      { error: "This plan changes medication, so it can't run as a trial. Talk to your doctor." },
       { status: 409 },
     );
   }

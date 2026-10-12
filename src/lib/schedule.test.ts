@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentPhase, graceOver, startDateFor } from "@/lib/schedule";
+import { phaseKindLabel, currentPhase, graceOver, startDateFor } from "@/lib/schedule";
 import type { ProtocolDesign } from "@/lib/schemas/protocol";
 
 // ABA, 3 days per phase, 1 washout day between phases.
@@ -182,5 +182,18 @@ describe("graceOver", () => {
   it("is true from the day after the grace day", () => {
     expect(graceOver(start, design, day(12))).toBe(true);
     expect(graceOver(start, design, day(40))).toBe(true);
+  });
+});
+
+describe("phaseKindLabel", () => {
+  it("names the opening baseline and the change plainly", () => {
+    expect(phaseKindLabel("baseline", 0)).toBe("baseline");
+    expect(phaseKindLabel("intervention", 1)).toBe("intervention");
+  });
+
+  it("calls the closing A phase a return, not the baseline again", () => {
+    // Day 17 of an A-B-A trial read "BASELINE" while the plan said "Back to
+    // normal evenings", which looks like the trial went back to the start.
+    expect(phaseKindLabel("baseline", 2)).toBe("back to baseline");
   });
 });
