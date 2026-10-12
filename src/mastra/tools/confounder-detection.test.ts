@@ -33,3 +33,16 @@ describe("detectConfounders", () => {
     expect(out.every((c) => c.expectedDirection === "unknown")).toBe(true);
   });
 });
+
+describe("detectConfounders — fallback wording", () => {
+  it("reads as a sentence, without the name in literal quotes", () => {
+    const [c] = detectConfounders(["What I ate"]);
+    expect(c.control).not.toContain('"');
+    expect(c.control).toContain("what I ate");
+  });
+
+  it("keeps an acronym's capitals", () => {
+    const [c] = detectConfounders(["UV exposure"]);
+    expect(c.control).toContain("UV exposure");
+  });
+});

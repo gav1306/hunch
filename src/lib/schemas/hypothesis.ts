@@ -1,11 +1,12 @@
 import { z } from "zod";
 import { trackerSchema } from "@/lib/schemas/parameter";
+import { hunchTextSchema } from "@/lib/schemas/clarify";
 
 /**
  * Free-text "hunch" the user drops in. The starting point of the core loop.
  */
 export const hunchInputSchema = z.object({
-  rawText: z.string().trim().min(1, "A hunch can't be empty."),
+  rawText: hunchTextSchema,
 });
 
 export type HunchInput = z.infer<typeof hunchInputSchema>;

@@ -21,17 +21,23 @@ export type ParameterType = z.infer<typeof parameterTypeSchema>;
 export const SCALE_MIN = 1;
 export const SCALE_MAX = 5;
 
+/** The largest reading accepted for any parameter, either side of zero. */
+export const MAX_READING = 1_000_000;
+
+/** Longest tracker label: it has to fit a check-in row on a phone. */
+export const MAX_LABEL_CHARS = 80;
+
 /**
  * A co-variable the Coach proposes alongside the primary outcome — the
  * "alternative parameters or symptoms" the user logs daily for context.
  */
 export const trackerSchema = z.object({
-  label: z.string().trim().min(1),
+  label: z.string().trim().min(1).max(MAX_LABEL_CHARS),
   type: parameterTypeSchema,
   /** Display unit, e.g. "hrs", "1-10". */
-  unit: z.string().trim().min(1).optional(),
-  min: z.number().optional(),
-  max: z.number().optional(),
+  unit: z.string().trim().min(1).max(24).optional(),
+  min: z.number().min(-MAX_READING).max(MAX_READING).optional(),
+  max: z.number().min(-MAX_READING).max(MAX_READING).optional(),
 });
 export type Tracker = z.infer<typeof trackerSchema>;
 
@@ -84,7 +90,10 @@ export const MAX_ACTIVE_PARAMETERS = 5;
  * deliberately without `isPrimary`: a running trial already has a primary, and
  * it is frozen for the length of the trial.
  */
-export const trackerAddSchema = trackerSchema;
+export const trackerAddSchema = trackerSchema.refine(
+  (t) => t.min == null || t.max == null || t.min < t.max,
+  { message: "The minimum has to be below the maximum.", path: ["max"] },
+);
 
 /** A persisted parameter, as the API hands it to the client. */
 export const parameterSchema = parameterDraftSchema.extend({
@@ -106,7 +115,10 @@ export type Parameter = z.infer<typeof parameterSchema>;
 export const checkInValuesInputSchema = z.object({
   values: z
     .array(z.object({ parameterId: z.string().min(1), value: z.number() }))
-    .min(1),
+    .min(1)
+    // A trial has at most five parameters, so a longer list is a malformed or
+    // crafted request — each entry would otherwise be its own upsert.
+    .max(20),
   /**
    * The day being logged, when it isn't today. Sent as an ISO date by the
    * adherence strip when the user corrects an entry they got wrong or filled in
@@ -132,6 +144,9 @@ export function validateParameterValue(
   value: number,
 ): string | null {
   if (!Number.isFinite(value)) return `${param.label} needs a number.`;
+  // No daily reading is this large; it is a typo or a crafted request, and one
+  // of them is enough to swamp a trial's mean.
+  if (Math.abs(value) > MAX_READING) return `${param.label} looks too large — check the number.`;
 
   if (param.type === "binary") {
     return value === 0 || value === 1 ? null : `${param.label} is a yes/no — log 1 or 0.`;
@@ -149,6 +164,13 @@ export function validateParameterValue(
   if (param.type === "count") {
     if (!Number.isInteger(value)) return `${param.label} is a whole number.`;
     if (value < 0) return `${param.label} can't be negative.`;
+  }
+
+  // Minutes, hours, millilitres: an amount is a quantity, and a negative one is
+  // a typo that would land in the verdict. A row that genuinely runs below zero
+  // (a temperature) says so with its own minimum.
+  if (param.type === "amount" && param.min == null && value < 0) {
+    return `${param.label} can't be negative.`;
   }
 
   if (param.min != null && value < param.min) {

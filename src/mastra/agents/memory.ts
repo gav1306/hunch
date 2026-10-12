@@ -3,6 +3,7 @@ import { fastModel } from "@/mastra/model";
 import { llmUsage, timed } from "@/lib/timing";
 import type { CausalEdge } from "@/generated/prisma/client";
 import { recallResultSchema, type RecallResult } from "@/lib/schemas/prior";
+import { llmDeadline } from "@/mastra/deadline";
 
 /**
  * Memory agent (RESEARCH §5 / Phase 6). Given a new hunch and a small set of the
@@ -51,6 +52,7 @@ Return the ids of the findings genuinely related to this new hunch.`;
     "recall",
     () =>
       memory.generate(prompt, {
+        abortSignal: llmDeadline(),
         structuredOutput: { schema: recallResultSchema },
         modelSettings: { maxOutputTokens: 1024 },
       }),

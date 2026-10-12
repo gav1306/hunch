@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
+vi.mock("@/lib/ai-quota", () => ({ spendAiCall: vi.fn(async () => null) }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 vi.mock("next/server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/server")>()),
@@ -15,10 +16,11 @@ vi.mock("@/mastra/agents/hypothesis-coach", () => ({
 }));
 vi.mock("@/lib/design-draft/predesign", () => ({ predesign: vi.fn() }));
 vi.mock("@/lib/db", () => ({
-  db: { hunch: { create: vi.fn() } },
+  db: { hunch: { create: vi.fn(), findFirst: vi.fn(async () => null) } },
 }));
 
 import { POST } from "./route";
+import { spendAiCall } from "@/lib/ai-quota";
 import { after } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -455,5 +457,110 @@ describe("POST /api/hunch", () => {
     const names = parseServerTiming(res.headers.get("Server-Timing")).map((s) => s.name);
     expect(names).toContain("total");
     expect(names).not.toContain("coach");
+  });
+});
+
+const overQuota = () =>
+  vi.mocked(spendAiCall).mockResolvedValueOnce(
+    Response.json({ error: "limit" }, { status: 429 }) as never,
+  );
+
+describe("POST /api/hunch — daily AI limit", () => {
+  it("answers 429 and saves nothing once the user is over the limit", async () => {
+    vi.clearAllMocks();
+    vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "u1" } } as never);
+    overQuota();
+    const res = await POST(req({ rawText: "coffee wrecks sleep" }));
+    expect(res.status).toBe(429);
+    expect(streamSharpenHunch).not.toHaveBeenCalled();
+    expect(db.hunch.create).not.toHaveBeenCalled();
+  });
+
+  it("spends nothing on a hunch it refuses", async () => {
+    vi.clearAllMocks();
+    vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "u1" } } as never);
+    await POST(req({ rawText: "do I sleep better if I skip my antidepressant" }));
+    expect(spendAiCall).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/hunch — malformed body", () => {
+  it("answers 400, not 500", async () => {
+    vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "u1" } } as never);
+    const res = await POST(new Request("http://t/api/hunch", { method: "POST", body: "{not json" }));
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /api/hunch — a hunch that's too long", () => {
+  it("says it's too long, not that it's empty", async () => {
+    vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "u1" } } as never);
+    const res = await POST(req({ rawText: "x".repeat(1001) }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/shorter/i);
+  });
+});
+
+describe("POST /api/hunch — repeated requests", () => {
+  const sharpened = {
+    statement: "Coffee after lunch makes me sleep worse.",
+    outcomeMetric: "hours of sleep",
+    outcomeType: "continuous",
+    subject: "self",
+    confounders: [],
+    trackers: [],
+    schedulable: true,
+  };
+  const KEY = "3f1c2b9e-1d2a-4c55-9a8e-0b6d7c5e4f21";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "u1" } } as never);
+    vi.mocked(db.hunch.findFirst).mockResolvedValue(null);
+  });
+
+  it("returns the hunch already saved under this key instead of creating another", async () => {
+    // A reload mid-sharpen still saved the first one; the restored draft then
+    // sends the same text and key again.
+    vi.mocked(db.hunch.findFirst).mockResolvedValue({
+      id: "h1",
+      rawText: "coffee wrecks sleep",
+      hypothesis: { statement: sharpened.statement },
+      parameters: [],
+    } as never);
+
+    const res = await POST(req({ rawText: "coffee wrecks sleep", clientKey: KEY }));
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).hunch.id).toBe("h1");
+    expect(vi.mocked(db.hunch.findFirst).mock.calls[0][0]).toMatchObject({
+      where: { userId: "u1", clientKey: KEY },
+    });
+    expect(streamSharpenHunch).not.toHaveBeenCalled();
+    expect(db.hunch.create).not.toHaveBeenCalled();
+  });
+
+  it("saves the key with a new hunch", async () => {
+    coachStreams(sharpened);
+    vi.mocked(db.hunch.create).mockResolvedValue({ id: "h2", hypothesis: {}, parameters: [] } as never);
+
+    await lines(await POST(req({ rawText: "coffee wrecks sleep", clientKey: KEY })));
+
+    const arg = vi.mocked(db.hunch.create).mock.calls[0][0] as { data: { clientKey?: string } };
+    expect(arg.data.clientKey).toBe(KEY);
+  });
+
+  it("hands back the winner when two requests with one key race to save", async () => {
+    coachStreams(sharpened);
+    vi.mocked(db.hunch.create).mockRejectedValue(
+      Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+    );
+    vi.mocked(db.hunch.findFirst)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "h1", hypothesis: {}, parameters: [] } as never);
+
+    const got = await lines(await POST(req({ rawText: "coffee wrecks sleep", clientKey: KEY })));
+
+    expect(got.at(-1)?.done?.hunch?.id).toBe("h1");
   });
 });

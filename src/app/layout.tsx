@@ -2,13 +2,30 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Toaster } from "@/components/ui/sonner";
+import { siteUrl } from "@/lib/site-url";
+
+const DESCRIPTION =
+  "Turn a gut feeling about yourself into a small experiment, and get a verdict from your own data.";
 
 export const metadata: Metadata = {
+  metadataBase: siteUrl(),
   title: {
     default: "Hunch",
     template: "%s · hunch",
   },
-  description: "A copilot for n-of-1 experiments on yourself.",
+  description: DESCRIPTION,
+  // The image comes from app/opengraph-image.tsx; Next fills it in for both.
+  openGraph: {
+    type: "website",
+    siteName: "Hunch",
+    title: "Hunch — got a hunch? Prove it.",
+    description: DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Hunch — got a hunch? Prove it.",
+    description: DESCRIPTION,
+  },
 };
 
 /**
@@ -26,7 +43,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark h-full antialiased">
+    // suppressHydrationWarning: the landing's intro gate (intro-gate.ts) may
+    // set an attribute on <html> before React hydrates it.
+    <html lang="en" className="dark h-full antialiased" suppressHydrationWarning>
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
         {/* One toaster for the app, mounted once at the root: a security

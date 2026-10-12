@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useClarify } from "@/hooks/use-clarify";
 import { BlockedHunchError, useCreateHunch, type PartialHypothesis } from "@/hooks/use-create-hunch";
 import type { HunchInfo } from "@/hooks/use-hunch-info";
-import type { ClarifyingAnswer, ClarifyingQuestion } from "@/lib/schemas/clarify";
+import { MAX_HUNCH_CHARS, type ClarifyingAnswer, type ClarifyingQuestion } from "@/lib/schemas/clarify";
 import { PencilIcon } from "lucide-react";
 import { CoachColumn, type CoachStep } from "@/components/hunch/coach-column";
 import { Button } from "@/components/ui/button";
@@ -301,6 +301,7 @@ export function NewHunchForm({
                 setNudge(null);
               }}
               rows={3}
+              maxLength={MAX_HUNCH_CHARS}
               autoFocus
               disabled={step === "asking" || busy}
               placeholder="coffee after lunch wrecks my sleep…"

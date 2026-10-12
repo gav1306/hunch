@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
+vi.mock("@/lib/ai-quota", () => ({ spendAiCall: vi.fn(async () => null) }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 vi.mock("next/server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/server")>()),
@@ -27,6 +28,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 import { POST } from "./route";
+import { spendAiCall } from "@/lib/ai-quota";
 import { after } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -257,6 +259,26 @@ describe("POST /api/hunch/[id]/sharpen", () => {
 
     expect(res.status).toBe(400);
     expect(res.headers.get("Content-Type")).toContain("application/json");
+    expect(streamSharpenHunch).not.toHaveBeenCalled();
+  });
+});
+
+const overQuota = () =>
+  vi.mocked(spendAiCall).mockResolvedValueOnce(
+    Response.json({ error: "limit" }, { status: 429 }) as never,
+  );
+
+describe("POST /api/hunch/[id]/sharpen — daily AI limit", () => {
+  it("answers 429 and asks the coach nothing once the user is over the limit", async () => {
+    vi.clearAllMocks();
+    vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "u1" } } as never);
+    vi.mocked(db.hunch.findFirst).mockResolvedValue({ id: "h1", protocol: null, _count: { checkIns: 0 } } as never);
+    overQuota();
+    const res = await POST(
+      new Request("http://t/api/hunch/h1/sharpen", { method: "POST", body: JSON.stringify({ rawText: "coffee wrecks sleep" }) }),
+      { params: Promise.resolve({ id: "h1" }) },
+    );
+    expect(res.status).toBe(429);
     expect(streamSharpenHunch).not.toHaveBeenCalled();
   });
 });

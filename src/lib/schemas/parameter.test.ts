@@ -9,6 +9,11 @@ import {
 } from "@/lib/schemas/parameter";
 
 describe("trackerSchema", () => {
+  test("refuses bounds no reading could reach", () => {
+    expect(trackerSchema.safeParse({ label: "x", type: "amount", min: -1e9 }).success).toBe(false);
+    expect(trackerSchema.safeParse({ label: "x", type: "amount", min: -40, max: 50 }).success).toBe(true);
+  });
+
   test("accepts a bounded scale tracker", () => {
     const r = trackerSchema.safeParse({
       label: "stress",
@@ -154,8 +159,24 @@ describe("validateParameterValue", () => {
     expect(msg).toContain("focus");
   });
 
-  test("accepts any finite number when unbounded", () => {
-    expect(validateParameterValue({ label: "hrs", type: "amount" }, -3.5)).toBeNull();
+  test("accepts any non-negative number when unbounded", () => {
+    expect(validateParameterValue({ label: "hrs", type: "amount" }, 3.5)).toBeNull();
+    expect(validateParameterValue({ label: "hrs", type: "amount" }, 0)).toBeNull();
+  });
+
+  test("rejects a negative amount when no minimum allows one", () => {
+    // "-5 minutes to fall asleep" was logged and fed straight into the verdict.
+    const msg = validateParameterValue({ label: "minutes to fall asleep", type: "amount" }, -5);
+    expect(msg).toContain("negative");
+  });
+
+  test("accepts a negative amount when the row's own minimum allows it", () => {
+    const temp = { label: "outdoor temperature", type: "amount" as const, min: -40 };
+    expect(validateParameterValue(temp, -5)).toBeNull();
+  });
+
+  test("rejects an absurdly large reading", () => {
+    expect(validateParameterValue({ label: "hrs", type: "amount" }, 1e12)).not.toBeNull();
   });
 
   test("rejects a non-finite number", () => {
