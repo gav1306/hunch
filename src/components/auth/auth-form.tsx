@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useActionState, useState } from "react";
+import { continueWithGoogle } from "@/app/(auth)/actions";
 import { useAuthGaze } from "@/components/auth/auth-gaze";
 import { signIn, signUp } from "@/lib/auth-client";
 import { ArrowRightIcon } from "lucide-react";
@@ -50,6 +51,34 @@ function GoogleMark() {
       <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
       <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" />
     </svg>
+  );
+}
+
+/**
+ * "Continue with Google" as a form posting a server action, so a click before
+ * hydration is queued rather than lost. Orange text on the outlined button
+ * keeps it apart from the cream "Sign in" below it.
+ */
+function GoogleButton({ disabled }: { disabled: boolean }) {
+  const [state, action, pending] = useActionState(continueWithGoogle, { error: null });
+  return (
+    <form action={action}>
+      <Button
+        type="submit"
+        variant="brand"
+        size="touch"
+        disabled={disabled || pending}
+        className="w-full gap-2.5 py-4 text-[13px] tracking-[0.14em] text-s1"
+      >
+        <GoogleMark />
+        {pending ? "One moment…" : "Continue with Google"}
+      </Button>
+      {state.error && (
+        <p role="alert" className="mt-2 text-xs text-destructive">
+          {state.error}
+        </p>
+      )}
+    </form>
   );
 }
 
@@ -134,26 +163,7 @@ export function AuthForm({ mode, google = false }: { mode: Mode; google?: boolea
 
       {google && (
         <>
-          <Button
-            type="button"
-            variant="brand"
-            size="touch"
-            disabled={loading}
-            className="w-full gap-2.5 py-4 text-[13px] tracking-[0.14em]"
-            onClick={async () => {
-              setError(null);
-              setLoading(true);
-              // Navigates away to Google; only a failure to start comes back here.
-              const res = await signIn.social({ provider: "google", callbackURL: REDIRECT });
-              if (res?.error) {
-                setLoading(false);
-                setError(res.error.message ?? "Couldn't reach Google. Try again.");
-              }
-            }}
-          >
-            <GoogleMark />
-            Continue with Google
-          </Button>
+          <GoogleButton disabled={loading} />
           <div className="my-5 flex items-center gap-3 text-xs tracking-[0.16em] text-muted-foreground uppercase">
             <span aria-hidden className="h-px flex-1 bg-rule" />
             or with email
